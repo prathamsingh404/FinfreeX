@@ -1,0 +1,24 @@
+{
+  "name": "PortAI Financial Intelligence",
+  "short_name": "PortAI",
+  "description": "AI-powered institutional-grade financial analysis desk for retail investors.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050508",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://placehold.co/192x192/4f46e5/ffffff?text=PortAI",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://placehold.co/512x512/4f46e5/ffffff?text=PortAI",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ]
+}
