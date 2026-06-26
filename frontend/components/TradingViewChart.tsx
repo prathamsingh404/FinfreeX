@@ -1,4 +1,3 @@
-// PortAI: Staging step 1
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
