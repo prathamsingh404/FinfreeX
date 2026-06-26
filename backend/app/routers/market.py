@@ -1,4 +1,3 @@
-# PortAI: Staging step 1
 from fastapi import APIRouter, HTTPException
 from app.services.market_data import get_quote, get_fundamentals, get_indices, get_top_movers
 from app.services.technical_service import compute_indicators
