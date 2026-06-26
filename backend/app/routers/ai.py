@@ -1,4 +1,3 @@
-# PortAI: Staging step 1
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
