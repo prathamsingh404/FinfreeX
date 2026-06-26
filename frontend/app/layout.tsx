@@ -16,6 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
+        <link rel="manifest" href="/manifest.json" />
         <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
         {/* UnicornStudio Script */}
         <script src="https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@v1.4.34/dist/unicornStudio.umd.js" async={true}></script>
@@ -68,12 +69,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         </AuthProvider>
         
-        {/* Init UnicornStudio wrapper script */}
+        {/* Init PWA Service Worker + UnicornStudio */}
         <script dangerouslySetInnerHTML={{ __html: `
           window.addEventListener('load', function() {
             if (window.UnicornStudio && !window.UnicornStudio.isInitialized) {
               window.UnicornStudio.init();
               window.UnicornStudio.isInitialized = true;
+            }
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                console.log('PWA Service Worker registered:', reg.scope);
+              }).catch(function(err) {
+                console.warn('PWA Service Worker registration failed:', err);
+              });
             }
           });
         `}} />
