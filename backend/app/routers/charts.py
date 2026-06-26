@@ -1,4 +1,3 @@
-# PortAI: Staging step 1
 from fastapi import APIRouter
 from app.services.market_data import get_ohlcv
 
