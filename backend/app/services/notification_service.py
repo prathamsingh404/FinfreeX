@@ -1,4 +1,3 @@
-# PortAI: Staging step 1
 import httpx
 from app.db.client import get_supabase_client
 from app.config import get_settings
