@@ -1,4 +1,4 @@
-# PortAI — Institutional-Grade Financial Intelligence (Made with ❤️ by HarSheet Dwivedi)
+# PortAI — Institutional-Grade Financial Intelligence 
 
 [![Stack](https://img.shields.io/badge/Stack-FastAPI_%7C_Next.js_%7C_LangGraph-blueviolet?style=for-the-badge)]()
 [![AI](https://img.shields.io/badge/AI-Multi--Agent_%7C_15%2B_Personas-blue?style=for-the-badge)]()
@@ -371,18 +371,6 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ```
 
 ---
-
-## Team
-
-Built with passion for Indian retail investors by:
-
-| Name | Contribution |
-|---|---|
-| **HarSheet Dwivedi** | Lead Architect & AI Systems Developer |
-| **Avi Shukla** | Full Stack & AI Systems |
-| **Chittransh Sharma** | Backend & Data Engineering |
-| **Pratham Singh Shaurya** | Frontend & UI/UX |
-| **Nakul Falswal** | Quant Research & Analytics |
 
 ---
 
