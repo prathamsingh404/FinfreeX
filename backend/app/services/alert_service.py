@@ -1,4 +1,3 @@
-# PortAI: Staging step 1
 from app.db.client import get_supabase_client
 from app.services.market_data import get_quote
 from app.services.notification_service import send_telegram_alert
