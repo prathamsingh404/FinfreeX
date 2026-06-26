@@ -1,4 +1,3 @@
-# PortAI: Staging step 1
 from fastapi import Header, HTTPException, Depends
 from app.db.client import get_supabase_client
 from supabase import Client
