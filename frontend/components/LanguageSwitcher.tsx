@@ -102,7 +102,9 @@ export default function LanguageSwitcher() {
     switchLang(code);
   }, [current]);
 
-  const active = LANGUAGES.find(l => l.code === current) ?? LANGUAGES[0];
+  const active = mounted 
+    ? (LANGUAGES.find(l => l.code === current) ?? LANGUAGES[0]) 
+    : LANGUAGES[0];
 
   const dropdown = open && dropPos && mounted ? createPortal(
     <div
