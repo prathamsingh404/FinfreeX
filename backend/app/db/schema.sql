@@ -1,4 +1,3 @@
--- PortAI: Staging step 1
 -- Users are auto-created by Supabase Auth. Extend with profile:
 CREATE TABLE IF NOT EXISTS user_profiles (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
