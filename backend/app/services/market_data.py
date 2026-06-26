@@ -1,4 +1,3 @@
-# PortAI: Staging step 1
 import yfinance as yf
 import pandas as pd
 from typing import Optional
