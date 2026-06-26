@@ -1,4 +1,3 @@
-# PortAI: Staging step 1
 from fastapi import APIRouter, HTTPException
 from app.services.nse_service import generate_option_chain
 
