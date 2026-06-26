@@ -1,4 +1,3 @@
-# PortAI: Staging step 1
 from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
 from typing import Optional
