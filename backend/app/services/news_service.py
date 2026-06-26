@@ -1,4 +1,3 @@
-# PortAI: Staging step 1
 import feedparser
 import httpx
 from datetime import datetime
