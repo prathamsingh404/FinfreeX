@@ -1,4 +1,3 @@
-# PortAI: Staging step 1
 import pandas as pd
 import ta
 from app.services.market_data import get_ohlcv
