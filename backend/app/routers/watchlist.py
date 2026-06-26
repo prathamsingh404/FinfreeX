@@ -1,4 +1,3 @@
-# PortAI: Staging step 1
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from app.db.client import get_supabase_client
