@@ -1,4 +1,3 @@
-# PortAI: Staging step 1
 import os
 from app.config import get_settings
 from langchain_core.language_models import BaseChatModel
