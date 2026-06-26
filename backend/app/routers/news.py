@@ -1,4 +1,3 @@
-# PortAI: Staging step 1
 from fastapi import APIRouter
 from app.services.news_service import get_aggregated_news
 
