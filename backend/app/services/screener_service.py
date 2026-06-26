@@ -1,4 +1,3 @@
-# PortAI: Staging step 1
 import yfinance as yf
 import asyncio
 from typing import Optional
