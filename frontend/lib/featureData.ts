@@ -373,6 +373,40 @@ export function getScreener() {
   })
 }
 
+/* ---------- Price Alerts ---------- */
+export interface Alert {
+  id: string
+  symbol: string
+  condition: 'above' | 'below'
+  target: number
+  current: number
+  status: 'active' | 'triggered' | 'paused'
+  created: string
+}
+
+export function getAlerts(): Alert[] {
+  const seed: { symbol: string; condition: 'above' | 'below'; target: number; status: Alert['status']; created: string }[] = [
+    { symbol: 'RELIANCE', condition: 'above', target: 2600, status: 'active', created: '2d ago' },
+    { symbol: 'TCS', condition: 'below', target: 3800, status: 'active', created: '4d ago' },
+    { symbol: 'HDFCBANK', condition: 'above', target: 1750, status: 'triggered', created: '1w ago' },
+    { symbol: 'INFY', condition: 'below', target: 1450, status: 'active', created: '5h ago' },
+    { symbol: 'ICICIBANK', condition: 'above', target: 1200, status: 'paused', created: '3w ago' },
+  ]
+  return seed.map((s, i) => {
+    const r = rng('alert-' + s.symbol)
+    const drift = s.condition === 'above' ? 0.96 : 1.05
+    return {
+      id: `a-${i}`,
+      symbol: s.symbol,
+      condition: s.condition,
+      target: s.target,
+      current: +(s.target * drift * (1 + range(r, -0.01, 0.01))).toFixed(2),
+      status: s.status,
+      created: s.created,
+    }
+  })
+}
+
 /* ---------- Backtest result ---------- */
 export function getBacktest() {
   const equity = getSparkline('backtest', 80).map((v, i) => +(100000 * (1 + i * 0.008) * (1 + v / 400)).toFixed(0))
