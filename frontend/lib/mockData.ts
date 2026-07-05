@@ -65,6 +65,7 @@ export interface MockIndex {
 
 export interface Candle {
   time: number
+  date: string
   open: number
   high: number
   low: number
@@ -189,6 +190,7 @@ export function getCandles(symbol: string, count = 90): Candle[] {
     const low = Math.min(open, close) - r() * vol
     candles.push({
       time: Math.floor((now - i * 86400000) / 1000),
+      date: new Date(now - i * 86400000).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
       open: +open.toFixed(2),
       high: +high.toFixed(2),
       low: +Math.max(1, low).toFixed(2),

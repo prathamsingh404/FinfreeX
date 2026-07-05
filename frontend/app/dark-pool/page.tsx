@@ -1,35 +1,36 @@
-import React from 'react';
+'use client'
+import PageShell from '@/components/PageShell'
+import { Card, Badge, fmt } from '@/components/ui/kit'
+import { DataTable, Column } from '@/components/ui/DataTable'
+import { getDarkPool } from '@/lib/featureData'
+
+type Row = ReturnType<typeof getDarkPool>[number]
 
 export default function DarkPoolPage() {
+  const rows = getDarkPool()
+  const cols: Column<Row>[] = [
+    { key: 'symbol', header: 'Symbol', render: (r) => <span className="font-bold text-foreground">{r.symbol}</span> },
+    { key: 'name', header: 'Company', className: 'text-soft' },
+    { key: 'darkVolume', header: 'Dark Volume', align: 'right', render: (r) => fmt(r.darkVolume, { compact: true, decimals: 1 }) },
+    { key: 'darkPct', header: 'Dark %', align: 'right', render: (r) => <span className="font-semibold">{r.darkPct.toFixed(1)}%</span> },
+    { key: 'blockTrades', header: 'Block Trades', align: 'right' },
+    {
+      key: 'sentiment', header: 'Sentiment', align: 'right',
+      render: (r) => <Badge tone={r.sentiment >= 0.15 ? 'emerald' : r.sentiment <= -0.15 ? 'coral' : 'neutral'}>
+        {r.sentiment >= 0.15 ? 'Accumulation' : r.sentiment <= -0.15 ? 'Distribution' : 'Neutral'}
+      </Badge>,
+    },
+  ]
   return (
-    <div className="w-full h-full relative z-10 pt-32 px-6 pb-16">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4 mb-10 fade-up">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <iconify-icon icon="solar:eye-linear" width="24"></iconify-icon>
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-100 mb-1">Dark Pool Monitor</h1>
-            <p className="text-slate-500 text-sm">Institutional-grade intelligence for dark pool monitor.</p>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
-          {/* Placeholder content cards */}
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover">
-            <div className="h-4 w-1/3 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-2">
-            <div className="h-4 w-1/4 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-3">
-            <div className="h-4 w-1/5 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-64 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+    <PageShell
+      title="Dark Pool Activity"
+      category="Smart Money"
+      subtitle="Off-exchange block prints and hidden liquidity flows aggregated by symbol."
+      icon="solar:eye-closed-bold-duotone"
+    >
+      <Card pad={false} className="p-2">
+        <DataTable columns={cols} rows={rows} />
+      </Card>
+    </PageShell>
+  )
 }
