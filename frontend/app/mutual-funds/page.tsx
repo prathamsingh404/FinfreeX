@@ -1,35 +1,48 @@
-import React from 'react';
+'use client'
+
+import React, { useState } from 'react'
+import PageShell from '@/components/PageShell'
+import { Card, SectionTitle, Change, Badge, fmt } from '@/components/ui/kit'
+import { DataTable, Column } from '@/components/ui/DataTable'
+import { getMutualFunds } from '@/lib/featureData'
+
+type Fund = ReturnType<typeof getMutualFunds>[number]
 
 export default function MutualFundsPage() {
+  const funds = getMutualFunds()
+  const cats = ['All', ...Array.from(new Set(funds.map((f) => f.category)))]
+  const [cat, setCat] = useState('All')
+  const rows = cat === 'All' ? funds : funds.filter((f) => f.category === cat)
+
+  const cols: Column<Fund>[] = [
+    { key: 'name', header: 'Fund', render: (f) => (
+      <div className="text-left"><div className="font-semibold">{f.name}</div><div className="text-[11px] text-muted">{f.category}</div></div>
+    ) },
+    { key: 'nav', header: 'NAV', align: 'right', render: (f) => `₹${fmt(f.nav)}` },
+    { key: 'cagr1y', header: '1Y', align: 'right', render: (f) => <Change value={f.cagr1y} showArrow={false} /> },
+    { key: 'cagr3y', header: '3Y', align: 'right', render: (f) => <Change value={f.cagr3y} showArrow={false} /> },
+    { key: 'cagr5y', header: '5Y', align: 'right', render: (f) => <Change value={f.cagr5y} showArrow={false} /> },
+    { key: 'aum', header: 'AUM (Cr)', align: 'right', render: (f) => fmt(f.aum, { decimals: 0 }) },
+    { key: 'expense', header: 'Expense', align: 'right', render: (f) => `${f.expense}%` },
+    { key: 'rating', header: 'Rating', align: 'right', render: (f) => (
+      <span className="text-amber">{'★'.repeat(f.rating)}<span className="text-white/15">{'★'.repeat(5 - f.rating)}</span></span>
+    ) },
+    { key: 'risk', header: 'Risk', align: 'right', render: (f) => <Badge tone={f.risk === 'Low' ? 'emerald' : f.risk === 'Very High' ? 'coral' : 'amber'}>{f.risk}</Badge> },
+  ]
+
   return (
-    <div className="w-full h-full relative z-10 pt-32 px-6 pb-16">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4 mb-10 fade-up">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <iconify-icon icon="solar:wallet-linear" width="24"></iconify-icon>
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-100 mb-1">Mutual Funds</h1>
-            <p className="text-slate-500 text-sm">Institutional-grade intelligence for mutual funds.</p>
-          </div>
+    <PageShell category="Assets & Funds" title="Mutual Funds" subtitle="Compare returns, expense ratios, and risk across fund categories." icon="solar:wallet-linear"
+      actions={
+        <div className="flex flex-wrap gap-1 p-1 rounded-xl bg-white/5 border border-white/8">
+          {cats.map((c) => (
+            <button key={c} onClick={() => setCat(c)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${cat === c ? 'bg-emerald text-[#04120C]' : 'text-soft hover:text-foreground'}`}>{c}</button>
+          ))}
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
-          {/* Placeholder content cards */}
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover">
-            <div className="h-4 w-1/3 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-2">
-            <div className="h-4 w-1/4 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-3">
-            <div className="h-4 w-1/5 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-64 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+      }>
+      <Card>
+        <SectionTitle title={`${rows.length} Funds`} icon="solar:wallet-linear" />
+        <DataTable columns={cols} rows={rows} />
+      </Card>
+    </PageShell>
+  )
 }

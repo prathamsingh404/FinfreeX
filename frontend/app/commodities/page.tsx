@@ -1,35 +1,42 @@
-import React from 'react';
+'use client'
+
+import React from 'react'
+import PageShell from '@/components/PageShell'
+import { Card, SectionTitle, Change, Sparkline, fmt } from '@/components/ui/kit'
+import { getCommodities, getSparkline } from '@/lib/mockData'
+
+const ICONS: Record<string, string> = {
+  Gold: 'solar:gold-linear', Silver: 'solar:medal-ribbon-linear',
+  'Crude Oil (WTI)': 'solar:oil-linear', 'Brent Crude': 'solar:oil-linear',
+  'Natural Gas': 'solar:fire-linear', Copper: 'solar:box-linear',
+  Aluminium: 'solar:box-minimalistic-linear', Zinc: 'solar:box-linear',
+}
 
 export default function CommoditiesPage() {
+  const items = getCommodities()
   return (
-    <div className="w-full h-full relative z-10 pt-32 px-6 pb-16">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4 mb-10 fade-up">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <iconify-icon icon="solar:gold-linear" width="24"></iconify-icon>
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-100 mb-1">Commodities Tracking</h1>
-            <p className="text-slate-500 text-sm">Institutional-grade intelligence for commodities tracking.</p>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
-          {/* Placeholder content cards */}
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover">
-            <div className="h-4 w-1/3 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-2">
-            <div className="h-4 w-1/4 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-3">
-            <div className="h-4 w-1/5 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-64 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-        </div>
+    <PageShell category="Assets & Funds" title="Commodities" subtitle="Spot prices and momentum across metals and energy." icon="solar:gold-linear">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {items.map((c) => {
+          const up = c.changePct >= 0
+          return (
+            <Card key={c.symbol} className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${up ? 'bg-emerald/12 text-emerald-bright' : 'bg-coral/12 text-coral'}`}>
+                  <iconify-icon icon={ICONS[c.name] ?? 'solar:box-linear'} width="18"></iconify-icon>
+                </div>
+                <Change value={c.changePct} />
+              </div>
+              <div>
+                <div className="text-sm font-semibold">{c.name}</div>
+                <div className="text-[11px] text-muted">{c.symbol} · {c.unit}</div>
+              </div>
+              <div className="text-2xl font-bold tabular-nums">${fmt(c.price)}</div>
+              <Sparkline data={getSparkline('cmdty-' + c.symbol)} up={up} width={240} height={38} />
+            </Card>
+          )
+        })}
       </div>
-    </div>
-  );
+    </PageShell>
+  )
 }

@@ -1,35 +1,38 @@
-import React from 'react';
+'use client'
+
+import React from 'react'
+import PageShell from '@/components/PageShell'
+import { Card, SectionTitle, Change, Sparkline, fmt } from '@/components/ui/kit'
+import { DataTable, Column } from '@/components/ui/DataTable'
+import { getForex, getSparkline } from '@/lib/mockData'
+
+type Fx = ReturnType<typeof getForex>[number]
 
 export default function ForexPage() {
+  const fx = getForex()
+  const cols: Column<Fx>[] = [
+    { key: 'pair', header: 'Pair', render: (p) => <span className="font-semibold">{p.pair}</span> },
+    { key: 'rate', header: 'Rate', align: 'right', render: (p) => p.rate },
+    { key: 'changePct', header: 'Change', align: 'right', render: (p) => <Change value={p.changePct} showArrow={false} /> },
+    { key: 'high', header: 'Day High', align: 'right', render: (p) => p.high },
+    { key: 'low', header: 'Day Low', align: 'right', render: (p) => p.low },
+    { key: 'spark', header: 'Trend', align: 'right', render: (p) => <div className="flex justify-end"><Sparkline data={getSparkline('fx-' + p.pair)} up={p.changePct >= 0} width={110} height={28} /></div> },
+  ]
   return (
-    <div className="w-full h-full relative z-10 pt-32 px-6 pb-16">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4 mb-10 fade-up">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <iconify-icon icon="solar:dollar-linear" width="24"></iconify-icon>
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-100 mb-1">Forex & Currencies</h1>
-            <p className="text-slate-500 text-sm">Institutional-grade intelligence for forex & currencies.</p>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
-          {/* Placeholder content cards */}
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover">
-            <div className="h-4 w-1/3 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-2">
-            <div className="h-4 w-1/4 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-3">
-            <div className="h-4 w-1/5 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-64 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-        </div>
+    <PageShell category="Assets & Funds" title="Forex & Currencies" subtitle="Live exchange rates and intraday ranges for major currency pairs." icon="solar:dollar-linear">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        {fx.slice(0, 4).map((p) => (
+          <Card key={p.pair} className="flex flex-col gap-1.5">
+            <span className="text-xs text-soft font-semibold">{p.pair}</span>
+            <span className="text-xl font-bold tabular-nums">{p.rate}</span>
+            <Change value={p.changePct} />
+          </Card>
+        ))}
       </div>
-    </div>
-  );
+      <Card>
+        <SectionTitle title="All Currency Pairs" icon="solar:dollar-linear" />
+        <DataTable columns={cols} rows={fx} />
+      </Card>
+    </PageShell>
+  )
 }

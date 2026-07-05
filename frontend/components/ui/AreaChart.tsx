@@ -2,10 +2,11 @@ import React from 'react'
 
 /* Lightweight responsive area chart (pure SVG, no deps). Flat vibrant fill. */
 export function AreaChart({
-  data, height = 220, color = '#34D399', showGrid = true, labels,
+  data, height = 220, color, up, showGrid = true, labels,
 }: {
-  data: number[]; height?: number; color?: string; showGrid?: boolean; labels?: string[]
+  data: number[]; height?: number; color?: string; up?: boolean; showGrid?: boolean; labels?: string[]
 }) {
+  color = color ?? (up === false ? '#FF6B57' : '#34D399')
   const W = 800
   const H = height
   const pad = 8
