@@ -1,35 +1,37 @@
-import React from 'react';
+'use client'
+import PageShell from '@/components/PageShell'
+import { Card, SectionTitle, StatCard, Btn, fmt } from '@/components/ui/kit'
+import { AreaChart } from '@/components/ui/AreaChart'
+import { getBacktest } from '@/lib/featureData'
 
 export default function BacktestingPage() {
+  const bt = getBacktest()
   return (
-    <div className="w-full h-full relative z-10 pt-32 px-6 pb-16">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4 mb-10 fade-up">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <iconify-icon icon="solar:history-linear" width="24"></iconify-icon>
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-100 mb-1">Backtesting Engine</h1>
-            <p className="text-slate-500 text-sm">Institutional-grade intelligence for backtesting engine.</p>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
-          {/* Placeholder content cards */}
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover">
-            <div className="h-4 w-1/3 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-2">
-            <div className="h-4 w-1/4 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-3">
-            <div className="h-4 w-1/5 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-64 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-        </div>
+    <PageShell
+      title="Backtesting Engine"
+      category="Strategy Lab"
+      subtitle="Simulate strategies over historical data with full performance analytics."
+      icon="solar:history-2-bold-duotone"
+      actions={<Btn variant="primary">Run Backtest</Btn>}
+    >
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <StatCard label="Total Return" value={`${bt.totalReturn.toFixed(1)}%`} icon="solar:graph-up-bold-duotone" change={bt.totalReturn} />
+        <StatCard label="CAGR" value={`${bt.cagr.toFixed(1)}%`} icon="solar:chart-2-bold-duotone" />
+        <StatCard label="Sharpe" value={bt.sharpe.toFixed(2)} icon="solar:medal-ribbon-bold-duotone" />
+        <StatCard label="Max Drawdown" value={`${bt.maxDD.toFixed(1)}%`} icon="solar:graph-down-bold-duotone" />
       </div>
-    </div>
-  );
+      <Card className="mb-6">
+        <SectionTitle title="Equity Curve" subtitle="Starting capital ₹1,00,000" icon="solar:chart-square-bold-duotone" />
+        <AreaChart data={bt.equity} height={280} up />
+      </Card>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[['Win Rate', `${bt.winRate.toFixed(1)}%`], ['Total Trades', String(bt.trades)], ['Profit Factor', bt.profitFactor.toFixed(2)], ['Final Equity', fmt(bt.equity[bt.equity.length - 1], { compact: true, prefix: '₹' })]].map(([l, v]) => (
+          <Card key={l} className="text-center">
+            <div className="text-2xl font-bold tabular-nums">{v}</div>
+            <div className="text-[11px] text-soft mt-1">{l}</div>
+          </Card>
+        ))}
+      </div>
+    </PageShell>
+  )
 }

@@ -1,35 +1,63 @@
-import React from 'react';
+'use client'
+
+import React, { useState } from 'react'
+import PageShell from '@/components/PageShell'
+import { Card, SectionTitle, Change, fmt } from '@/components/ui/kit'
+import { AreaChart } from '@/components/ui/AreaChart'
+import { getCrypto, getSparkline } from '@/lib/mockData'
 
 export default function CryptoPage() {
+  const coins = getCrypto()
+  const [sel, setSel] = useState(coins[0].symbol)
+  const active = coins.find((c) => c.symbol === sel)!
+  const totalCap = coins.reduce((s, c) => s + c.marketCap, 0)
+
   return (
-    <div className="w-full h-full relative z-10 pt-32 px-6 pb-16">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4 mb-10 fade-up">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <iconify-icon icon="solar:cpu-linear" width="24"></iconify-icon>
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-100 mb-1">Crypto Assets</h1>
-            <p className="text-slate-500 text-sm">Institutional-grade intelligence for crypto assets.</p>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
-          {/* Placeholder content cards */}
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover">
-            <div className="h-4 w-1/3 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-2">
-            <div className="h-4 w-1/4 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-3">
-            <div className="h-4 w-1/5 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-64 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-        </div>
+    <PageShell
+      category="Assets & Funds"
+      title="Crypto Markets"
+      subtitle="Digital asset prices, market cap, and 24h momentum."
+      icon="solar:bitcoin-linear"
+    >
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <Card><div className="text-xs text-soft">Total Market Cap</div><div className="text-2xl font-bold tabular-nums mt-1">${fmt(totalCap, { compact: true })}</div></Card>
+        <Card><div className="text-xs text-soft">BTC Dominance</div><div className="text-2xl font-bold tabular-nums mt-1">52.4%</div></Card>
+        <Card><div className="text-xs text-soft">24h Volume</div><div className="text-2xl font-bold tabular-nums mt-1">${fmt(coins.reduce((s, c) => s + c.volume, 0), { compact: true })}</div></Card>
       </div>
-    </div>
-  );
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-bold">{active.name}</h2>
+              <p className="text-sm text-muted">{active.symbol}/USD</p>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold tabular-nums">${fmt(active.price, { decimals: active.price < 1 ? 4 : 2 })}</div>
+              <Change value={active.changePct} />
+            </div>
+          </div>
+          <AreaChart data={getSparkline('crypto-' + active.symbol, 60)} height={260} up={active.changePct >= 0} />
+        </Card>
+        <Card pad={false}>
+          <div className="p-5 pb-2"><SectionTitle title="Assets" icon="solar:bitcoin-linear" /></div>
+          <div className="max-h-[440px] overflow-y-auto scrollbar-thin">
+            {coins.map((c) => (
+              <button key={c.symbol} onClick={() => setSel(c.symbol)}
+                className={`w-full flex items-center justify-between px-5 py-3 border-l-2 transition-colors ${sel === c.symbol ? 'bg-emerald/8 border-emerald' : 'border-transparent hover:bg-white/5'}`}>
+                <div className="text-left">
+                  <div className="text-sm font-semibold">{c.symbol}</div>
+                  <div className="text-[11px] text-muted">{c.name}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm tabular-nums">${fmt(c.price, { decimals: c.price < 1 ? 4 : 2 })}</div>
+                  <Change value={c.changePct} showArrow={false} />
+                </div>
+              </button>
+            ))}
+          </div>
+        </Card>
+      </div>
+    </PageShell>
+  )
 }

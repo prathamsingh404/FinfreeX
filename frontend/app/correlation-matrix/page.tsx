@@ -1,35 +1,54 @@
-import React from 'react';
+'use client'
+import PageShell from '@/components/PageShell'
+import { Card, SectionTitle } from '@/components/ui/kit'
+import { getCorrelation } from '@/lib/featureData'
+
+function cellColor(v: number) {
+  // emerald for positive, coral for negative, opacity by magnitude
+  const a = Math.min(1, Math.abs(v))
+  if (v >= 0) return `rgba(52, 211, 153, ${0.12 + a * 0.6})`
+  return `rgba(255, 107, 87, ${0.12 + a * 0.6})`
+}
 
 export default function CorrelationMatrixPage() {
+  const { assets, matrix } = getCorrelation()
   return (
-    <div className="w-full h-full relative z-10 pt-32 px-6 pb-16">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4 mb-10 fade-up">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <iconify-icon icon="solar:scanner-linear" width="24"></iconify-icon>
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-100 mb-1">Correlation Matrix</h1>
-            <p className="text-slate-500 text-sm">Institutional-grade intelligence for correlation matrix.</p>
-          </div>
+    <PageShell
+      title="Correlation Matrix"
+      category="Risk"
+      subtitle="Cross-asset correlation heatmap for diversification and hedging decisions."
+      icon="solar:widget-6-bold-duotone"
+    >
+      <Card>
+        <SectionTitle title="Cross-Asset Correlations" subtitle="Pearson coefficient · -1 to +1" icon="solar:scanner-bold-duotone" />
+        <div className="overflow-x-auto">
+          <table className="border-collapse mx-auto">
+            <thead>
+              <tr>
+                <th className="p-2"></th>
+                {assets.map((a) => <th key={a} className="p-2 text-[11px] font-bold text-soft">{a}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {matrix.map((row, i) => (
+                <tr key={assets[i]}>
+                  <td className="p-2 text-[11px] font-bold text-soft text-right whitespace-nowrap">{assets[i]}</td>
+                  {row.map((v, j) => (
+                    <td key={j} className="p-1">
+                      <div
+                        className="w-14 h-14 rounded-lg flex items-center justify-center text-xs font-bold tabular-nums"
+                        style={{ background: cellColor(v), color: Math.abs(v) > 0.5 ? '#04120C' : '#E8F0EC' }}
+                      >
+                        {v.toFixed(2)}
+                      </div>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
-          {/* Placeholder content cards */}
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover">
-            <div className="h-4 w-1/3 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-2">
-            <div className="h-4 w-1/4 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-3">
-            <div className="h-4 w-1/5 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-64 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+      </Card>
+    </PageShell>
+  )
 }

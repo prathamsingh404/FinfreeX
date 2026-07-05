@@ -1,35 +1,44 @@
-import React from 'react';
+'use client'
+import PageShell from '@/components/PageShell'
+import { Card, SectionTitle, StatCard, ProgressBar, Badge } from '@/components/ui/kit'
+import { AreaChart } from '@/components/ui/AreaChart'
+import { getRatios } from '@/lib/featureData'
+import { getSparkline } from '@/lib/mockData'
 
 export default function FundamentalAnalysisPage() {
+  const company = getRatios()[0]
+  const revenue = getSparkline('fa-rev', 8).map((v, i) => 100 + i * 12 + v / 5)
   return (
-    <div className="w-full h-full relative z-10 pt-32 px-6 pb-16">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4 mb-10 fade-up">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <iconify-icon icon="solar:document-text-linear" width="24"></iconify-icon>
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-100 mb-1">Fundamental Analysis</h1>
-            <p className="text-slate-500 text-sm">Institutional-grade intelligence for fundamental analysis.</p>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
-          {/* Placeholder content cards */}
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover">
-            <div className="h-4 w-1/3 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-2">
-            <div className="h-4 w-1/4 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-3">
-            <div className="h-4 w-1/5 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-64 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-        </div>
+    <PageShell
+      title="Fundamental Analysis"
+      category="Fundamentals"
+      subtitle={`Deep-dive financial health snapshot — ${company.name} (${company.symbol}).`}
+      icon="solar:document-text-bold-duotone"
+    >
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <StatCard label="P/E Ratio" value={company.pe.toFixed(1)} icon="solar:tag-price-bold-duotone" />
+        <StatCard label="ROE" value={`${company.roe.toFixed(1)}%`} icon="solar:chart-bold-duotone" change={2.4} />
+        <StatCard label="Net Margin" value={`${company.netMargin.toFixed(1)}%`} icon="solar:wallet-money-bold-duotone" />
+        <StatCard label="EV/EBITDA" value={company.evEbitda.toFixed(1)} icon="solar:pie-chart-2-bold-duotone" />
       </div>
-    </div>
-  );
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2">
+          <SectionTitle title="Revenue Trend" subtitle="8-quarter trajectory (indexed)" icon="solar:graph-up-bold-duotone" />
+          <AreaChart data={revenue} height={240} up />
+        </Card>
+        <Card>
+          <SectionTitle title="Financial Health" icon="solar:health-bold-duotone" />
+          <div className="space-y-4 mt-2 text-sm">
+            {[['Profitability', company.roe * 2.5], ['Solvency', 100 - company.debtEquity * 30], ['Efficiency', company.roce * 2.4], ['Valuation', 100 - company.pe]].map(([l, v]) => (
+              <div key={l as string}>
+                <div className="flex justify-between mb-1"><span className="text-soft">{l}</span><span className="font-semibold">{Math.max(0, Math.min(100, v as number)).toFixed(0)}</span></div>
+                <ProgressBar value={Math.max(0, Math.min(100, v as number))} tone="emerald" />
+              </div>
+            ))}
+            <Badge tone="emerald" className="mt-2">Overall: Strong Fundamentals</Badge>
+          </div>
+        </Card>
+      </div>
+    </PageShell>
+  )
 }

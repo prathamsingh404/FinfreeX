@@ -1,35 +1,50 @@
-import React from 'react';
+'use client'
+import PageShell from '@/components/PageShell'
+import { Card, Change, ProgressBar } from '@/components/ui/kit'
+import { DataTable, Column } from '@/components/ui/DataTable'
+import { getInstitutional } from '@/lib/featureData'
+
+type Row = ReturnType<typeof getInstitutional>[number]
 
 export default function InstitutionalHoldingsPage() {
+  const rows = getInstitutional()
+  const cols: Column<Row>[] = [
+    { key: 'symbol', header: 'Symbol', render: (r) => <span className="font-bold text-foreground">{r.symbol}</span> },
+    { key: 'name', header: 'Company', className: 'text-soft' },
+    { key: 'fii', header: 'FII %', align: 'right', render: (r) => <span className="font-semibold">{r.fii.toFixed(1)}</span> },
+    { key: 'dii', header: 'DII %', align: 'right', render: (r) => <span className="font-semibold">{r.dii.toFixed(1)}</span> },
+    { key: 'promoter', header: 'Promoter %', align: 'right', render: (r) => r.promoter.toFixed(1) },
+    { key: 'public', header: 'Public %', align: 'right', render: (r) => r.public.toFixed(1) },
+    { key: 'fiiChange', header: 'FII Δ QoQ', align: 'right', render: (r) => <Change value={r.fiiChange} suffix="%" /> },
+  ]
   return (
-    <div className="w-full h-full relative z-10 pt-32 px-6 pb-16">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4 mb-10 fade-up">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <iconify-icon icon="solar:banknotes-linear" width="24"></iconify-icon>
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-100 mb-1">Institutional Holdings</h1>
-            <p className="text-slate-500 text-sm">Institutional-grade intelligence for institutional holdings.</p>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
-          {/* Placeholder content cards */}
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover">
-            <div className="h-4 w-1/3 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-2">
-            <div className="h-4 w-1/4 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-3">
-            <div className="h-4 w-1/5 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-64 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-        </div>
+    <PageShell
+      title="Institutional Holdings"
+      category="Ownership"
+      subtitle="FII / DII / promoter shareholding patterns and quarter-on-quarter flows."
+      icon="solar:buildings-3-bold-duotone"
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        {rows.slice(0, 3).map((r) => (
+          <Card key={r.symbol}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-bold">{r.symbol}</div>
+              <Change value={r.fiiChange} suffix="% FII" />
+            </div>
+            <div className="space-y-2.5 text-xs">
+              {[['FII', r.fii, 'emerald'], ['DII', r.dii, 'amber'], ['Promoter', r.promoter, 'coral']].map(([l, v, t]) => (
+                <div key={l as string}>
+                  <div className="flex justify-between mb-1"><span className="text-soft">{l}</span><span className="font-semibold">{(v as number).toFixed(1)}%</span></div>
+                  <ProgressBar value={v as number} tone={t as 'emerald' | 'coral' | 'amber'} />
+                </div>
+              ))}
+            </div>
+          </Card>
+        ))}
       </div>
-    </div>
-  );
+      <Card pad={false} className="p-2">
+        <DataTable columns={cols} rows={rows} />
+      </Card>
+    </PageShell>
+  )
 }

@@ -1,91 +1,93 @@
-'use client';
+'use client'
 
-import React from 'react';
+import React, { useState } from 'react'
+import PageShell from '@/components/PageShell'
+import { Card, SectionTitle, Change, Badge, Sparkline, fmt } from '@/components/ui/kit'
+import { AreaChart } from '@/components/ui/AreaChart'
+import { getAllQuotes, getIndices, getCandles, getSparkline } from '@/lib/mockData'
 
-const MarketIntelligence = () => {
+export default function MarketPage() {
+  const quotes = getAllQuotes()
+  const indices = getIndices().filter((i) => i.region === 'India')
+  const [selected, setSelected] = useState(quotes[0].symbol)
+  const active = quotes.find((q) => q.symbol === selected)!
+  const candles = getCandles(selected, 90).map((c) => c.close)
+
   return (
-    <main className="pt-24 pb-12 px-6 max-w-7xl mx-auto">
-      <div className="mb-10">
-        <h1 className="text-3xl font-medium tracking-tight text-white mb-2">Market Intelligence</h1>
-        <p className="text-white/40 text-sm">Real-time sentiment and news-driven alpha signals.</p>
+    <PageShell
+      category="Market & Economics"
+      title="Live Market"
+      subtitle="Real-time quotes, depth, and price action across the equity universe."
+      icon="solar:chart-square-linear"
+    >
+      {/* Index strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        {indices.map((idx) => (
+          <Card key={idx.symbol} className="flex items-center justify-between">
+            <div>
+              <div className="text-xs text-soft font-semibold">{idx.name}</div>
+              <div className="text-xl font-bold tabular-nums mt-0.5">{fmt(idx.value, { decimals: 0 })}</div>
+            </div>
+            <div className="text-right">
+              <Change value={idx.changePct} />
+              <div className="mt-1"><Sparkline data={getSparkline('idx-' + idx.symbol)} up={idx.changePct >= 0} width={90} height={30} /></div>
+            </div>
+          </Card>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* News Feed */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-white uppercase tracking-widest text-[10px]">Financial Headlines</h3>
-            <div className="flex gap-2">
-               <button className="px-3 py-1 rounded-md bg-white text-black text-[10px] font-medium">Global</button>
-               <button className="px-3 py-1 rounded-md bg-white/5 text-white/40 text-[10px] font-medium hover:text-white transition-colors">Crypto</button>
-               <button className="px-3 py-1 rounded-md bg-white/5 text-white/40 text-[10px] font-medium hover:text-white transition-colors">Forex</button>
-            </div>
-          </div>
-
-          {[
-            { title: 'Nvidia Market Cap Surges as AI Demand Accelerates', source: 'Bloomberg', time: '12m ago', sentiment: 'Bullish' },
-            { title: 'Federal Reserve Signals Higher Rates for Longer', source: 'WSJ', time: '1h ago', sentiment: 'Bearish' },
-            { title: 'European Markets Mixed Amid Inflation Data', source: 'Reuters', time: '2h ago', sentiment: 'Neutral' },
-            { title: 'Tech Sector Faces Regulatory Headwinds in EU', source: 'FT', time: '4h ago', sentiment: 'Bearish' },
-            { title: 'New Energy Subsidy Package Boosts Solar Stocks', source: 'CNBC', time: '5h ago', sentiment: 'Bullish' },
-          ].map((news, i) => (
-            <div key={i} className="glass-panel p-6 rounded-2xl group cursor-pointer hover:bg-white/5 transition-colors">
-              <div className="flex justify-between items-start mb-3">
-                <span className="text-[10px] text-white/30 uppercase tracking-widest">{news.source} • {news.time}</span>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                  news.sentiment === 'Bullish' ? 'bg-green-500/10 text-green-400' :
-                  news.sentiment === 'Bearish' ? 'bg-red-500/10 text-red-400' :
-                  'bg-blue-500/10 text-blue-400'
-                }`}>
-                  {news.sentiment}
-                </span>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Chart */}
+        <Card className="lg:col-span-2">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold">{active.symbol}</h2>
+                <Badge tone="neutral">{active.sector}</Badge>
               </div>
-              <h2 className="text-lg font-medium text-white group-hover:text-blue-400 transition-colors mb-4">{news.title}</h2>
-              <div className="flex items-center gap-4 text-[10px] text-white/40">
-                <span className="flex items-center gap-1"><iconify-icon icon="solar:chat-round-dots-linear"></iconify-icon> 24 Comments</span>
-                <span className="flex items-center gap-1"><iconify-icon icon="solar:share-linear"></iconify-icon> Share Insight</span>
+              <p className="text-sm text-muted">{active.name}</p>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold tabular-nums">₹{fmt(active.price)}</div>
+              <Change value={active.changePct} />
+            </div>
+          </div>
+          <AreaChart data={candles} height={280} up={active.changePct >= 0} />
+          <div className="grid grid-cols-4 gap-3 mt-4">
+            {[['Open', active.open], ['High', active.high], ['Low', active.low], ['Prev', active.prevClose]].map(([l, v]) => (
+              <div key={l as string} className="rounded-xl bg-white/5 border border-white/8 p-3">
+                <div className="text-[11px] text-muted">{l}</div>
+                <div className="text-sm font-semibold tabular-nums mt-0.5">₹{fmt(v as number)}</div>
               </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Sidebar Analytics */}
-        <div className="space-y-6">
-          <div className="glass-panel p-6 rounded-2xl">
-            <h3 className="text-sm font-medium text-white mb-6">Sentiment Heatmap</h3>
-            <div className="grid grid-cols-2 gap-4">
-               {[
-                 { label: 'S&P 500', value: 0.8, status: 'Greedy' },
-                 { label: 'BTC/USD', value: 0.4, status: 'Fear' },
-                 { label: 'DXY Index', value: 0.6, status: 'Neutral' },
-                 { label: 'Volatility', value: 0.2, status: 'Extreme Fear' },
-               ].map(item => (
-                 <div key={item.label} className="p-4 rounded-xl bg-white/5 border border-white/5">
-                    <div className="text-[10px] text-white/40 mb-1">{item.label}</div>
-                    <div className="text-xs font-medium text-white">{item.status}</div>
-                    <div className="mt-3 h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                       <div className="h-full bg-blue-500" style={{ width: `${item.value * 100}%` }}></div>
-                    </div>
-                 </div>
-               ))}
-            </div>
+            ))}
           </div>
+        </Card>
 
-          <div className="glass-panel p-6 rounded-2xl">
-            <h3 className="text-sm font-medium text-white mb-6">AI Summary</h3>
-            <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10">
-              <p className="text-xs text-blue-400/90 leading-relaxed italic">
-                "Markets are currently reacting to hawkish Fed commentary. AI sentiment remains localized in semicondutors while broader indices consolidate. Institutional order flow suggests a defensive rotation."
-              </p>
-            </div>
-            <button className="w-full mt-6 py-2 rounded-lg bg-white text-black text-xs font-medium hover:bg-gray-200 transition-colors">
-              Generate Custom Brief
-            </button>
+        {/* Watchlist */}
+        <Card pad={false}>
+          <div className="p-5 pb-3">
+            <SectionTitle title="Watchlist" subtitle="Tap to load chart" icon="solar:star-linear" />
           </div>
-        </div>
+          <div className="max-h-[520px] overflow-y-auto scrollbar-thin">
+            {quotes.map((q) => (
+              <button
+                key={q.symbol}
+                onClick={() => setSelected(q.symbol)}
+                className={`w-full flex items-center justify-between px-5 py-3 border-l-2 transition-colors ${selected === q.symbol ? 'bg-emerald/8 border-emerald' : 'border-transparent hover:bg-white/5'}`}
+              >
+                <div className="text-left">
+                  <div className="text-sm font-semibold">{q.symbol}</div>
+                  <div className="text-[11px] text-muted truncate max-w-[110px]">{q.name}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm tabular-nums">₹{fmt(q.price)}</div>
+                  <Change value={q.changePct} showArrow={false} />
+                </div>
+              </button>
+            ))}
+          </div>
+        </Card>
       </div>
-    </main>
-  );
-};
-
-export default MarketIntelligence;
+    </PageShell>
+  )
+}
