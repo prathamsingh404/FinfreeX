@@ -1,35 +1,38 @@
-import React from 'react';
+'use client'
+
+import React from 'react'
+import PageShell from '@/components/PageShell'
+import { Card, SectionTitle, Change, Badge, fmt } from '@/components/ui/kit'
+import { DataTable, Column } from '@/components/ui/DataTable'
+import { AreaChart } from '@/components/ui/AreaChart'
+import { getBonds, getYieldCurve } from '@/lib/featureData'
+
+type Bond = ReturnType<typeof getBonds>[number]
 
 export default function FixedIncomePage() {
+  const bonds = getBonds()
+  const curve = getYieldCurve()
+  const cols: Column<Bond>[] = [
+    { key: 'name', header: 'Instrument', render: (b) => <span className="font-semibold">{b.name}</span> },
+    { key: 'type', header: 'Type', render: (b) => <Badge tone="neutral">{b.type}</Badge> },
+    { key: 'yield', header: 'Yield', align: 'right', render: (b) => <span className="font-semibold tabular-nums">{b.yield}%</span> },
+    { key: 'change', header: 'Δ (bps)', align: 'right', render: (b) => <Change value={b.change * 100} showArrow={false} suffix=" bps" /> },
+    { key: 'price', header: 'Price', align: 'right', render: (b) => fmt(b.price) },
+    { key: 'duration', header: 'Duration', align: 'right', render: (b) => `${b.duration}y` },
+  ]
   return (
-    <div className="w-full h-full relative z-10 pt-32 px-6 pb-16">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4 mb-10 fade-up">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <iconify-icon icon="solar:bill-linear" width="24"></iconify-icon>
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-100 mb-1">Fixed Income & Bonds</h1>
-            <p className="text-slate-500 text-sm">Institutional-grade intelligence for fixed income & bonds.</p>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
-          {/* Placeholder content cards */}
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover">
-            <div className="h-4 w-1/3 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-2">
-            <div className="h-4 w-1/4 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-3">
-            <div className="h-4 w-1/5 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-64 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-        </div>
+    <PageShell category="Fixed Income & Rates" title="Fixed Income & Bonds" subtitle="Government and corporate bond yields, prices, and the yield curve." icon="solar:bill-linear">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2">
+          <SectionTitle title="Bond Yields" icon="solar:bill-linear" />
+          <DataTable columns={cols} rows={bonds} />
+        </Card>
+        <Card>
+          <SectionTitle title="Yield Curve" subtitle="G-Sec term structure" icon="solar:graph-up-linear" />
+          <AreaChart data={curve.map((c) => c.yield)} height={160} up labels={curve.map((c) => c.tenor)} />
+          <div className="mt-3 text-xs text-soft">Steepening curve — 10Y at {curve.find((c) => c.tenor === '10Y')?.yield}%</div>
+        </Card>
       </div>
-    </div>
-  );
+    </PageShell>
+  )
 }
