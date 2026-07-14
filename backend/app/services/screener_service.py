@@ -1,6 +1,16 @@
 import yfinance as yf
 import asyncio
+import math
 from typing import Optional
+
+def safe_float(val):
+    if val is None: return None
+    try:
+        f = float(val)
+        if math.isnan(f) or math.isinf(f): return None
+        return f
+    except (ValueError, TypeError):
+        return None
 
 # Universal Indian stocks (Large, Mid, Small Cap)
 NSE_STOCKS = {
@@ -23,6 +33,7 @@ async def _fetch_stock_screener_data(symbol: str) -> Optional[dict]:
         # Use fast info and cached info properties
         info = await asyncio.to_thread(lambda: ticker.info)
         hist = await asyncio.to_thread(lambda: ticker.history(period="1y", interval="1d"))
+        hist = hist.dropna()
         if hist.empty or not info:
             return None
 
@@ -56,22 +67,22 @@ async def _fetch_stock_screener_data(symbol: str) -> Optional[dict]:
             "name": info.get("longName", symbol),
             "sector": info.get("sector", "Unknown"),
             "industry": info.get("industry", "Unknown"),
-            "market_cap": info.get("marketCap", 0),
+            "market_cap": safe_float(info.get("marketCap")) or 0,
             "current_price": round(float(hist["Close"].iloc[-1]), 2) if len(hist) > 0 else 0.0,
-            "pe_ratio": info.get("trailingPE"),
-            "pb_ratio": info.get("priceToBook"),
-            "roe": info.get("returnOnEquity") * 100 if info.get("returnOnEquity") else None, # express as %
-            "revenue_growth": info.get("revenueGrowth") * 100 if info.get("revenueGrowth") else None, # express as %
-            "profit_margins": info.get("profitMargins") * 100 if info.get("profitMargins") else None,
-            "debt_to_equity": info.get("debtToEquity"),
-            "dividend_yield": info.get("dividendYield") * 100 if info.get("dividendYield") else None,
-            "beta": info.get("beta"),
-            "52w_high": info.get("fiftyTwoWeekHigh"),
-            "52w_low": info.get("fiftyTwoWeekLow"),
-            "return_1y": round(ret_1y, 2) if ret_1y else None,
-            "return_1m": round(ret_1m, 2) if ret_1m else None,
-            "volume_ratio": round(vol_ratio, 2),
-            "avg_volume": int(avg_vol) if avg_vol else 0,
+            "pe_ratio": safe_float(info.get("trailingPE")),
+            "pb_ratio": safe_float(info.get("priceToBook")),
+            "roe": safe_float(info.get("returnOnEquity") * 100 if info.get("returnOnEquity") else None),
+            "revenue_growth": safe_float(info.get("revenueGrowth") * 100 if info.get("revenueGrowth") else None),
+            "profit_margins": safe_float(info.get("profitMargins") * 100 if info.get("profitMargins") else None),
+            "debt_to_equity": safe_float(info.get("debtToEquity")),
+            "dividend_yield": safe_float(info.get("dividendYield") * 100 if info.get("dividendYield") else None),
+            "beta": safe_float(info.get("beta")),
+            "52w_high": safe_float(info.get("fiftyTwoWeekHigh")),
+            "52w_low": safe_float(info.get("fiftyTwoWeekLow")),
+            "return_1y": safe_float(round(ret_1y, 2) if ret_1y else None),
+            "return_1m": safe_float(round(ret_1m, 2) if ret_1m else None),
+            "volume_ratio": safe_float(round(vol_ratio, 2)),
+            "avg_volume": int(avg_vol) if avg_vol and not math.isnan(avg_vol) else 0,
         }
     except Exception as e:
         print(f"Screener data fetch error for {symbol}: {e}")
