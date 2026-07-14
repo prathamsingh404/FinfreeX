@@ -1,429 +1,133 @@
-'use client';
+'use client'
 
-import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import StockChart from '../../components/StockChart';
-import DetailModal from '../../components/DetailModal';
+import React, { useState } from 'react'
+import PageShell from '@/components/PageShell'
+import { Card, StatCard, SectionTitle, Change, Donut, ProgressBar, Btn, fmt } from '@/components/ui/kit'
+import { DataTable, Column } from '@/components/ui/DataTable'
+import { usePortfolio, usePortfolioHoldings } from '@/lib/hooks/useMarketData'
+import { useAuth } from '@/context/AuthContext'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://portai-xsw3.onrender.com';
-
-// ── Sample Portfolio Templates ──────────────────────────────────
-const SAMPLE_PORTFOLIOS = [
-  {
-    id: 'growth',
-    label: 'High Growth',
-    icon: 'solar:graph-up-bold',
-    color: 'emerald',
-    description: 'Tech & emerging sectors for aggressive capital appreciation.',
-    totalValue: 1200000,
-    totalPnl: 148500,
-    pnlPct: 14.1,
-    holdings: [
-      { symbol: 'TCS', qty: 20, avg_price: 3600, current_price: 3890, pnl: 5800, pnl_pct: 8.05 },
-      { symbol: 'ZOMATO', qty: 500, avg_price: 165, current_price: 204, pnl: 19500, pnl_pct: 23.6 },
-      { symbol: 'TATAMOTORS', qty: 80, avg_price: 870, current_price: 980, pnl: 8800, pnl_pct: 12.6 },
-      { symbol: 'HCLTECH', qty: 30, avg_price: 1450, current_price: 1620, pnl: 5100, pnl_pct: 11.7 },
-    ]
-  },
-  {
-    id: 'conservative',
-    label: 'Conservative',
-    icon: 'solar:shield-check-bold',
-    color: 'blue',
-    description: 'Blue chips and dividend plays for capital preservation.',
-    totalValue: 950000,
-    totalPnl: 41200,
-    pnlPct: 4.5,
-    holdings: [
-      { symbol: 'HDFCBANK', qty: 50, avg_price: 1620, current_price: 1660, pnl: 2000, pnl_pct: 2.5 },
-      { symbol: 'ITC', qty: 300, avg_price: 420, current_price: 448, pnl: 8400, pnl_pct: 6.7 },
-      { symbol: 'HINDUNILVR', qty: 25, avg_price: 2200, current_price: 2320, pnl: 3000, pnl_pct: 5.5 },
-      { symbol: 'COALINDIA', qty: 200, avg_price: 370, current_price: 432, pnl: 12400, pnl_pct: 16.8 },
-    ]
-  },
-  {
-    id: 'balanced',
-    label: 'Balanced',
-    icon: 'solar:chart-2-bold',
-    color: 'purple',
-    description: 'Diversified mix across Banking, IT, and Energy for steady returns.',
-    totalValue: 800000,
-    totalPnl: 62400,
-    pnlPct: 8.5,
-    holdings: [
-      { symbol: 'RELIANCE', qty: 15, avg_price: 2650, current_price: 3050, pnl: 6000, pnl_pct: 15.1 },
-      { symbol: 'ICICIBANK', qty: 60, avg_price: 1050, current_price: 1120, pnl: 4200, pnl_pct: 6.7 },
-      { symbol: 'INFY', qty: 40, avg_price: 1600, current_price: 1740, pnl: 5600, pnl_pct: 8.75 },
-      { symbol: 'SUNPHARMA', qty: 30, avg_price: 1480, current_price: 1620, pnl: 4200, pnl_pct: 9.5 },
-    ]
-  },
-  {
-    id: 'midcap',
-    label: 'Mid Cap Focus',
-    icon: 'solar:star-bold',
-    color: 'orange',
-    description: 'High-potential mid cap picks targeting sector leadership.',
-    totalValue: 650000,
-    totalPnl: -18500,
-    pnlPct: -2.8,
-    holdings: [
-      { symbol: 'TITAN', qty: 20, avg_price: 3500, current_price: 3350, pnl: -3000, pnl_pct: -4.3 },
-      { symbol: 'BAJFINANCE', qty: 5, avg_price: 7200, current_price: 6950, pnl: -1250, pnl_pct: -3.5 },
-      { symbol: 'ASHOKLEY', qty: 300, avg_price: 195, current_price: 188, pnl: -2100, pnl_pct: -3.6 },
-      { symbol: 'MUTHOOTFIN', qty: 40, avg_price: 1650, current_price: 1720, pnl: 2800, pnl_pct: 4.2 },
-    ]
-  },
-];
-
-const COLOR_MAP: Record<string, { bg: string; text: string; border: string; glow: string; button: string }> = {
-  emerald: { bg: 'bg-emerald-500/5', text: 'text-emerald-400', border: 'border-emerald-500/10', glow: 'bg-emerald-500/5', button: 'bg-emerald-500 hover:bg-emerald-700 font-mono text-xs uppercase tracking-widest' },
-  blue:    { bg: 'bg-blue-500/5',    text: 'text-blue-700',    border: 'border-blue-500/10',    glow: 'bg-blue-500/5',    button: 'bg-blue-600 hover:bg-blue-700 font-mono text-xs uppercase tracking-widest' },
-  purple:  { bg: 'bg-purple-500/5',  text: 'text-purple-700',  border: 'border-purple-500/10',  glow: 'bg-purple-500/5',  button: 'bg-purple-600 hover:bg-purple-700 font-mono text-xs uppercase tracking-widest' },
-  orange:  { bg: 'bg-indigo-500/5',      text: 'text-indigo-400',      border: 'border-accent/10',      glow: 'bg-indigo-500/5',      button: 'bg-indigo-500 hover:bg-indigo-500/90 font-mono text-xs uppercase tracking-widest' },
-};
+const SECTOR_COLORS = ['#34D399', '#FF6B57', '#FBBF24', '#38BDF8', '#A78BFA', '#F472B6', '#4ADE80', '#FB923C']
 
 export default function PortfoliosPage() {
-  const router = useRouter();
-  const [brokerToken, setBrokerToken] = useState<string | null>(null);
-  const [brokerHoldings, setBrokerHoldings] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loadingId, setLoadingId] = useState<string | null>(null);
-  const [error, setError] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState<'broker' | 'upload' | 'samples'>('samples');
-  const [marketHistory, setMarketHistory] = useState<Record<string, any[]>>({});
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalType, setModalType] = useState<'stock' | 'news'>('stock');
-  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const { user } = useAuth()
+  const userId = user?.id || 'demo-user-123'
 
-  const openStockModal = (sym: string, currentData: any = {}) => {
-    setSelectedItem({ ...currentData, symbol: sym });
-    setModalType('stock');
-    setModalOpen(true);
-    if (!marketHistory[sym]) fetchHistory(sym);
-  };
+  const { data: portfolioData, loading: pfLoading } = usePortfolio(userId)
+  const { data: holdingsData, loading: holdingsLoading } = usePortfolioHoldings(userId)
 
-  const fetchHistory = async (symbol: string) => {
-    try {
-      const r = await fetch(`${API_BASE}/api/history/${encodeURIComponent(symbol)}?period=1mo`);
-      const d = await r.json();
-      if (d.history) {
-        setMarketHistory(prev => ({ ...prev, [symbol]: d.history }));
-      }
-    } catch (err) {}
-  };
+  const pf = portfolioData || { totalValue: 0, totalPnl: 0, totalPnlPct: 0, dayChange: 0, investedValue: 0, totalCost: 0, cash: 0 }
+  const holdings = holdingsData || []
 
-  useEffect(() => {
-    const token = localStorage.getItem('upstox_access_token');
-    if (token) {
-      setBrokerToken(token);
-      fetchBrokerHoldings(token);
-      setActiveTab('broker');
-    }
-    // Fetch history for sample symbols
-    SAMPLE_PORTFOLIOS.forEach(p => {
-      p.holdings.forEach(h => fetchHistory(h.symbol));
-    });
-  }, []);
+  const [view, setView] = useState<'holdings' | 'allocation'>('holdings')
 
-  const fetchBrokerHoldings = async (token: string) => {
-    try {
-      const res = await fetch(`${API_BASE}/api/broker/holdings`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ access_token: token, broker: 'upstox' })
-      });
-      const data = await res.json();
-      if (data.holdings) {
-        setBrokerHoldings(data.holdings);
-        data.holdings.forEach((h: any) => fetchHistory(h.symbol));
-      }
-    } catch (e) { console.error('Failed to fetch broker holdings', e); }
-  };
+  const bySector = holdings.reduce((acc: any, h: any) => {
+    acc[h.sector || 'Other'] = (acc[h.sector || 'Other'] ?? 0) + (h.value || 0)
+    return acc
+  }, {})
+  const donut = Object.entries(bySector).map(([label, value], i) => ({ label, value: value as number, color: SECTOR_COLORS[i % SECTOR_COLORS.length] }))
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    setLoading(true); setError('');
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('query', 'Deep dive analysis of this portfolio data. Identify risks and sector allocations.');
-    try {
-      const res = await fetch(`${API_BASE}/api/analyze-file`, { method: 'POST', body: fd });
-      const data = await res.json();
-      if (data.analysis) {
-        sessionStorage.setItem('cached_analysis', JSON.stringify(data));
-        router.push('/intelligence');
-      } else { setError(data.error || 'Analysis failed. Check backend logs.'); }
-    } catch { setError('File upload failed. Ensure backend is running.'); }
-    finally { setLoading(false); }
-  };
-
-  const handleConnectUpstox = async () => {
-    try {
-      const r = await fetch(`${API_BASE}/api/broker/login/upstox`);
-      const d = await r.json();
-      if (d.login_url === 'mock_auth_flow') {
-        window.location.href = '/callback/upstox?code=mock_code';
-      } else if (d.login_url) { window.location.href = d.login_url; }
-    } catch { setError('Failed to contact backend for Upstox login.'); }
-  };
-
-  const handleAnalyzeBrokerHoldings = async () => {
-    if (brokerHoldings.length === 0) return;
-    setLoading(true); setError('');
-    const context = `User Portfolio Holdings from Upstox:\n${JSON.stringify(brokerHoldings, null, 2)}`;
-    try {
-      const res = await fetch(`${API_BASE}/api/analyze`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: 'Analyze my overall portfolio strategy, identify sector risks, and provide actionable recommendations.', context }),
-      });
-      const data = await res.json();
-      if (data.analysis) {
-        sessionStorage.setItem('cached_analysis', JSON.stringify(data));
-        router.push('/intelligence');
-      } else { setError('Analysis failed.'); }
-    } catch { setError('Connection failed.'); }
-    finally { setLoading(false); }
-  };
-
-  const handleAnalyzeSample = async (portfolio: typeof SAMPLE_PORTFOLIOS[0]) => {
-    setLoadingId(portfolio.id); setError('');
-    const holdingsText = portfolio.holdings.map(h =>
-      `${h.symbol}: ${h.qty} shares @ ₹${h.avg_price} avg (current ₹${h.current_price}), P&L: ₹${h.pnl} (${h.pnl_pct}%)`
-    ).join('\n');
-    const context = `Sample Portfolio: "${portfolio.label}"\nTotal Value: ₹${portfolio.totalValue.toLocaleString('en-IN')}\nTotal P&L: ₹${portfolio.totalPnl.toLocaleString('en-IN')} (${portfolio.pnlPct > 0 ? '+' : ''}${portfolio.pnlPct}%)\n\nHoldings:\n${holdingsText}`;
-    try {
-      const res = await fetch(`${API_BASE}/api/analyze`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: `Analyze this "${portfolio.label}" portfolio in depth. Assess sector concentration, behavioral risks, and provide 5 specific recommendations for improving risk-adjusted returns.`,
-          context
-        }),
-      });
-      const data = await res.json();
-      if (data.analysis) {
-        sessionStorage.setItem('cached_analysis', JSON.stringify(data));
-        router.push('/intelligence');
-      } else { setError('Analysis failed.'); }
-    } catch { setError('Connection failed. Is the backend running?'); }
-    finally { setLoadingId(null); }
-  };
-
-  const formatCurrency = (val: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val);
+  const columns: Column<any>[] = [
+    { key: 'symbol', header: 'Symbol', render: (h) => (
+      <div className="text-left">
+        <div className="font-semibold">{h.symbol}</div>
+        <div className="text-[11px] text-muted truncate max-w-[140px]">{h.name}</div>
+      </div>
+    ) },
+    { key: 'qty', header: 'Qty', align: 'right', render: (h) => h.qty },
+    { key: 'avg', header: 'Avg', align: 'right', render: (h) => `₹${fmt(h.avgPrice || 0)}` },
+    { key: 'price', header: 'LTP', align: 'right', render: (h) => `₹${fmt(h.price || 0)}` },
+    { key: 'value', header: 'Value', align: 'right', render: (h) => `₹${fmt(h.value || 0, { compact: true })}` },
+    { key: 'pnl', header: 'P&L', align: 'right', render: (h) => (
+      <div>
+        <div className={(h.pnl || 0) >= 0 ? 'text-primary' : 'text-coral'}>{(h.pnl || 0) >= 0 ? '+' : ''}₹{fmt(Math.abs(h.pnl || 0), { compact: true })}</div>
+        <Change value={h.pnlPct} showArrow={false} className="text-[11px]" />
+      </div>
+    ) },
+    { key: 'weight', header: 'Weight', align: 'right', render: (h) => (
+      <div className="flex flex-col items-end gap-1 min-w-[70px]">
+        <span className="text-[11px]">{h.weight ? h.weight.toFixed(1) : 0}%</span>
+        <ProgressBar value={h.weight || 0} className="w-16" />
+      </div>
+    ) },
+  ]
 
   return (
-    <main className="min-h-screen pt-40 pb-20 relative z-10 w-full">
-      <div className="absolute top-40 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-indigo-500/5 blur-[120px] rounded-[100%] pointer-events-none -z-10"></div>
-
-      <div className="max-w-5xl mx-auto px-6">
-        {/* Page Header */}
-        <div className="mb-8 fade-up">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/[0.06] bg-white/[0.03] text-[10px] tracking-wide text-indigo-400 mb-4 font-mono uppercase tracking-widest font-semibold shadow-lg shadow-black/20">
-            <iconify-icon icon="solar:wallet-2-linear"></iconify-icon>
-            PORTFOLIO CENTER
-          </div>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-200 uppercase font-mono mb-2">Your Portfolio Hub</h1>
-          <p className="text-slate-400 text-xs max-w-lg">Connect your broker, upload statements, or analyze one of our sample portfolios to see PortAI in action.</p>
+    <PageShell
+      category="Core Intelligence"
+      title="Portfolio Center"
+      subtitle="Track holdings, allocation, and performance across your investments."
+      icon="solar:wallet-money-linear"
+      actions={<Btn variant="primary"><span className="inline-flex items-center gap-2"><iconify-icon icon="solar:add-circle-linear" width="16"></iconify-icon>New Holding</span></Btn>}
+    >
+      {pfLoading || holdingsLoading ? (
+        <div className="flex items-center justify-center h-64 text-soft">Loading live portfolio data...</div>
+      ) : holdings.length === 0 ? (
+        <div className="flex items-center justify-center h-64 text-soft border border-dashed border-border rounded-xl">
+          Connect your broker API or add manual holdings to view portfolio performance.
         </div>
-
-        {error && (
-          <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-3 text-red-600 text-xs font-mono uppercase">
-            <iconify-icon icon="solar:danger-triangle-linear" width="18"></iconify-icon>
-            {error}
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <StatCard label="Net Worth" value={fmt(pf.totalValue, { compact: true, prefix: '₹' })} change={pf.dayChange} icon="solar:wallet-money-linear" sparkUp={pf.dayChange >= 0} />
+            <StatCard label="Invested" value={fmt(pf.investedValue, { compact: true, prefix: '₹' })} icon="solar:safe-square-linear" hint={`Cost ₹${fmt(pf.totalCost, { compact: true })}`} />
+            <StatCard label="Unrealized P&L" value={fmt(pf.totalPnl, { compact: true, prefix: '₹' })} change={pf.totalPnlPct} icon="solar:chart-2-linear" sparkUp={pf.totalPnl >= 0} />
+            <StatCard label="Available Cash" value={fmt(pf.cash, { compact: true, prefix: '₹' })} icon="solar:banknote-2-linear" hint="Ready to deploy" />
           </div>
-        )}
 
-        {/* Tab Navigation */}
-        <div className="flex gap-1 p-1 rounded-full bg-white/[0.03] border border-white/[0.06] w-fit mb-8 shadow-lg shadow-black/20">
-          {([
-            { id: 'samples', label: '✨ Samples' },
-            { id: 'broker',  label: '🔗 Broker' },
-            { id: 'upload',  label: '📄 Upload' },
-          ] as const).map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`px-6 py-2.5 rounded-full text-[10px] font-mono uppercase tracking-widest font-bold transition-all ${activeTab === tab.id ? 'bg-indigo-500 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}>
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* ── Tab: Sample Portfolios ── */}
-        {activeTab === 'samples' && (
-          <div className="space-y-4 fade-up">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-slate-400 font-mono uppercase">Click "AI Analyze" on any sample to see a full institutional-grade report — no account needed.</p>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-5">
-              {SAMPLE_PORTFOLIOS.map(portfolio => {
-                const c = COLOR_MAP[portfolio.color];
-                const isLoading = loadingId === portfolio.id;
-                const isGain = portfolio.pnlPct >= 0;
-
-                return (
-                  <div key={portfolio.id} className={`glass-panel rounded-3xl p-6 border ${c.border} hover:bg-white/[0.02] transition-all duration-300 relative overflow-hidden group`}>
-                    <div className={`absolute -right-12 -top-12 w-48 h-48 ${c.glow} blur-[80px] rounded-full pointer-events-none`}></div>
-
-                    {/* Card Header */}
-                    <div className="flex items-start justify-between mb-5 relative z-10">
-                      <div>
-                        <div className={`w-10 h-10 rounded-xl ${c.bg} flex items-center justify-center ${c.text} mb-3`}>
-                          <iconify-icon icon={portfolio.icon} width="20"></iconify-icon>
-                        </div>
-                        <h3 className="text-base font-semibold text-slate-200 font-mono uppercase">{portfolio.label}</h3>
-                        <p className="text-[10px] text-slate-400 mt-0.5 max-w-[200px] leading-relaxed">{portfolio.description}</p>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-base font-semibold text-slate-200 font-mono">{formatCurrency(portfolio.totalValue)}</div>
-                        <div className={`text-[10px] font-mono font-bold ${isGain ? 'text-emerald-400' : 'text-red-600'}`}>
-                          {isGain ? '+' : ''}{formatCurrency(portfolio.totalPnl)} ({isGain ? '+' : ''}{portfolio.pnlPct}%)
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Holdings List */}
-                    <div className="space-y-2 mb-5 relative z-10">
-                      {portfolio.holdings.map(h => (
-                        <div key={h.symbol} className="flex flex-col py-3 border-b border-white/[0.05] last:border-0">
-                          <div className="flex items-center justify-between mb-2">
-                             <div>
-                                <span className="text-xs font-semibold text-slate-200 font-mono">{h.symbol}</span>
-                                <span className="text-[9px] text-slate-400 ml-2 font-mono">{h.qty} shares</span>
-                             </div>
-                             <div className="text-right">
-                                <div className="text-xs font-semibold text-slate-200 font-mono">₹{h.current_price.toLocaleString('en-IN')}</div>
-                                <div className={`text-[9px] font-mono font-bold ${h.pnl >= 0 ? 'text-emerald-400' : 'text-red-600'}`}>
-                                   {h.pnl >= 0 ? '+' : ''}₹{Math.abs(h.pnl).toLocaleString('en-IN')} ({h.pnl_pct}%)
-                                </div>
-                             </div>
-                          </div>
-                          {/* Mini Chart for Portfolio Holding */}
-                          <div className="h-6 w-full opacity-40 group-hover:opacity-85 transition-opacity">
-                             {marketHistory[h.symbol] && (
-                                <StockChart 
-                                   data={marketHistory[h.symbol]} 
-                                   color={h.pnl >= 0 ? '#059669' : '#dc2626'} 
-                                   height={24} 
-                                />
-                             )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Analyze Button */}
-                    <button onClick={() => handleAnalyzeSample(portfolio)} disabled={isLoading || loadingId !== null}
-                      className={`w-full py-3 rounded-full ${c.button} text-white font-mono text-xs font-bold uppercase tracking-widest shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 relative z-10`}>
-                      {isLoading ? (
-                        <><svg className="animate-spin w-4 h-4 text-white" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg> Analyzing...</>
-                      ) : (
-                        <><iconify-icon icon="solar:magic-stick-3-linear"></iconify-icon> AI Analyze Portfolio</>
-                      )}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2 border-border" pad={false}>
+              <div className="p-5 pb-0 flex items-center justify-between">
+                <SectionTitle title="Holdings" subtitle={`${holdings.length} positions`} icon="solar:list-linear" />
+                <div className="flex gap-1 p-1 rounded-lg bg-surface border border-border">
+                  {(['holdings', 'allocation'] as const).map((v) => (
+                    <button key={v} onClick={() => setView(v)}
+                      className={`px-3 py-1.5 rounded-md text-xs font-semibold capitalize transition-colors ${view === v ? 'bg-primary text-[#04120C]' : 'text-soft hover:text-foreground'}`}>
+                      {v}
                     </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* ── Tab: Broker Sync ── */}
-        {activeTab === 'broker' && (
-          <div className="fade-up glass-panel p-8 rounded-3xl relative overflow-hidden border border-white/[0.06] hover:border-indigo-500/30 transition-all duration-500 max-w-lg mx-auto shadow-lg shadow-black/20">
-            <div className="absolute -right-10 -top-10 w-40 h-40 bg-indigo-500/5 blur-3xl rounded-full"></div>
-            <div className="w-14 h-14 rounded-2xl bg-indigo-500/5 border border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-6 relative z-10">
-              <iconify-icon icon="solar:shield-check-bold" width="28"></iconify-icon>
-            </div>
-            <h3 className="text-xl font-semibold tracking-tight text-slate-200 font-mono uppercase mb-2 relative z-10">Broker Sync API</h3>
-            <p className="text-xs text-slate-400 leading-relaxed mb-8 relative z-10">Securely connect your Upstox account. PortAI instantly reads your live holdings to find sector risks and alpha opportunities.</p>
-
-            <div className="relative z-10">
-              {brokerToken ? (
-                <div className="space-y-4">
-                  <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-between shadow-lg shadow-black/20">
-                    <div className="flex items-center gap-3 text-xs font-semibold text-slate-200 font-mono uppercase">
-                      <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(5,150,105,0.6)]"></div>
-                      Upstox Connected
-                    </div>
-                    <div className="text-xs font-mono font-bold text-emerald-400">{brokerHoldings.length} Assets Synced</div>
-                  </div>
-                  {brokerHoldings.length > 0 && (
-                    <div className="space-y-2">
-                      {brokerHoldings.map((h, i) => (
-                        <button 
-                          key={i} 
-                          onClick={() => openStockModal(h.symbol, h)}
-                          className="w-full text-left flex justify-between items-center text-xs p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.02] hover:border-indigo-500/30 transition-all cursor-pointer group/row font-mono"
-                        >
-                          <span className="text-slate-200/80 font-bold font-mono group-hover/row:text-indigo-400">{h.symbol}</span>
-                          <span className={`font-bold ${h.pnl >= 0 ? 'text-emerald-400' : 'text-red-600'}`}>
-                            {h.pnl >= 0 ? '+' : ''}{new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(h.pnl)} ({h.pnl_pct}%)
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <button onClick={handleAnalyzeBrokerHoldings} disabled={loading || brokerHoldings.length === 0}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-full bg-primary hover:bg-indigo-500 text-white text-xs font-mono font-bold uppercase tracking-widest transition-colors shadow-md disabled:opacity-50">
-                    {loading ? 'Analyzing...' : <><iconify-icon icon="solar:magic-stick-3-linear"></iconify-icon> AI Analyze Synced Holdings</>}
-                  </button>
-                  <button onClick={() => { localStorage.removeItem('upstox_access_token'); setBrokerToken(null); setBrokerHoldings([]); }}
-                    className="w-full py-2 text-[10px] font-mono uppercase tracking-widest text-slate-400 hover:text-indigo-400 transition-colors">
-                    Disconnect Broker
-                  </button>
+                  ))}
                 </div>
-              ) : (
-                <button onClick={handleConnectUpstox} disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-full bg-primary hover:bg-indigo-500 text-white text-xs font-mono font-bold uppercase tracking-widest transition-colors shadow-md">
-                  <iconify-icon icon="solar:link-circle-bold"></iconify-icon> Connect Upstox Account
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ── Tab: Upload File ── */}
-        {activeTab === 'upload' && (
-          <div className="fade-up glass-panel p-8 rounded-3xl relative overflow-hidden border border-white/[0.06] hover:border-indigo-500/30 transition-all duration-500 max-w-lg mx-auto shadow-lg shadow-black/20">
-            <div className="absolute -right-10 -top-10 w-40 h-40 bg-indigo-500/5 blur-3xl rounded-full"></div>
-            <div className="flex items-center justify-between mb-6 relative z-10">
-              <div className="w-14 h-14 rounded-2xl bg-indigo-500/5 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-                <iconify-icon icon="solar:document-add-linear" width="28"></iconify-icon>
               </div>
-              <div className="flex gap-1 font-mono text-[9px]">
-                <span className="px-2 py-0.5 rounded-md bg-white/[0.03] border border-white/[0.06] text-slate-400 shadow-lg shadow-black/20">.CSV</span>
-                <span className="px-2 py-0.5 rounded-md bg-white/[0.03] border border-white/[0.06] text-slate-400 shadow-lg shadow-black/20">.PDF</span>
-                <span className="px-2 py-0.5 rounded-md bg-white/[0.03] border border-white/[0.06] text-slate-400 shadow-lg shadow-black/20">.TXT</span>
-              </div>
-            </div>
-            <h3 className="text-xl font-semibold tracking-tight text-slate-200 font-mono uppercase mb-2 relative z-10">Upload Custom Files</h3>
-            <p className="text-xs text-slate-400 leading-relaxed mb-8 relative z-10">Upload your portfolio statements, parsed tax documents, or custom CSV datasets for rapid analysis.</p>
-            <div className="relative z-10">
-              <input type="file" ref={fileRef} onChange={handleFileUpload} accept=".csv,.txt,.json,.pdf,.jpg,.jpeg,.png" className="hidden" />
-              <button onClick={() => fileRef.current?.click()} disabled={loading}
-                className="w-full flex-col gap-3 py-12 rounded-xl bg-white/[0.02] border border-dashed border-white/[0.08] text-slate-400 hover:border-indigo-400 hover:bg-indigo-500/5 transition-all group flex items-center justify-center shadow-lg shadow-black/20">
-                {loading ? (
-                  <svg className="animate-spin w-8 h-8 text-indigo-400" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              <div className="p-5 pt-3">
+                {view === 'holdings' ? (
+                  <DataTable columns={columns} rows={holdings} />
                 ) : (
-                  <>
-                    <iconify-icon icon="solar:upload-linear" width="32" className="text-slate-500/40 group-hover:text-indigo-400 transition-colors"></iconify-icon>
-                    <div className="text-xs font-mono font-bold uppercase tracking-widest text-slate-200/60 group-hover:text-indigo-400">Click to upload file</div>
-                    <div className="text-[10px] text-slate-500/40 text-center px-4 leading-normal">CSV, PDF, TXT, or image — PortAI parses everything</div>
-                  </>
+                  <div className="space-y-3">
+                    {holdings.map((h: any, i: number) => (
+                      <div key={h.symbol} className="flex items-center gap-3">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: SECTOR_COLORS[i % SECTOR_COLORS.length] }} />
+                        <span className="text-sm font-medium w-28 shrink-0">{h.symbol}</span>
+                        <ProgressBar value={h.weight || 0} className="flex-1" />
+                        <span className="text-sm tabular-nums w-14 text-right">{h.weight ? h.weight.toFixed(1) : 0}%</span>
+                      </div>
+                    ))}
+                  </div>
                 )}
-              </button>
+              </div>
+            </Card>
+
+            <div className="space-y-6">
+              <Card className="border-border">
+                <SectionTitle title="Sector Allocation" icon="solar:pie-chart-2-linear" />
+                <div className="flex flex-col items-center gap-4">
+                  <Donut segments={donut} center={<><span className="text-[11px] text-soft">Invested</span><span className="text-lg font-bold">₹{fmt(pf.investedValue, { compact: true })}</span></>} />
+                  <div className="w-full grid grid-cols-1 gap-1.5">
+                    {donut.map((d) => (
+                      <div key={d.label} className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full" style={{ background: d.color }} />
+                          <span className="text-soft">{d.label}</span>
+                        </div>
+                        <span className="tabular-nums">{pf.investedValue > 0 ? ((d.value / pf.investedValue) * 100).toFixed(1) : 0}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </Card>
             </div>
           </div>
-        )}
-      </div>
-      <DetailModal 
-        isOpen={modalOpen} 
-        onClose={() => setModalOpen(false)} 
-        type={modalType} 
-        data={selectedItem} 
-        history={selectedItem ? marketHistory[selectedItem.symbol] : undefined}
-      />
-    </main>
-  );
+        </>
+      )}
+    </PageShell>
+  )
 }
-
-// Portfolios Management dashboard - Drag-and-drop statements upload parser
