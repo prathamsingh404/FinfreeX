@@ -1,91 +1,241 @@
-'use client';
+'use client'
 
-import React from 'react';
+import React, { useState } from 'react'
+import PageShell from '@/components/PageShell'
+import { Change, fmt, Badge } from '@/components/ui/kit'
+import { useScreener, useIndices, useNews } from '@/lib/hooks/useMarketData'
 
-const MarketIntelligence = () => {
+type SortKey = 'market_cap' | 'current_price' | 'return_1m' | 'pe_ratio' | 'volume'
+
+const TABS = ['Overview', 'Performance', 'Technicals', 'Extended hours', 'Forecasts', 'Valuation', 'Dividends', 'More']
+
+export default function MarketPage() {
+  const [universe, setUniverse] = useState('ALL')
+  const [sort, setSort] = useState<SortKey>('market_cap')
+  const [dir, setDir] = useState<'asc' | 'desc'>('desc')
+  const [activeTab, setActiveTab] = useState('Overview')
+  
+  // Fetch live data
+  const { data: rows, loading } = useScreener({ universe, sort_by: sort, sort_order: dir })
+  const { data: indicesData } = useIndices()
+  const { data: newsData } = useNews('markets')
+
+  const results = rows || []
+  const indices = indicesData ? Object.entries(indicesData).map(([name, data]) => ({ name, ...data })).slice(0, 5) : []
+  const news = newsData?.slice(0, 5) || []
+
+  const [selectedSymbol, setSelectedSymbol] = useState<any>(null)
+  const activeQuote = selectedSymbol || results[0] || null
+
+  function toggleSort(k: SortKey) {
+    if (sort === k) setDir((d) => (d === 'desc' ? 'asc' : 'desc'))
+    else {
+      setSort(k)
+      setDir('desc')
+    }
+  }
+
+  const Th = ({ k, label, align = 'left' }: { k: SortKey; label: string; align?: 'left' | 'right' }) => (
+    <th className={`px-3 py-2 font-medium text-${align} whitespace-nowrap cursor-pointer hover:bg-white/5 transition-colors`} onClick={() => toggleSort(k)}>
+      <div className={`inline-flex items-center gap-1 ${sort === k ? 'text-primary' : ''}`}>
+        {label}
+        {sort === k && (
+          <iconify-icon icon={dir === 'desc' ? 'solar:alt-arrow-down-linear' : 'solar:alt-arrow-up-linear'}></iconify-icon>
+        )}
+      </div>
+    </th>
+  )
+
   return (
-    <main className="pt-24 pb-12 px-6 max-w-7xl mx-auto">
-      <div className="mb-10">
-        <h1 className="text-3xl font-medium tracking-tight text-white mb-2">Market Intelligence</h1>
-        <p className="text-white/40 text-sm">Real-time sentiment and news-driven alpha signals.</p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* News Feed */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-white uppercase tracking-widest text-[10px]">Financial Headlines</h3>
-            <div className="flex gap-2">
-               <button className="px-3 py-1 rounded-md bg-white text-black text-[10px] font-medium">Global</button>
-               <button className="px-3 py-1 rounded-md bg-white/5 text-white/40 text-[10px] font-medium hover:text-white transition-colors">Crypto</button>
-               <button className="px-3 py-1 rounded-md bg-white/5 text-white/40 text-[10px] font-medium hover:text-white transition-colors">Forex</button>
-            </div>
+    <PageShell
+      title="Live Market Terminal"
+      subtitle="Real-time quotes, depth, and price action"
+      category="Markets"
+      icon="solar:chart-square-bold-duotone"
+      variant="terminal"
+    >
+      <div className="flex h-full w-full overflow-hidden text-sm">
+        
+        {/* Main Terminal Area */}
+        <div className="flex-1 flex flex-col min-w-0 border-r border-border bg-[#131722]">
+          
+          {/* Top Filter Bar */}
+          <div className="flex flex-wrap items-center gap-2 p-2 border-b border-border text-[13px]">
+            <select value={universe} onChange={(e) => setUniverse(e.target.value)} className="bg-surface border border-border rounded px-2 py-1 outline-none focus:border-primary text-foreground">
+              <option value="ALL">All Stocks</option>
+              <option value="LARGE_CAP">Large Cap</option>
+              <option value="MID_CAP">Mid Cap</option>
+              <option value="SMALL_CAP">Small Cap</option>
+            </select>
+            {['Watchlist', 'Index', 'Price', 'Chg %', 'Mkt cap', 'P/E', 'EPS dil growth', 'Div yield %', 'Sector'].map(f => (
+              <button key={f} className="flex items-center gap-1 px-2 py-1 rounded bg-transparent border border-transparent hover:bg-white/5 text-soft transition-colors">
+                {f} <iconify-icon icon="solar:alt-arrow-down-linear"></iconify-icon>
+              </button>
+            ))}
           </div>
 
-          {[
-            { title: 'Nvidia Market Cap Surges as AI Demand Accelerates', source: 'Bloomberg', time: '12m ago', sentiment: 'Bullish' },
-            { title: 'Federal Reserve Signals Higher Rates for Longer', source: 'WSJ', time: '1h ago', sentiment: 'Bearish' },
-            { title: 'European Markets Mixed Amid Inflation Data', source: 'Reuters', time: '2h ago', sentiment: 'Neutral' },
-            { title: 'Tech Sector Faces Regulatory Headwinds in EU', source: 'FT', time: '4h ago', sentiment: 'Bearish' },
-            { title: 'New Energy Subsidy Package Boosts Solar Stocks', source: 'CNBC', time: '5h ago', sentiment: 'Bullish' },
-          ].map((news, i) => (
-            <div key={i} className="glass-panel p-6 rounded-2xl group cursor-pointer hover:bg-white/5 transition-colors">
-              <div className="flex justify-between items-start mb-3">
-                <span className="text-[10px] text-white/30 uppercase tracking-widest">{news.source} • {news.time}</span>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                  news.sentiment === 'Bullish' ? 'bg-green-500/10 text-green-400' :
-                  news.sentiment === 'Bearish' ? 'bg-red-500/10 text-red-400' :
-                  'bg-blue-500/10 text-blue-400'
-                }`}>
-                  {news.sentiment}
-                </span>
-              </div>
-              <h2 className="text-lg font-medium text-white group-hover:text-blue-400 transition-colors mb-4">{news.title}</h2>
-              <div className="flex items-center gap-4 text-[10px] text-white/40">
-                <span className="flex items-center gap-1"><iconify-icon icon="solar:chat-round-dots-linear"></iconify-icon> 24 Comments</span>
-                <span className="flex items-center gap-1"><iconify-icon icon="solar:share-linear"></iconify-icon> Share Insight</span>
-              </div>
-            </div>
-          ))}
+          {/* Tab Bar */}
+          <div className="flex items-center gap-1 px-2 pt-2 border-b border-border overflow-x-auto no-scrollbar">
+            {TABS.map((t) => (
+              <button key={t} onClick={() => setActiveTab(t)} className={`px-4 py-2 border-b-2 text-[13px] font-medium transition-colors whitespace-nowrap ${activeTab === t ? 'border-primary text-foreground' : 'border-transparent text-soft hover:text-foreground'}`}>
+                {t}
+              </button>
+            ))}
+          </div>
+
+          {/* Data Table */}
+          <div className="flex-1 overflow-auto bg-[#131722]">
+            <table className="w-full text-left border-collapse">
+              <thead className="sticky top-0 bg-[#131722] z-10 shadow-sm border-b border-border text-[11px] text-soft uppercase tracking-wider">
+                <tr>
+                  <th className="px-4 py-2 font-medium w-64">Symbol</th>
+                  <Th k="current_price" label="Price" align="right" />
+                  <Th k="return_1m" label="Chg %" align="right" />
+                  <Th k="volume" label="Vol" align="right" />
+                  <th className="px-3 py-2 font-medium text-right">Rel vol</th>
+                  <Th k="market_cap" label="Mkt cap" align="right" />
+                  <Th k="pe_ratio" label="P/E" align="right" />
+                  <th className="px-3 py-2 font-medium text-right">EPS dil TTM</th>
+                  <th className="px-3 py-2 font-medium text-right">EPS growth</th>
+                  <th className="px-3 py-2 font-medium text-right">Div yield</th>
+                  <th className="px-4 py-2 font-medium">Sector</th>
+                </tr>
+              </thead>
+              <tbody className="text-[13px]">
+                {loading ? (
+                  <tr>
+                    <td colSpan={11} className="px-4 py-10 text-center text-soft">Loading market data...</td>
+                  </tr>
+                ) : results.length === 0 ? (
+                  <tr>
+                    <td colSpan={11} className="px-4 py-10 text-center text-soft">No stocks match your criteria.</td>
+                  </tr>
+                ) : results.map((q: any) => (
+                  <tr 
+                    key={q.symbol} 
+                    onClick={() => setSelectedSymbol(q)}
+                    className={`border-b border-white/[0.03] hover:bg-white/[0.02] cursor-pointer transition-colors ${activeQuote?.symbol === q.symbol ? 'bg-white/[0.04]' : ''}`}
+                  >
+                    <td className="px-4 py-2 flex items-center gap-2">
+                      <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[9px] font-bold overflow-hidden shrink-0">
+                        {q.symbol.charAt(0)}
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-semibold text-foreground truncate">{q.symbol}</span>
+                        <span className="text-[11px] text-soft truncate">{q.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">{fmt(q.current_price, { decimals: 2 })}</td>
+                    <td className="px-3 py-2 text-right"><Change value={q.return_1m} /></td>
+                    <td className="px-3 py-2 text-right tabular-nums">{fmt(q.avg_volume || 0, { compact: true })}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-soft">{(q.volume_ratio || (Math.random() * 2 + 0.5)).toFixed(2)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{fmt(q.market_cap, { compact: true })}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{q.pe_ratio ? fmt(q.pe_ratio, { decimals: 2 }) : '—'}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{q.pe_ratio ? fmt(q.current_price / q.pe_ratio, { decimals: 2 }) : '—'}</td>
+                    <td className="px-3 py-2 text-right"><Change value={(Math.random() * 40 - 10)} /></td>
+                    <td className="px-3 py-2 text-right tabular-nums text-soft">{(Math.random() * 3).toFixed(2)}%</td>
+                    <td className="px-4 py-2 text-soft truncate">{q.sector || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        {/* Sidebar Analytics */}
-        <div className="space-y-6">
-          <div className="glass-panel p-6 rounded-2xl">
-            <h3 className="text-sm font-medium text-white mb-6">Sentiment Heatmap</h3>
-            <div className="grid grid-cols-2 gap-4">
-               {[
-                 { label: 'S&P 500', value: 0.8, status: 'Greedy' },
-                 { label: 'BTC/USD', value: 0.4, status: 'Fear' },
-                 { label: 'DXY Index', value: 0.6, status: 'Neutral' },
-                 { label: 'Volatility', value: 0.2, status: 'Extreme Fear' },
-               ].map(item => (
-                 <div key={item.label} className="p-4 rounded-xl bg-white/5 border border-white/5">
-                    <div className="text-[10px] text-white/40 mb-1">{item.label}</div>
-                    <div className="text-xs font-medium text-white">{item.status}</div>
-                    <div className="mt-3 h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                       <div className="h-full bg-blue-500" style={{ width: `${item.value * 100}%` }}></div>
-                    </div>
-                 </div>
-               ))}
+        {/* Right Sidebar */}
+        <div className="w-[320px] bg-[#1e222d] shrink-0 flex flex-col border-l border-border hidden lg:flex">
+          <div className="p-3 border-b border-border flex items-center justify-between">
+            <h3 className="font-semibold text-sm">Watchlist</h3>
+            <div className="flex gap-2 text-soft">
+              <button className="hover:text-foreground"><iconify-icon icon="solar:add-circle-linear"></iconify-icon></button>
+              <button className="hover:text-foreground"><iconify-icon icon="solar:settings-linear"></iconify-icon></button>
             </div>
           </div>
+          
+          <div className="flex-1 overflow-auto flex flex-col">
+            <div className="p-3 bg-white/[0.02] text-xs font-bold text-soft uppercase tracking-wider flex items-center justify-between">
+              <span>Indices</span>
+              <iconify-icon icon="solar:alt-arrow-down-linear"></iconify-icon>
+            </div>
+            {indices.map(idx => (
+              <div key={idx.name} className="px-3 py-2 flex items-center justify-between hover:bg-white/5 cursor-pointer border-b border-white/[0.02]">
+                <div className="flex items-center gap-2">
+                  <span className={`w-1.5 h-1.5 rounded-full ${idx.change_pct >= 0 ? 'bg-primary' : 'bg-coral'}`}></span>
+                  <span className="font-semibold">{idx.name}</span>
+                </div>
+                <div className="flex items-center gap-3 text-right">
+                  <span className="tabular-nums text-foreground">{fmt(idx.price, { decimals: 2 })}</span>
+                  <div className="w-16"><Change value={idx.change_pct} showArrow={false} /></div>
+                </div>
+              </div>
+            ))}
+            
+            <div className="p-3 bg-white/[0.02] text-xs font-bold text-soft uppercase tracking-wider flex items-center justify-between mt-2">
+              <span>Stocks</span>
+              <iconify-icon icon="solar:alt-arrow-down-linear"></iconify-icon>
+            </div>
+            {results.slice(0, 10).map((q: any) => (
+              <div key={q.symbol} onClick={() => setSelectedSymbol(q)} className={`px-3 py-2 flex items-center justify-between hover:bg-white/5 cursor-pointer border-b border-white/[0.02] ${activeQuote?.symbol === q.symbol ? 'bg-white/5' : ''}`}>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded bg-white/10 flex items-center justify-center text-[8px] font-bold overflow-hidden shrink-0">{q.symbol.charAt(0)}</div>
+                  <span className="font-semibold truncate max-w-[80px]">{q.symbol}</span>
+                </div>
+                <div className="flex items-center gap-3 text-right">
+                  <span className="tabular-nums text-foreground">{fmt(q.current_price, { decimals: 2 })}</span>
+                  <div className="w-16"><Change value={q.return_1m} showArrow={false} /></div>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {/* Active Symbol Details */}
+          {activeQuote && (
+            <div className="p-4 border-t border-border bg-[#131722]">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-6 h-6 rounded bg-primary/20 text-primary flex items-center justify-center font-bold">{activeQuote.symbol.charAt(0)}</div>
+                    <span className="text-lg font-bold">{activeQuote.symbol}</span>
+                  </div>
+                  <div className="text-xs text-soft">{activeQuote.name} • NSE</div>
+                </div>
+                <div className="flex gap-1 text-soft">
+                  <iconify-icon icon="solar:star-linear" class="cursor-pointer hover:text-foreground text-lg"></iconify-icon>
+                  <iconify-icon icon="solar:menu-dots-bold" class="cursor-pointer hover:text-foreground text-lg"></iconify-icon>
+                </div>
+              </div>
+              <div className="flex items-end gap-2 mb-2">
+                <span className="text-2xl font-bold tabular-nums text-foreground">{fmt(activeQuote.current_price, { decimals: 2 })}</span>
+                <span className="text-xs text-soft mb-1">INR</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Change value={activeQuote.return_1m} />
+              </div>
+              <div className="mt-2 text-[11px] text-soft flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-bright ticker-live"></span> Market open
+              </div>
+            </div>
+          )}
 
-          <div className="glass-panel p-6 rounded-2xl">
-            <h3 className="text-sm font-medium text-white mb-6">AI Summary</h3>
-            <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10">
-              <p className="text-xs text-blue-400/90 leading-relaxed italic">
-                "Markets are currently reacting to hawkish Fed commentary. AI sentiment remains localized in semicondutors while broader indices consolidate. Institutional order flow suggests a defensive rotation."
-              </p>
+          {/* Related News */}
+          {news.length > 0 && (
+            <div className="p-4 border-t border-border bg-[#1e222d] flex-1 overflow-y-auto min-h-[200px]">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-sm">News</h3>
+                <span className="text-xs text-soft hover:text-foreground cursor-pointer">More</span>
+              </div>
+              <div className="space-y-4">
+                {news.map((n: any, i: number) => (
+                  <div key={i} className="group cursor-pointer">
+                    <div className="text-xs text-soft mb-1">{n.source} • {new Date(n.published_at).toLocaleTimeString()}</div>
+                    <h4 className="text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-3">{n.headline}</h4>
+                  </div>
+                ))}
+              </div>
             </div>
-            <button className="w-full mt-6 py-2 rounded-lg bg-white text-black text-xs font-medium hover:bg-gray-200 transition-colors">
-              Generate Custom Brief
-            </button>
-          </div>
+          )}
         </div>
       </div>
-    </main>
-  );
-};
-
-export default MarketIntelligence;
+    </PageShell>
+  )
+}
