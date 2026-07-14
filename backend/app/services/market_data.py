@@ -3,6 +3,16 @@ import pandas as pd
 from typing import Optional
 from datetime import datetime
 import asyncio
+import math
+
+def safe_float(val):
+    if val is None: return None
+    try:
+        f = float(val)
+        if math.isnan(f) or math.isinf(f): return None
+        return f
+    except (ValueError, TypeError):
+        return None
 
 def normalize_symbol(symbol: str, exchange: str = "NSE") -> str:
     """Convert display symbol to yfinance format."""
@@ -22,6 +32,7 @@ async def get_quote(symbol: str, exchange: str = "NSE") -> dict:
         ticker = yf.Ticker(yf_symbol)
         info = ticker.fast_info
         hist = await asyncio.to_thread(lambda: ticker.history(period="2d", interval="1d"))
+        hist = hist.dropna()
 
         if hist.empty:
             return {"error": f"No data found for {symbol}", "symbol": symbol}
@@ -60,6 +71,7 @@ async def get_ohlcv(
     try:
         ticker = yf.Ticker(yf_symbol)
         hist = await asyncio.to_thread(lambda: ticker.history(period=period, interval=interval))
+        hist = hist.dropna()
         if hist.empty:
             return []
 
@@ -92,26 +104,26 @@ async def get_fundamentals(symbol: str, exchange: str = "NSE") -> dict:
             "company_name": info.get("longName", ""),
             "sector": info.get("sector", ""),
             "industry": info.get("industry", ""),
-            "market_cap": info.get("marketCap"),
-            "pe_ratio": info.get("trailingPE"),
-            "forward_pe": info.get("forwardPE"),
-            "pb_ratio": info.get("priceToBook"),
-            "eps": info.get("trailingEps"),
-            "revenue": info.get("totalRevenue"),
-            "revenue_growth": info.get("revenueGrowth"),
-            "gross_margins": info.get("grossMargins"),
-            "operating_margins": info.get("operatingMargins"),
-            "profit_margins": info.get("profitMargins"),
-            "debt_to_equity": info.get("debtToEquity"),
-            "current_ratio": info.get("currentRatio"),
-            "roe": info.get("returnOnEquity"),
-            "roa": info.get("returnOnAssets"),
-            "free_cashflow": info.get("freeCashflow"),
-            "dividend_yield": info.get("dividendYield"),
-            "52w_high": info.get("fiftyTwoWeekHigh"),
-            "52w_low": info.get("fiftyTwoWeekLow"),
-            "avg_volume": info.get("averageVolume"),
-            "beta": info.get("beta"),
+            "market_cap": safe_float(info.get("marketCap")),
+            "pe_ratio": safe_float(info.get("trailingPE")),
+            "forward_pe": safe_float(info.get("forwardPE")),
+            "pb_ratio": safe_float(info.get("priceToBook")),
+            "eps": safe_float(info.get("trailingEps")),
+            "revenue": safe_float(info.get("totalRevenue")),
+            "revenue_growth": safe_float(info.get("revenueGrowth")),
+            "gross_margins": safe_float(info.get("grossMargins")),
+            "operating_margins": safe_float(info.get("operatingMargins")),
+            "profit_margins": safe_float(info.get("profitMargins")),
+            "debt_to_equity": safe_float(info.get("debtToEquity")),
+            "current_ratio": safe_float(info.get("currentRatio")),
+            "roe": safe_float(info.get("returnOnEquity")),
+            "roa": safe_float(info.get("returnOnAssets")),
+            "free_cashflow": safe_float(info.get("freeCashflow")),
+            "dividend_yield": safe_float(info.get("dividendYield")),
+            "52w_high": safe_float(info.get("fiftyTwoWeekHigh")),
+            "52w_low": safe_float(info.get("fiftyTwoWeekLow")),
+            "avg_volume": safe_float(info.get("averageVolume")),
+            "beta": safe_float(info.get("beta")),
             "description": info.get("longBusinessSummary", ""),
         }
     except Exception as e:
@@ -144,6 +156,7 @@ async def get_indices() -> dict:
         try:
             ticker = yf.Ticker(yf_sym)
             hist = await asyncio.to_thread(lambda: ticker.history(period="2d", interval="1d"))
+            hist = hist.dropna()
             if not hist.empty:
                 current = float(hist["Close"].iloc[-1])
                 prev = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else current
@@ -186,3 +199,127 @@ async def get_top_movers(exchange: str = "NSE", count: int = 10) -> dict:
         "gainers": sorted_by_change[:count],
         "losers": sorted_by_change[-count:][::-1]
     }
+
+async def get_forex_data() -> list[dict]:
+    """Live forex rates via yfinance."""
+    pairs = [
+        {"pair": "USD/INR", "symbol": "USDINR=X"},
+        {"pair": "EUR/USD", "symbol": "EURUSD=X"},
+        {"pair": "GBP/USD", "symbol": "GBPUSD=X"},
+        {"pair": "USD/JPY", "symbol": "USDJPY=X"},
+        {"pair": "USD/CNY", "symbol": "USDCNY=X"},
+        {"pair": "AUD/USD", "symbol": "AUDUSD=X"},
+        {"pair": "USD/CAD", "symbol": "USDCAD=X"},
+        {"pair": "EUR/INR", "symbol": "EURINR=X"},
+        {"pair": "GBP/INR", "symbol": "GBPINR=X"},
+        {"pair": "USD/CHF", "symbol": "USDCHF=X"},
+    ]
+    results = []
+
+    async def fetch_pair(p):
+        try:
+            ticker = yf.Ticker(p["symbol"])
+            hist = await asyncio.to_thread(lambda: ticker.history(period="2d", interval="1d"))
+            hist = hist.dropna()
+            if not hist.empty:
+                rate = round(float(hist["Close"].iloc[-1]), 4)
+                prev = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else rate
+                change_pct = round(((rate - prev) / prev) * 100, 2) if prev else 0
+                return {
+                    "pair": p["pair"],
+                    "rate": rate,
+                    "change_pct": change_pct,
+                    "high": round(float(hist["High"].iloc[-1]), 4),
+                    "low": round(float(hist["Low"].iloc[-1]), 4),
+                }
+        except Exception:
+            pass
+        return None
+
+    tasks = [fetch_pair(p) for p in pairs]
+    resolved = await asyncio.gather(*tasks)
+    return [r for r in resolved if r]
+
+async def get_crypto_data() -> list[dict]:
+    """Live crypto prices via yfinance."""
+    cryptos = [
+        {"symbol": "BTC", "name": "Bitcoin", "yf": "BTC-USD"},
+        {"symbol": "ETH", "name": "Ethereum", "yf": "ETH-USD"},
+        {"symbol": "BNB", "name": "BNB", "yf": "BNB-USD"},
+        {"symbol": "SOL", "name": "Solana", "yf": "SOL-USD"},
+        {"symbol": "XRP", "name": "XRP", "yf": "XRP-USD"},
+        {"symbol": "ADA", "name": "Cardano", "yf": "ADA-USD"},
+        {"symbol": "AVAX", "name": "Avalanche", "yf": "AVAX-USD"},
+        {"symbol": "DOGE", "name": "Dogecoin", "yf": "DOGE-USD"},
+        {"symbol": "DOT", "name": "Polkadot", "yf": "DOT-USD"},
+        {"symbol": "MATIC", "name": "Polygon", "yf": "MATIC-USD"},
+    ]
+    results = []
+
+    async def fetch_crypto(c):
+        try:
+            ticker = yf.Ticker(c["yf"])
+            hist = await asyncio.to_thread(lambda: ticker.history(period="2d", interval="1d"))
+            hist = hist.dropna()
+            if not hist.empty:
+                price = round(float(hist["Close"].iloc[-1]), 2 if float(hist["Close"].iloc[-1]) > 1 else 4)
+                prev = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else price
+                change_pct = round(((price - prev) / prev) * 100, 2) if prev else 0
+                vol = int(hist["Volume"].iloc[-1]) if "Volume" in hist.columns else 0
+                info = {}
+                try:
+                    info = await asyncio.to_thread(lambda: ticker.info or {})
+                except Exception:
+                    pass
+                return {
+                    "symbol": c["symbol"],
+                    "name": c["name"],
+                    "price": price,
+                    "change_pct": change_pct,
+                    "market_cap": safe_float(info.get("marketCap", 0)) or 0,
+                    "volume": vol,
+                }
+        except Exception:
+            pass
+        return None
+
+    tasks = [fetch_crypto(c) for c in cryptos]
+    resolved = await asyncio.gather(*tasks)
+    return [r for r in resolved if r]
+
+async def get_commodities_data() -> list[dict]:
+    """Live commodity prices via yfinance."""
+    commodities = [
+        {"name": "Gold", "symbol": "XAU", "yf": "GC=F", "unit": "/oz"},
+        {"name": "Silver", "symbol": "XAG", "yf": "SI=F", "unit": "/oz"},
+        {"name": "Crude Oil (WTI)", "symbol": "CL", "yf": "CL=F", "unit": "/bbl"},
+        {"name": "Brent Crude", "symbol": "BRN", "yf": "BZ=F", "unit": "/bbl"},
+        {"name": "Natural Gas", "symbol": "NG", "yf": "NG=F", "unit": "/MMBtu"},
+        {"name": "Copper", "symbol": "HG", "yf": "HG=F", "unit": "/lb"},
+    ]
+    results = []
+
+    async def fetch_commodity(c):
+        try:
+            ticker = yf.Ticker(c["yf"])
+            hist = await asyncio.to_thread(lambda: ticker.history(period="2d", interval="1d"))
+            hist = hist.dropna()
+            if not hist.empty:
+                price = round(float(hist["Close"].iloc[-1]), 2)
+                prev = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else price
+                change_pct = round(((price - prev) / prev) * 100, 2) if prev else 0
+                return {
+                    "name": c["name"],
+                    "symbol": c["symbol"],
+                    "unit": c["unit"],
+                    "price": price,
+                    "change_pct": change_pct,
+                }
+        except Exception:
+            pass
+        return None
+
+    tasks = [fetch_commodity(c) for c in commodities]
+    resolved = await asyncio.gather(*tasks)
+    return [r for r in resolved if r]
+
