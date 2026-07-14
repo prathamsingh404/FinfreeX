@@ -27,7 +27,7 @@ async def fetch_rss_feed(source: str, url: str) -> list[dict]:
                 "title": entry.get("title", ""),
                 "source": source,
                 "url": entry.get("link", ""),
-                "publishedAt": pub_date,
+                "published_at": pub_date,
                 "description": entry.get("summary", entry.get("description", ""))
             })
         return articles
@@ -54,7 +54,7 @@ async def fetch_news_api(symbol: Optional[str] = None) -> list[dict]:
                         "title": item.get("title"),
                         "source": item.get("source", {}).get("name", "NewsAPI"),
                         "url": item.get("url"),
-                        "publishedAt": item.get("publishedAt"),
+                        "published_at": item.get("publishedAt"),
                         "description": item.get("description")
                     })
                 return articles
@@ -86,21 +86,21 @@ async def get_aggregated_news(symbol: Optional[str] = None, limit: int = 20) -> 
                 "title": "Nifty 50 hovers near 24,000; banking and auto stocks lead gains",
                 "source": "Moneycontrol",
                 "url": "https://www.moneycontrol.com",
-                "publishedAt": datetime.utcnow().isoformat(),
+                "published_at": datetime.utcnow().isoformat(),
                 "description": "The Indian benchmark indices opened flat today but witnessed immediate buying action as FII buying support and retail inflows continue to sustain valuations."
             },
             {
                 "title": "Government announces PLI expansion for electronics manufacturing sector",
                 "source": "Economic Times",
                 "url": "https://economictimes.indiatimes.com",
-                "publishedAt": datetime.utcnow().isoformat(),
+                "published_at": datetime.utcnow().isoformat(),
                 "description": "In a bid to push local manufacturing, the government has extended the production linked incentive scheme by ₹10,000 crores for semiconductors and IoT devices."
             },
             {
                 "title": "Tata Motors launches new EV variant; stock targets upgraded by top brokerages",
                 "source": "Livemint",
                 "url": "https://www.livemint.com",
-                "publishedAt": datetime.utcnow().isoformat(),
+                "published_at": datetime.utcnow().isoformat(),
                 "description": "Tata Motors announced the rollout of their long-range electric SUV, prompting brokerages to upgrade earnings estimates on expected market share expansion."
             }
         ]
