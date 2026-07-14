@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api, Candle } from '../api';
+import { fetchOHLCV as fetchOHLCVApi, Candle } from '../api';
 
 export function useOHLCV(symbol: string, exchange = 'NSE', period = '3mo', interval = '1d') {
   const [candles, setCandles] = useState<Candle[]>([]);
@@ -10,7 +10,7 @@ export function useOHLCV(symbol: string, exchange = 'NSE', period = '3mo', inter
     if (!symbol) return;
     setIsLoading(true);
     try {
-      const res = await api.market.ohlcv(symbol, exchange, period, interval);
+      const res = await fetchOHLCVApi(symbol, exchange, period, interval);
       setCandles(res || []);
       setIsError(false);
     } catch (err) {
