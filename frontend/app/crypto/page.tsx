@@ -1,35 +1,98 @@
-import React from 'react';
+'use client'
+
+import React, { useState } from 'react'
+import PageShell from '@/components/PageShell'
+import { Card, SectionTitle, Change, fmt } from '@/components/ui/kit'
+import { AreaChart } from '@/components/ui/AreaChart'
+import { useCrypto, useOHLCV } from '@/lib/hooks/useMarketData'
 
 export default function CryptoPage() {
+  const { data: cryptoData, loading: cryptoLoading } = useCrypto()
+  const coins = cryptoData || []
+  
+  const [sel, setSel] = useState('BTC-USD')
+  
+  const activeSymbol = coins.find(c => c.symbol === sel) ? sel : (coins[0]?.symbol || 'BTC-USD')
+  const active = coins.find((c) => c.symbol === activeSymbol)
+  
+  const { data: chartData, loading: chartLoading } = useOHLCV(activeSymbol, 'CRYPTO', '1mo', '1d')
+  const candles = chartData?.map(c => c.close) || []
+
+  // Estimate total market cap and volume from the list we track
+  const totalCap = coins.reduce((s, c) => s + (c.market_cap || 0), 0)
+  const totalVol = coins.reduce((s, c) => s + (c.volume || 0), 0)
+  
+  const btc = coins.find(c => c.symbol === 'BTC-USD')
+  const btcDominance = btc && totalCap > 0 ? ((btc.market_cap || 0) / totalCap) * 100 : 0
+
   return (
-    <div className="w-full h-full relative z-10 pt-32 px-6 pb-16">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4 mb-10 fade-up">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <iconify-icon icon="solar:cpu-linear" width="24"></iconify-icon>
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-100 mb-1">Crypto Assets</h1>
-            <p className="text-slate-500 text-sm">Institutional-grade intelligence for crypto assets.</p>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
-          {/* Placeholder content cards */}
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover">
-            <div className="h-4 w-1/3 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-2">
-            <div className="h-4 w-1/4 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-3">
-            <div className="h-4 w-1/5 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-64 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-        </div>
+    <PageShell
+      category="Assets & Funds"
+      title="Crypto Markets"
+      subtitle="Digital asset prices, market cap, and 24h momentum."
+      icon="solar:bitcoin-linear"
+    >
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <Card className="border-border">
+          <div className="text-xs text-soft">Total Tracked Market Cap</div>
+          <div className="text-2xl font-bold tabular-nums mt-1">{totalCap > 0 ? `$${fmt(totalCap, { compact: true })}` : '...'}</div>
+        </Card>
+        <Card className="border-border">
+          <div className="text-xs text-soft">BTC Dominance</div>
+          <div className="text-2xl font-bold tabular-nums mt-1">{btcDominance > 0 ? `${btcDominance.toFixed(1)}%` : '...'}</div>
+        </Card>
+        <Card className="border-border">
+          <div className="text-xs text-soft">24h Tracked Volume</div>
+          <div className="text-2xl font-bold tabular-nums mt-1">{totalVol > 0 ? `$${fmt(totalVol, { compact: true })}` : '...'}</div>
+        </Card>
       </div>
-    </div>
-  );
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2 border-border">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-bold">{active?.name || 'Loading...'}</h2>
+              <p className="text-sm text-muted">{active?.symbol || sel}</p>
+            </div>
+            {active && (
+              <div className="text-right">
+                <div className="text-2xl font-bold tabular-nums">${fmt(active.price, { decimals: active.price < 1 ? 4 : 2 })}</div>
+                <Change value={active.change_pct} />
+              </div>
+            )}
+          </div>
+          {chartLoading ? (
+            <div className="h-[260px] flex items-center justify-center text-sm text-muted">Loading chart data...</div>
+          ) : candles.length > 0 ? (
+            <AreaChart data={candles} height={260} up={(active?.change_pct || 0) >= 0} />
+          ) : (
+            <div className="h-[260px] flex items-center justify-center text-sm text-muted">No chart data available.</div>
+          )}
+        </Card>
+        
+        <Card pad={false} className="border-border">
+          <div className="p-5 pb-2"><SectionTitle title="Assets" icon="solar:bitcoin-linear" /></div>
+          <div className="max-h-[440px] overflow-y-auto scrollbar-thin">
+            {cryptoLoading ? (
+              <div className="p-5 text-center text-sm text-muted">Fetching crypto rates...</div>
+            ) : coins.length === 0 ? (
+              <div className="p-5 text-center text-sm text-muted">No assets found.</div>
+            ) : coins.map((c) => (
+              <button key={c.symbol} onClick={() => setSel(c.symbol)}
+                className={`w-full flex items-center justify-between px-5 py-3 border-l-2 transition-colors ${activeSymbol === c.symbol ? 'bg-primary/10 border-primary' : 'border-transparent hover:bg-surface-2'}`}>
+                <div className="text-left">
+                  <div className="text-sm font-semibold">{c.symbol.replace('-USD', '')}</div>
+                  <div className="text-[11px] text-muted">{c.name}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm tabular-nums">${fmt(c.price, { decimals: c.price < 1 ? 4 : 2 })}</div>
+                  <Change value={c.change_pct} showArrow={false} />
+                </div>
+              </button>
+            ))}
+          </div>
+        </Card>
+      </div>
+    </PageShell>
+  )
 }
