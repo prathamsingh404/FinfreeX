@@ -1,35 +1,47 @@
-import React from 'react';
+'use client'
+
+import React from 'react'
+import PageShell from '@/components/PageShell'
+import { Card, SectionTitle, Badge, Change, fmt } from '@/components/ui/kit'
+import { getIPOs } from '@/lib/featureData'
+
+const TONE: Record<string, 'emerald' | 'amber' | 'neutral'> = { Open: 'emerald', Upcoming: 'amber', Listed: 'neutral' }
 
 export default function IpoWatchPage() {
+  const ipos = getIPOs()
   return (
-    <div className="w-full h-full relative z-10 pt-32 px-6 pb-16">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4 mb-10 fade-up">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <iconify-icon icon="solar:rocket-linear" width="24"></iconify-icon>
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-100 mb-1">IPO Watch</h1>
-            <p className="text-slate-500 text-sm">Institutional-grade intelligence for ipo watch.</p>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
-          {/* Placeholder content cards */}
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover">
-            <div className="h-4 w-1/3 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-2">
-            <div className="h-4 w-1/4 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-32 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-          <div className="glass-panel p-6 rounded-2xl glow-on-hover smooth-hover lg:col-span-3">
-            <div className="h-4 w-1/5 bg-white/[0.06] rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-64 w-full bg-white/[0.04] rounded-xl animate-pulse"></div>
-          </div>
-        </div>
+    <PageShell category="Equities & Fundamentals" title="IPO Watch" subtitle="Open, upcoming, and recently listed public offerings with GMP." icon="solar:rocket-linear">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {ipos.map((ipo) => (
+          <Card key={ipo.name} className="space-y-4 card-hover">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-base font-bold text-balance">{ipo.name}</div>
+                <div className="text-[11px] text-muted mt-0.5">Opens {ipo.date}</div>
+              </div>
+              <Badge tone={TONE[ipo.status]}>{ipo.status}</Badge>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-white/5 border border-white/8 p-3">
+                <div className="text-[10px] text-muted">Price Band</div>
+                <div className="text-sm font-semibold">{ipo.priceBand}</div>
+              </div>
+              <div className="rounded-xl bg-white/5 border border-white/8 p-3">
+                <div className="text-[10px] text-muted">Issue Size (Cr)</div>
+                <div className="text-sm font-semibold tabular-nums">{fmt(ipo.size, { decimals: 0 })}</div>
+              </div>
+              <div className="rounded-xl bg-white/5 border border-white/8 p-3">
+                <div className="text-[10px] text-muted">Subscription</div>
+                <div className="text-sm font-semibold tabular-nums">{ipo.subscription ? `${ipo.subscription}x` : '—'}</div>
+              </div>
+              <div className="rounded-xl bg-white/5 border border-white/8 p-3">
+                <div className="text-[10px] text-muted">GMP</div>
+                <div className={`text-sm font-semibold ${ipo.gmp >= 0 ? 'text-emerald-bright' : 'text-coral'}`}>{ipo.gmp > 0 ? '+' : ''}₹{ipo.gmp}</div>
+              </div>
+            </div>
+          </Card>
+        ))}
       </div>
-    </div>
-  );
+    </PageShell>
+  )
 }
