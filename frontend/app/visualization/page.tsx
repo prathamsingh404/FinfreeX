@@ -12,7 +12,7 @@ const VisualizationPage = () => {
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    
+
     renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
     containerRef.current.appendChild(renderer.domElement);
 
@@ -26,13 +26,13 @@ const VisualizationPage = () => {
       const radius = 2;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos((Math.random() * 2) - 1);
-      
+
       const x = radius * Math.sin(phi) * Math.cos(theta);
       const y = radius * Math.sin(phi) * Math.sin(theta);
       const z = radius * Math.cos(phi);
-      
+
       vertices.push(x, y, z);
-      
+
       // Color based on position (sentiment cluster)
       colors.push(Math.random(), 0.5 + Math.random() * 0.5, 1);
       sizes.push(0.05 + Math.random() * 0.1);
@@ -79,33 +79,33 @@ const VisualizationPage = () => {
   return (
     <main className="pt-24 h-screen flex flex-col px-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-medium tracking-tight text-white mb-2">3D Market Intelligence</h1>
-        <p className="text-white/40 text-sm">Visualizing global asset correlations and risk clusters in real-time.</p>
+        <h1 className="text-3xl font-medium tracking-tight text-foreground mb-2">3D Market Intelligence</h1>
+        <p className="text-soft text-sm">Visualizing global asset correlations and risk clusters in real-time.</p>
       </div>
-      
+
       <div className="flex-1 glass-panel rounded-3xl overflow-hidden relative cursor-move">
         <div ref={containerRef} className="w-full h-full" />
-        
+
         {/* Overlay UI */}
         <div className="absolute top-8 left-8 p-6 glass-panel rounded-2xl max-w-xs pointer-events-none">
-          <h3 className="text-xs font-semibold text-white mb-4 uppercase tracking-widest">Cluster Key</h3>
+          <h3 className="text-xs font-semibold text-foreground mb-4 uppercase tracking-widest">Cluster Key</h3>
           <div className="space-y-3">
              <div className="flex items-center gap-3">
-               <div className="w-2 h-2 rounded-full bg-blue-400"></div>
-               <span className="text-[10px] text-white/60">Technology Assets</span>
+               <div className="w-2 h-2 rounded-full bg-emerald-bright"></div>
+               <span className="text-[10px] text-soft">Technology Assets</span>
              </div>
              <div className="flex items-center gap-3">
-               <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-               <span className="text-[10px] text-white/60">Consumer Goods</span>
+               <div className="w-2 h-2 rounded-full bg-emerald"></div>
+               <span className="text-[10px] text-soft">Consumer Goods</span>
              </div>
              <div className="flex items-center gap-3">
-               <div className="w-2 h-2 rounded-full bg-purple-400"></div>
-               <span className="text-[10px] text-white/60">Energy / Industrial</span>
+               <div className="w-2 h-2 rounded-full bg-coral"></div>
+               <span className="text-[10px] text-soft">Energy / Industrial</span>
              </div>
           </div>
           <div className="mt-8 pt-6 border-t border-white/10">
-            <div className="text-[10px] text-white/40 mb-1">Active Nodes</div>
-            <div className="text-xl font-medium text-white">4,281</div>
+            <div className="text-[10px] text-muted mb-1">Active Nodes</div>
+            <div className="text-xl font-medium text-foreground">4,281</div>
           </div>
         </div>
       </div>
