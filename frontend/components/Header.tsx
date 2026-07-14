@@ -1,105 +1,88 @@
-'use client';
+'use client'
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-
-import { useAuth } from '@/context/AuthContext';
-import ShinyText from './reactbits/ShinyText';
-import GooeyNav from './reactbits/GooeyNav/GooeyNav';
-import LanguageSwitcher from './LanguageSwitcher';
+import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { useAuth } from '@/context/AuthContext'
+import { TOP_NAV } from '@/lib/nav'
+import LanguageSwitcher from './LanguageSwitcher'
 
 export default function Header() {
-  const [scrolled, setScrolled] = useState(false);
-  const { user, signOut } = useAuth();
+  const [scrolled, setScrolled] = useState(false)
+  const { user, signOut } = useAuth()
+  const pathname = usePathname()
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+    const onScroll = () => setScrolled(window.scrollY > 20)
+    window.addEventListener('scroll', onScroll)
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 ease-out flex justify-center px-4 ${scrolled ? 'py-2' : 'py-5'}`}>
-      <div className={`transition-all duration-700 ease-out flex items-center justify-between px-6 relative overflow-hidden ${
-        scrolled 
-          ? 'w-[92%] max-w-5xl h-14 rounded-2xl bg-[#12121A]/80 backdrop-blur-2xl border border-white/[0.06] shadow-2xl shadow-black/40' 
-          : 'w-full max-w-7xl h-16 rounded-2xl bg-white/[0.02] border border-white/[0.04] backdrop-blur-sm'
-      }`}>
-        {/* Subtle accent line at top when scrolled */}
-        {scrolled && (
-          <div className="absolute top-0 left-[10%] right-[10%] h-[1px] bg-gradient-to-r from-transparent via-indigo-400/30 to-transparent"></div>
-        )}
-
+    <nav className="fixed top-0 left-0 right-0 z-50 flex justify-center px-3 py-3">
+      <div
+        className={`w-full max-w-6xl flex items-center justify-between px-4 sm:px-5 h-14 rounded-md transition-all duration-200 ${
+          scrolled ? 'bg-surface border border-border' : 'bg-surface/80 border border-transparent'
+        }`}
+      >
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-3 relative z-10 group cursor-pointer">
-          <div className="relative w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center transition-all duration-500 group-hover:shadow-lg group-hover:shadow-indigo-500/25 group-hover:scale-110">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-              <path d="M2 17l10 5 10-5"/>
-              <path d="M2 12l10 5 10-5"/>
+        <Link href="/" className="flex items-center gap-2.5 group shrink-0 pl-10 lg:pl-0">
+          <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center transition-transform group-hover:scale-105">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 3v18h18" /><path d="m19 9-5 5-4-4-3 3" />
             </svg>
           </div>
-          <span className="text-sm font-bold text-slate-200 tracking-tight group-hover:text-white transition-colors">
-            Port<span className="text-indigo-400">AI</span>
+          <span className="text-sm font-extrabold tracking-tight text-foreground">
+            Finfree<span className="text-primary">X</span>
           </span>
         </Link>
-        
-        {/* Navigation Links */}
-        <div className="hidden md:flex items-center gap-1 relative z-10">
-          {[
-            { href: '/#markets', label: 'Markets' },
-            { href: '/portfolios', label: 'Portfolios' },
-            { href: '/intelligence', label: 'Intelligence' },
-            { href: '/sectors', label: 'Sectors' },
-            { href: '/technical-charts', label: 'Charts' },
-            { href: '/hedge-fund', label: 'Hedge Fund' },
-          ].map((link) => (
-            <Link 
-              key={link.href}
-              href={link.href} 
-              className="px-3 py-1.5 rounded-lg text-[13px] font-medium text-slate-400 hover:text-white hover:bg-white/[0.05] transition-all duration-300"
-            >
-              {link.label}
-            </Link>
-          ))}
+
+        {/* Nav links */}
+        <div className="hidden md:flex items-center gap-1">
+          {TOP_NAV.map((link) => {
+            const active = pathname === link.route
+            return (
+              <Link
+                key={link.route}
+                href={link.route}
+                className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors ${
+                  active ? 'text-primary bg-primary/10' : 'text-soft hover:text-foreground hover:bg-white/[0.05]'
+                }`}
+              >
+                {link.title}
+              </Link>
+            )
+          })}
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-3 relative z-10">
-          <LanguageSwitcher />
-          
-          {/* Live indicator */}
-          <div className="hidden lg:flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full bg-indigo-500/[0.08] border border-indigo-500/20 text-indigo-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse shadow-[0_0_8px_rgba(129,140,248,0.5)]"></span>
-            Live
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="hidden lg:block">
+            <LanguageSwitcher />
           </div>
-
           {user ? (
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={() => signOut()}
-                className="text-xs font-medium text-slate-500 hover:text-indigo-400 transition-colors"
-              >
+            <div className="flex items-center gap-2">
+              <button onClick={() => signOut()} className="text-xs font-medium text-muted hover:text-coral transition-colors px-2 cursor-pointer">
                 Sign Out
               </button>
-              <div className="w-8 h-8 rounded-xl bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-indigo-400 overflow-hidden">
+              <div className="w-8 h-8 rounded-md bg-white/[0.06] border border-border flex items-center justify-center text-primary overflow-hidden">
                 {user.user_metadata?.avatar_url ? (
                   <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
-                  <iconify-icon icon="solar:user-bold-duotone" width="18"></iconify-icon>
+                  <iconify-icon icon="solar:user-bold" width="17"></iconify-icon>
                 )}
               </div>
             </div>
           ) : (
-            <Link href="/auth" 
-              className="bg-indigo-500 hover:bg-indigo-400 text-white px-5 py-2 rounded-xl text-xs font-semibold transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/25 magnetic-btn">
+            <Link
+              href="/auth"
+              className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-md text-xs font-bold transition-colors"
+            >
               Get Started
             </Link>
           )}
         </div>
       </div>
     </nav>
-  );
+  )
 }
