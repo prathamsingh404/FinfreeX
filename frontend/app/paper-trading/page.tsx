@@ -1,277 +1,264 @@
-'use client';
+'use client'
 
-import React, { useState, useEffect } from 'react';
-import { api, PortfolioSummary, TradeHistoryItem, PositionItem } from '@/lib/api';
-import { Wallet, ArrowDownRight, ArrowUpRight, TrendingUp, RefreshCw, Send, DollarSign, Activity } from 'lucide-react';
+import React, { useState } from 'react'
+import PageShell from '@/components/PageShell'
+import { Card, SectionTitle, StatCard, Badge, Btn, Change, fmt } from '@/components/ui/kit'
+import { useScreener, useQuote } from '@/lib/hooks/useMarketData'
+
+interface Position {
+  symbol: string
+  qty: number
+  avgPrice: number
+}
+
+interface Trade {
+  id: string
+  type: 'BUY' | 'SELL'
+  symbol: string
+  qty: number
+  price: number
+  time: string
+}
+
+const START_CASH = 1_000_000
 
 export default function PaperTradingPage() {
-  const [summary, setSummary] = useState<PortfolioSummary | null>(null);
-  const [history, setHistory] = useState<TradeHistoryItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [tradeLoading, setTradeLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [tradeSuccess, setTradeSuccess] = useState('');
+  const { data: screenerData } = useScreener({ universe: 'ALL' })
+  
+  const [cash, setCash] = useState(START_CASH)
+  const [positions, setPositions] = useState<Position[]>([
+    { symbol: 'RELIANCE', qty: 40, avgPrice: 2380 },
+    { symbol: 'INFY', qty: 60, avgPrice: 1490 },
+  ])
+  const [history, setHistory] = useState<Trade[]>([
+    { id: 't1', type: 'BUY', symbol: 'RELIANCE', qty: 40, price: 2380, time: '2d ago' },
+    { id: 't2', type: 'BUY', symbol: 'INFY', qty: 60, price: 1490, time: '3d ago' },
+  ])
 
-  // Trade Form states
-  const [symbol, setSymbol] = useState('RELIANCE');
-  const [exchange, setExchange] = useState('NSE');
-  const [tradeType, setTradeType] = useState<'BUY' | 'SELL'>('BUY');
-  const [quantity, setQuantity] = useState<number>(10);
+  const [symbol, setSymbol] = useState('RELIANCE')
+  const [tradeType, setTradeType] = useState<'BUY' | 'SELL'>('BUY')
+  const [quantity, setQuantity] = useState(10)
+  const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null)
 
-  useEffect(() => {
-    // Check if token exists in localStorage, otherwise set dummy token for testing in dev
-    if (typeof window !== 'undefined' && !localStorage.getItem('supabase_access_token')) {
-      localStorage.setItem('supabase_access_token', 'dev_guest_token');
+  // Fetch live quote for the symbol currently being traded
+  const { data: activeQuote } = useQuote(symbol.toUpperCase().trim())
+
+  // Helper to get price from active quote or screener data
+  const priceOf = (sym: string) => {
+    if (sym === symbol.toUpperCase().trim() && activeQuote) {
+      return activeQuote.current_price
     }
-    fetchPortfolio();
-  }, []);
-
-  const fetchPortfolio = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const summaryData = await api.portfolio.summary();
-      setSummary(summaryData);
-      
-      const historyData = await api.portfolio.history();
-      setHistory(historyData);
-    } catch (e: any) {
-      setError(e.message || 'Failed to fetch paper trading portfolio. Ensure you are logged in.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePlaceOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!symbol.trim() || quantity <= 0) return;
+    const fromScreener = screenerData?.find((q: any) => q.symbol === sym)
+    if (fromScreener) return fromScreener.current_price
     
-    setTradeLoading(true);
-    setError('');
-    setTradeSuccess('');
-    
-    try {
-      const res = await api.portfolio.trade({
-        symbol: symbol.toUpperCase().trim(),
-        exchange,
-        trade_type: tradeType,
-        quantity
-      });
-      
-      setTradeSuccess(`Successfully executed: ${tradeType} ${quantity} ${symbol} at ₹${res.price}`);
-      fetchPortfolio();
-    } catch (e: any) {
-      setError(e.message || 'Failed to execute paper transaction.');
-    } finally {
-      setTradeLoading(false);
+    // Fallback to average price if we can't find live data, so PnL doesn't break
+    const pos = positions.find(p => p.symbol === sym)
+    return pos ? pos.avgPrice : 0
+  }
+
+  const holdingsValue = positions.reduce((s, p) => s + priceOf(p.symbol) * p.qty, 0)
+  const costBasis = positions.reduce((s, p) => s + p.avgPrice * p.qty, 0)
+  const totalValue = cash + holdingsValue
+  const totalPnl = totalValue - START_CASH
+  const totalPnlPct = (totalPnl / START_CASH) * 100
+  const unrealized = holdingsValue - costBasis
+
+  function placeOrder(e: React.FormEvent) {
+    e.preventDefault()
+    setMsg(null)
+    const sym = symbol.toUpperCase().trim()
+    const price = priceOf(sym)
+    if (!price) {
+      setMsg({ tone: 'err', text: `Live price for "${sym}" not found. Try an NSE symbol (e.g. RELIANCE, TCS).` })
+      return
     }
-  };
+    if (quantity <= 0) return
+    const cost = price * quantity
+
+    if (tradeType === 'BUY') {
+      if (cost > cash) {
+        setMsg({ tone: 'err', text: 'Insufficient cash balance for this order.' })
+        return
+      }
+      setCash((c) => c - cost)
+      setPositions((prev) => {
+        const ex = prev.find((p) => p.symbol === sym)
+        if (ex) {
+          const newQty = ex.qty + quantity
+          const newAvg = (ex.qty * ex.avgPrice + cost) / newQty
+          return prev.map((p) => (p.symbol === sym ? { ...p, qty: newQty, avgPrice: newAvg } : p))
+        }
+        return [...prev, { symbol: sym, qty: quantity, avgPrice: price }]
+      })
+    } else {
+      const ex = positions.find((p) => p.symbol === sym)
+      if (!ex || ex.qty < quantity) {
+        setMsg({ tone: 'err', text: 'Not enough shares held to sell.' })
+        return
+      }
+      setCash((c) => c + cost)
+      setPositions((prev) =>
+        prev
+          .map((p) => (p.symbol === sym ? { ...p, qty: p.qty - quantity } : p))
+          .filter((p) => p.qty > 0),
+      )
+    }
+
+    setHistory((prev) => [
+      { id: `t-${Date.now()}`, type: tradeType, symbol: sym, qty: quantity, price, time: new Date().toLocaleTimeString() },
+      ...prev,
+    ])
+    setMsg({ tone: 'ok', text: `${tradeType} ${quantity} ${sym} @ ${fmt(price, { prefix: '₹' })}` })
+  }
 
   return (
-    <div className="w-full min-h-screen relative z-10 pt-24 px-4 md:px-8 pb-16 bg-[#050508] text-slate-200">
-      <div className="max-w-[1400px] mx-auto space-y-8">
-        
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-900 pb-6">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <Activity className="w-6 h-6 animate-pulse" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-zinc-100 uppercase">Paper Trading Account</h1>
-              <p className="text-zinc-500 text-xs font-mono">Institutional-grade risk assessment and P&L calculations</p>
-            </div>
+    <PageShell
+      title="Paper Trading"
+      subtitle="Practice with a simulated ₹10L portfolio and live NSE market prices"
+      category="Tools"
+      icon="solar:wallet-money-bold-duotone"
+    >
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <StatCard label="Cash Balance" value={fmt(cash, { prefix: '₹', compact: true })} icon="solar:banknote-2-bold-duotone" hint="Settled capital" />
+        <StatCard label="Holdings Value" value={fmt(holdingsValue, { prefix: '₹', compact: true })} icon="solar:pie-chart-2-bold-duotone" hint="Current market value" />
+        <StatCard label="Net Worth" value={fmt(totalValue, { prefix: '₹', compact: true })} icon="solar:wallet-bold-duotone" hint="Cash + holdings" />
+        <StatCard label="Total P&L" value={fmt(totalPnl, { prefix: '₹', compact: true })} change={totalPnlPct} icon="solar:graph-up-bold-duotone" hint="Since inception" />
+      </div>
+
+      <div className="grid lg:grid-cols-12 gap-6">
+        <Card className="lg:col-span-8 border-border" pad={false}>
+          <div className="px-5 pt-5">
+            <SectionTitle title="Active Positions" subtitle={`${positions.length} holdings · unrealized ${fmt(unrealized, { prefix: '₹', compact: true })}`} />
           </div>
-          
-          <button onClick={fetchPortfolio} disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 font-mono text-xs font-bold uppercase rounded-xl transition-all disabled:opacity-50">
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Refresh Desk
-          </button>
-        </div>
-
-        {/* Portfolio Stats Summary */}
-        {summary && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-zinc-950 border border-zinc-900 rounded-2xl p-5 shadow-lg flex flex-col justify-between h-28">
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest font-mono">Cash Balance</span>
-              <span className="text-2xl font-bold text-zinc-100 font-mono">₹{summary.cash_balance?.toLocaleString('en-IN')}</span>
-              <span className="text-[9px] font-mono text-zinc-600 uppercase">Settled capital</span>
-            </div>
-            <div className="bg-zinc-950 border border-zinc-900 rounded-2xl p-5 shadow-lg flex flex-col justify-between h-28">
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest font-mono">Holdings Valuation</span>
-              <span className="text-2xl font-bold text-zinc-100 font-mono">₹{summary.total_position_value?.toLocaleString('en-IN')}</span>
-              <span className="text-[9px] font-mono text-zinc-600 uppercase">Current market value</span>
-            </div>
-            <div className="bg-zinc-950 border border-zinc-900 rounded-2xl p-5 shadow-lg flex flex-col justify-between h-28">
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest font-mono">Total Net Worth</span>
-              <span className="text-2xl font-bold text-zinc-100 font-mono">₹{summary.total_value?.toLocaleString('en-IN')}</span>
-              <span className="text-[9px] font-mono text-zinc-600 uppercase">Cash + Holdings</span>
-            </div>
-            <div className="bg-zinc-950 border border-zinc-900 rounded-2xl p-5 shadow-lg flex flex-col justify-between h-28">
-              <span className="text-[10px] font-bold text-zinc-500 tracking-widest font-mono uppercase">Total P&L</span>
-              <span className={`text-2xl font-bold font-mono ${summary.total_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                ₹{summary.total_pnl?.toLocaleString('en-IN')} ({summary.total_pnl_pct?.toFixed(2)}%)
-              </span>
-              <span className="text-[9px] font-mono text-zinc-600 uppercase">Unrealized + Realized</span>
-            </div>
-          </div>
-        )}
-
-        {/* Main Grid: Holdings and Order Desk */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
-          {/* Active Positions Table */}
-          <div className="lg:col-span-8 bg-zinc-950 border border-zinc-900 rounded-2xl p-5 shadow-lg space-y-4">
-            <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest font-mono border-b border-zinc-900 pb-3">
-              Active Positions
-            </h3>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs font-mono text-zinc-400">
-                <thead className="text-zinc-500 border-b border-zinc-900 uppercase text-[9px]">
-                  <tr>
-                    <th className="pb-3">Symbol</th>
-                    <th className="pb-3 text-right">Shares</th>
-                    <th className="pb-3 text-right">Avg Price</th>
-                    <th className="pb-3 text-right">Last Price</th>
-                    <th className="pb-3 text-right">Cost Basis</th>
-                    <th className="pb-3 text-right">Current Value</th>
-                    <th className="pb-3 text-right">Total P&L</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-900">
-                  {summary?.positions?.map((pos: PositionItem) => (
-                    <tr key={pos.id} className="hover:bg-zinc-900/30 transition-colors">
-                      <td className="py-4 font-bold text-zinc-100">{pos.symbol} <span className="text-[9px] text-zinc-500 font-normal">{pos.exchange}</span></td>
-                      <td className="py-4 text-right text-zinc-200">{pos.quantity}</td>
-                      <td className="py-4 text-right">₹{pos.avg_buy_price?.toFixed(2)}</td>
-                      <td className="py-4 text-right">₹{pos.current_price?.toFixed(2)}</td>
-                      <td className="py-4 text-right">₹{pos.cost_basis?.toFixed(2)}</td>
-                      <td className="py-4 text-right text-zinc-200">₹{pos.current_value?.toFixed(2)}</td>
-                      <td className={`py-4 text-right font-bold ${pos.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        ₹{pos.pnl?.toFixed(2)} ({pos.pnl_pct?.toFixed(2)}%)
-                      </td>
-                    </tr>
-                  ))}
-                  {(!summary || summary.positions?.length === 0) && (
-                    <tr>
-                      <td colSpan={7} className="py-8 text-center text-zinc-600 italic">No open positions. Use the order panel to acquire assets.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Trade Executions Order Panel */}
-          <div className="lg:col-span-4 bg-zinc-950 border border-zinc-900 rounded-2xl p-5 shadow-lg space-y-4">
-            <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest font-mono border-b border-zinc-900 pb-3">
-              Order placement box
-            </h3>
-
-            {tradeSuccess && (
-              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs rounded-xl font-mono">
-                {tradeSuccess}
-              </div>
-            )}
-            
-            {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-xl font-mono">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handlePlaceOrder} className="space-y-4 text-xs font-mono">
-              <div>
-                <label className="text-zinc-500 block mb-1">Stock Ticker</label>
-                <input type="text" value={symbol} onChange={e => setSymbol(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-850 rounded-xl px-4 py-2.5 text-zinc-200 uppercase focus:outline-none focus:border-indigo-500/40"
-                  placeholder="e.g. RELIANCE"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-zinc-500 block mb-1">Exchange</label>
-                  <select value={exchange} onChange={e => setExchange(e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-850 rounded-xl px-3 py-2.5 text-zinc-200 focus:outline-none">
-                    <option value="NSE">NSE</option>
-                    <option value="BSE">BSE</option>
-                    <option value="US">US</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-zinc-500 block mb-1">Action</label>
-                  <div className="flex bg-zinc-900 rounded-xl p-0.5 border border-zinc-850">
-                    <button type="button" onClick={() => setTradeType('BUY')}
-                      className={`flex-1 py-2 rounded-lg font-bold transition-colors ${tradeType === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}>
-                      BUY
-                    </button>
-                    <button type="button" onClick={() => setTradeType('SELL')}
-                      className={`flex-1 py-2 rounded-lg font-bold transition-colors ${tradeType === 'SELL' ? 'bg-red-500/10 text-red-400' : 'text-zinc-500 hover:text-zinc-300'}`}>
-                      SELL
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-zinc-500 block mb-1">Quantity (Shares)</label>
-                <input type="number" min="1" value={quantity} onChange={e => setQuantity(Number(e.target.value))}
-                  className="w-full bg-zinc-900 border border-zinc-850 rounded-xl px-4 py-2.5 text-zinc-200 focus:outline-none focus:border-indigo-500/40"
-                />
-              </div>
-
-              <button type="submit" disabled={tradeLoading}
-                className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-xs font-bold uppercase py-3 rounded-xl transition-all disabled:opacity-50">
-                <Send className="w-3.5 h-3.5" />
-                {tradeLoading ? 'Transacting order...' : 'Place trade'}
-              </button>
-            </form>
-          </div>
-        </div>
-
-        {/* Transaction History Logs */}
-        <div className="bg-zinc-950 border border-zinc-900 rounded-2xl p-5 shadow-lg space-y-4">
-          <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest font-mono border-b border-zinc-900 pb-3">
-            Transaction History Logs
-          </h3>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs font-mono text-zinc-500">
-              <thead className="border-b border-zinc-900 text-zinc-600 uppercase text-[9px]">
-                <tr>
-                  <th className="pb-2">Timestamp</th>
-                  <th className="pb-2">Type</th>
-                  <th className="pb-2">Symbol</th>
-                  <th className="pb-2 text-right">Shares</th>
-                  <th className="pb-2 text-right">LTP Price</th>
-                  <th className="pb-2 text-right">Total Outlay</th>
+          <div className="overflow-x-auto min-h-[300px]">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-soft border-b border-border">
+                  <th className="px-5 py-3 font-medium">Symbol</th>
+                  <th className="px-3 py-3 font-medium text-right">Qty</th>
+                  <th className="px-3 py-3 font-medium text-right">Avg</th>
+                  <th className="px-3 py-3 font-medium text-right">Live LTP</th>
+                  <th className="px-3 py-3 font-medium text-right">Value</th>
+                  <th className="px-5 py-3 font-medium text-right">P&L</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-900">
-                {history.map((tx: TradeHistoryItem) => (
-                  <tr key={tx.id}>
-                    <td className="py-2.5 text-[11px] font-light">{new Date(tx.executed_at).toLocaleString()}</td>
-                    <td className={`py-2.5 font-bold ${tx.trade_type === 'BUY' ? 'text-emerald-400' : 'text-red-400'}`}>{tx.trade_type}</td>
-                    <td className="py-2.5 font-bold text-zinc-300">{tx.symbol}</td>
-                    <td className="py-2.5 text-right">{tx.quantity}</td>
-                    <td className="py-2.5 text-right">₹{tx.price?.toFixed(2)}</td>
-                    <td className="py-2.5 text-right text-zinc-400">₹{tx.total_value?.toFixed(2)}</td>
-                  </tr>
-                ))}
-                {history.length === 0 && (
+              <tbody>
+                {positions.map((p) => {
+                  const ltp = priceOf(p.symbol)
+                  const val = ltp * p.qty
+                  const pnl = (ltp - p.avgPrice) * p.qty
+                  const pnlPct = ((ltp - p.avgPrice) / p.avgPrice) * 100
+                  return (
+                    <tr key={p.symbol} className="border-b border-border hover:bg-surface-2 transition-colors">
+                      <td className="px-5 py-3 font-semibold text-foreground">{p.symbol}</td>
+                      <td className="px-3 py-3 text-right tabular-nums">{p.qty}</td>
+                      <td className="px-3 py-3 text-right tabular-nums text-soft">{fmt(p.avgPrice, { prefix: '₹' })}</td>
+                      <td className="px-3 py-3 text-right tabular-nums">{ltp ? fmt(ltp, { prefix: '₹' }) : '...'}</td>
+                      <td className="px-3 py-3 text-right tabular-nums">{fmt(val, { prefix: '₹', compact: true })}</td>
+                      <td className="px-5 py-3 text-right"><Change value={pnlPct} /></td>
+                    </tr>
+                  )
+                })}
+                {positions.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-6 text-center text-zinc-700 italic">No transaction records found.</td>
+                    <td colSpan={6} className="px-5 py-10 text-center text-soft">No open positions. Place an order to get started.</td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
 
+        <Card className="lg:col-span-4 h-fit border-border">
+          <SectionTitle title="Order Ticket" subtitle="Simulated execution at live LTP" />
+          {msg && (
+            <div className={`mb-4 rounded-lg px-3 py-2 text-xs border ${msg.tone === 'ok' ? 'bg-primary/10 border-primary/25 text-primary' : 'bg-coral/10 border-coral/25 text-coral'}`}>
+              {msg.text}
+            </div>
+          )}
+          <form onSubmit={placeOrder} className="space-y-4">
+            <label className="block">
+              <span className="block text-xs text-soft mb-1.5">Symbol (NSE)</span>
+              <input
+                value={symbol}
+                onChange={(e) => setSymbol(e.target.value)}
+                className="w-full rounded-lg bg-surface border border-border px-3 py-2 text-sm text-foreground uppercase outline-none focus:border-primary"
+                placeholder="e.g. TCS"
+              />
+            </label>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setTradeType('BUY')}
+                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${tradeType === 'BUY' ? 'border-primary text-primary bg-primary/10' : 'border-border text-soft hover:border-primary/50'}`}>
+                Buy
+              </button>
+              <button type="button" onClick={() => setTradeType('SELL')}
+                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${tradeType === 'SELL' ? 'border-coral text-coral bg-coral/10' : 'border-border text-soft hover:border-coral/50'}`}>
+                Sell
+              </button>
+            </div>
+            <label className="block">
+              <span className="block text-xs text-soft mb-1.5">Quantity</span>
+              <input
+                type="number"
+                min={1}
+                value={quantity}
+                onChange={(e) => setQuantity(Number(e.target.value))}
+                className="w-full rounded-lg bg-surface border border-border px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+              />
+            </label>
+            <div className="flex items-center justify-between text-xs text-soft">
+              <span>Live Price</span>
+              <span className="tabular-nums text-foreground">{priceOf(symbol.toUpperCase().trim()) ? fmt(priceOf(symbol.toUpperCase().trim()), { prefix: '₹' }) : 'Fetching...'}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs text-soft">
+              <span>Est. order value</span>
+              <span className="tabular-nums text-foreground">{fmt(priceOf(symbol.toUpperCase().trim()) * quantity, { prefix: '₹', compact: true })}</span>
+            </div>
+            <Btn type="submit" variant={tradeType === 'BUY' ? 'primary' : 'coral'} className="w-full justify-center mt-2">
+              Place {tradeType === 'BUY' ? 'Buy' : 'Sell'} Order
+            </Btn>
+          </form>
+        </Card>
       </div>
-    </div>
-  );
+
+      <Card className="mt-6 border-border" pad={false}>
+        <div className="px-5 pt-5">
+          <SectionTitle title="Transaction History" subtitle={`${history.length} orders`} />
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-soft border-b border-border">
+                <th className="px-5 py-3 font-medium">Time</th>
+                <th className="px-3 py-3 font-medium">Type</th>
+                <th className="px-3 py-3 font-medium">Symbol</th>
+                <th className="px-3 py-3 font-medium text-right">Qty</th>
+                <th className="px-3 py-3 font-medium text-right">Price</th>
+                <th className="px-5 py-3 font-medium text-right">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((t) => (
+                <tr key={t.id} className="border-b border-border hover:bg-surface-2 transition-colors">
+                  <td className="px-5 py-3 text-soft">{t.time}</td>
+                  <td className="px-3 py-3">
+                    <Badge tone={t.type === 'BUY' ? 'primary' : 'coral'}>{t.type}</Badge>
+                  </td>
+                  <td className="px-3 py-3 font-semibold text-foreground">{t.symbol}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{t.qty}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-soft">{fmt(t.price, { prefix: '₹' })}</td>
+                  <td className="px-5 py-3 text-right tabular-nums">{fmt(t.price * t.qty, { prefix: '₹', compact: true })}</td>
+                </tr>
+              ))}
+              {history.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-5 py-10 text-center text-soft">No transactions yet.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </PageShell>
+  )
 }
