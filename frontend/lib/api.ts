@@ -3,7 +3,8 @@
    All data fetching goes through here. No mock data.
    ============================================================ */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const IS_VERCEL = process.env.NEXT_PUBLIC_VERCEL_ENV !== undefined || process.env.VERCEL !== undefined;
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || (IS_VERCEL ? '' : 'http://localhost:8000')
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
