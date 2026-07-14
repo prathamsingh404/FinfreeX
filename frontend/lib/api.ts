@@ -1,251 +1,296 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+/* ============================================================
+   FinfreeX — Centralized API Client
+   All data fetching goes through here. No mock data.
+   ============================================================ */
 
-async function fetchAPI<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('supabase_access_token') : null;
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
-  };
-  
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-  const res = await fetch(`${BASE_URL}${path}`, {
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
     ...options,
-    headers,
-  });
-
+    headers: {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+  })
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail ?? `API error ${res.status}`);
+    const text = await res.text().catch(() => res.statusText)
+    throw new Error(`API ${path}: ${res.status} — ${text}`)
   }
-  return res.json();
+  return res.json()
 }
 
+/* ---------- Types ---------- */
+
 export interface Quote {
-  symbol: string;
-  exchange: string;
-  yf_symbol: string;
-  current_price: number;
-  previous_close: number;
-  change: number;
-  change_pct: number;
-  open: number;
-  high: number;
-  low: number;
-  volume: number;
-  currency: string;
-  timestamp: string;
+  symbol: string
+  exchange: string
+  current_price: number
+  previous_close: number
+  change: number
+  change_pct: number
+  open: number
+  high: number
+  low: number
+  volume: number
+  currency: string
+  timestamp: string
+}
+
+export interface IndexData {
+  price: number
+  change: number
+  change_pct: number
+  category: string
 }
 
 export interface Candle {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
+  time: number
+  open: number
+  high: number
+  low: number
+  close: number
+  volume: number
 }
 
-export interface IndexItem {
-  price: number;
-  change: number;
-  change_pct: number;
-  category: string;
-}
-
-export type IndicesData = Record<string, IndexItem>;
-
-export interface TopMovers {
-  gainers: Quote[];
-  losers: Quote[];
-}
-
-export interface Fundamentals {
-  symbol: string;
-  company_name: string;
-  sector: string;
-  industry: string;
-  market_cap: number;
-  pe_ratio: number | null;
-  forward_pe: number | null;
-  pb_ratio: number | null;
-  eps: number | null;
-  revenue: number | null;
-  revenue_growth: number | null;
-  gross_margins: number | null;
-  operating_margins: number | null;
-  profit_margins: number | null;
-  debt_to_equity: number | null;
-  current_ratio: number | null;
-  roe: number | null;
-  roa: number | null;
-  free_cashflow: number | null;
-  dividend_yield: number | null;
-  "52w_high": number | null;
-  "52w_low": number | null;
-  avg_volume: number | null;
-  beta: number | null;
-  description: string;
-}
-
-export interface Technicals {
-  candles_with_indicators: any[];
-  latest: Record<string, number | null>;
-  signals: {
-    rsi_signal: string;
-    macd_signal: string;
-    bb_signal: string;
-    trend: string;
-  };
-}
-
-export interface ScreenerFilters {
-  pe_min?: number | null;
-  pe_max?: number | null;
-  pb_max?: number | null;
-  market_cap_min?: number | null;
-  roe_min?: number | null;
-  revenue_growth_min?: number | null;
-  return_1y_min?: number | null;
-  return_1m_min?: number | null;
-  volume_ratio_min?: number | null;
-  debt_to_equity_max?: number | null;
-  sector?: string | null;
-  universe?: string;
-  sort_by?: string;
-  sort_order?: string;
-  limit?: number;
-}
-
-export interface ScreenerResult {
-  symbol: string;
-  name: string;
-  sector: string;
-  industry: string;
-  market_cap: number;
-  current_price: number;
-  pe_ratio: number | null;
-  pb_ratio: number | null;
-  roe: number | null;
-  revenue_growth: number | null;
-  profit_margins: number | null;
-  debt_to_equity: number | null;
-  dividend_yield: number | null;
-  beta: number | null;
-  "52w_high": number | null;
-  "52w_low": number | null;
-  return_1y: number | null;
-  return_1m: number | null;
-  volume_ratio: number | null;
-  avg_volume: number | null;
-}
-
-export interface WatchlistItem {
-  id: string;
-  watchlist_id: string;
-  symbol: string;
-  exchange: string;
-  added_at: string;
-}
-
-export interface CreateAlertRequest {
-  symbol: string;
-  exchange: string;
-  condition: 'ABOVE' | 'BELOW';
-  target_value: number;
-}
-
-export interface PriceAlert {
-  id: string;
-  symbol: string;
-  exchange: string;
-  condition: 'ABOVE' | 'BELOW';
-  target_value: number;
-  is_active: boolean;
-  triggered_at: string | null;
-  created_at: string;
+export interface Fundamental {
+  symbol: string
+  company_name: string
+  sector: string
+  industry: string
+  market_cap: number | null
+  pe_ratio: number | null
+  forward_pe: number | null
+  pb_ratio: number | null
+  eps: number | null
+  revenue: number | null
+  revenue_growth: number | null
+  gross_margins: number | null
+  operating_margins: number | null
+  profit_margins: number | null
+  debt_to_equity: number | null
+  current_ratio: number | null
+  roe: number | null
+  roa: number | null
+  free_cashflow: number | null
+  dividend_yield: number | null
+  '52w_high': number | null
+  '52w_low': number | null
+  avg_volume: number | null
+  beta: number | null
+  description: string
 }
 
 export interface NewsItem {
-  title: string;
-  source: string;
-  url: string;
-  publishedAt: string;
-  description: string;
+  title: string
+  description: string
+  url: string
+  source: string
+  published_at: string
+  image_url?: string
+  sentiment?: number
+  sentiment_label?: string
+  category?: string
 }
 
-export interface TradeRequest {
-  symbol: string;
-  exchange: string;
-  trade_type: 'BUY' | 'SELL';
-  quantity: number;
+export interface ScreenerResult {
+  symbol: string
+  name: string
+  sector: string
+  industry: string
+  market_cap: number
+  current_price: number
+  pe_ratio: number | null
+  pb_ratio: number | null
+  roe: number | null
+  revenue_growth: number | null
+  profit_margins: number | null
+  debt_to_equity: number | null
+  dividend_yield: number | null
+  beta: number | null
+  '52w_high': number | null
+  '52w_low': number | null
+  return_1y: number | null
+  return_1m: number | null
+  volume_ratio: number
+  avg_volume: number
+  volume?: number
 }
 
-export interface PositionItem {
-  id: string;
-  symbol: string;
-  exchange: string;
-  quantity: number;
-  avg_buy_price: number;
-  current_price: number;
-  cost_basis: number;
-  current_value: number;
-  pnl: number;
-  pnl_pct: number;
+export interface OptionsChainRow {
+  strike: number
+  call_ltp: number
+  call_oi: number
+  call_volume: number
+  call_iv: number
+  call_change: number
+  put_ltp: number
+  put_oi: number
+  put_volume: number
+  put_iv: number
+  put_change: number
 }
 
-export interface PortfolioSummary {
-  portfolio_id: string;
-  name: string;
-  initial_cash: number;
-  cash_balance: number;
-  total_position_value: number;
-  total_value: number;
-  total_pnl: number;
-  total_pnl_pct: number;
-  currency: string;
-  positions: PositionItem[];
+export interface OptionsChain {
+  symbol: string
+  spot_price: number
+  expiry_dates: string[]
+  chain: OptionsChainRow[]
 }
 
-export interface TradeHistoryItem {
-  id: string;
-  portfolio_id: string;
-  symbol: string;
-  exchange: string;
-  trade_type: 'BUY' | 'SELL';
-  quantity: number;
-  price: number;
-  total_value: number;
-  executed_at: string;
+export interface ForexPair {
+  pair: string
+  rate: number
+  change_pct: number
+  high: number
+  low: number
 }
 
-export interface OptionContract {
-  strike: number;
-  ltp: number;
-  change: number;
-  change_pct: number;
-  volume: number;
-  oi: number;
-  implied_volatility: number;
-  delta: number;
-  gamma: number;
-  theta: number;
+export interface CryptoAsset {
+  symbol: string
+  name: string
+  price: number
+  change_pct: number
+  market_cap: number
+  volume: number
 }
 
-export interface OptionChainRow {
-  strike: number;
-  call: OptionContract;
-  put: OptionContract;
+export interface CommodityAsset {
+  name: string
+  symbol: string
+  unit: string
+  price: number
+  change_pct: number
 }
 
-export interface OptionChainResponse {
-  symbol: string;
-  underlying_price: number;
-  expiry: string;
-  days_to_expiry: number;
-  chain: OptionChainRow[];
+export interface MacroIndicator {
+  name: string
+  value: number
+  change: number
+  date: string
+  status: string
+}
+
+/* ---------- Market Data ---------- */
+
+export async function fetchQuote(symbol: string, exchange = 'NSE'): Promise<Quote> {
+  return apiFetch(`/api/market/quote?symbol=${encodeURIComponent(symbol)}&exchange=${exchange}`)
+}
+
+export async function fetchMultipleQuotes(symbols: string[], exchange = 'NSE'): Promise<Quote[]> {
+  // Fetch concurrently
+  return Promise.all(symbols.map(s => fetchQuote(s, exchange)))
+}
+
+export async function fetchIndices(): Promise<Record<string, IndexData>> {
+  return apiFetch('/api/market/indices')
+}
+
+export async function fetchMovers(exchange = 'NSE'): Promise<{ gainers: Quote[]; losers: Quote[] }> {
+  return apiFetch(`/api/market/movers?exchange=${exchange}`)
+}
+
+export async function fetchFundamentals(symbol: string, exchange = 'NSE'): Promise<Fundamental> {
+  return apiFetch(`/api/market/fundamentals?symbol=${encodeURIComponent(symbol)}&exchange=${exchange}`)
+}
+
+export async function fetchTechnicals(symbol: string, exchange = 'NSE') {
+  return apiFetch(`/api/market/technicals?symbol=${encodeURIComponent(symbol)}&exchange=${exchange}`)
+}
+
+/* ---------- Charts ---------- */
+
+export async function fetchOHLCV(
+  symbol: string,
+  exchange = 'NSE',
+  period = '3mo',
+  interval = '1d'
+): Promise<Candle[]> {
+  return apiFetch(`/api/charts/ohlcv?symbol=${encodeURIComponent(symbol)}&exchange=${exchange}&period=${period}&interval=${interval}`)
+}
+
+/* ---------- Screener ---------- */
+
+export async function fetchScreener(params?: Record<string, string>): Promise<ScreenerResult[]> {
+  return apiFetch('/api/screener/run', {
+    method: 'POST',
+    body: JSON.stringify(params || {}),
+  })
+}
+
+/* ---------- News ---------- */
+
+export async function fetchNews(query?: string, category?: string): Promise<NewsItem[]> {
+  const params = new URLSearchParams()
+  if (query) params.set('q', query)
+  if (category) params.set('category', category)
+  const qs = params.toString()
+  return apiFetch(`/api/news/feed${qs ? '?' + qs : ''}`)
+}
+
+/* ---------- Options ---------- */
+
+export async function fetchOptionsChain(symbol: string, expiry?: string): Promise<OptionsChain> {
+  const params = new URLSearchParams({ symbol })
+  if (expiry) params.set('expiry', expiry)
+  return apiFetch(`/api/options/chain?${params}`)
+}
+
+/* ---------- Portfolio ---------- */
+
+export async function fetchPortfolio(userId: string) {
+  return apiFetch(`/api/portfolio/${userId}`)
+}
+
+export async function fetchPortfolioHoldings(userId: string) {
+  return apiFetch(`/api/portfolio/${userId}/holdings`)
+}
+
+/* ---------- AI ---------- */
+
+export async function fetchAIAnalysis(symbol: string, exchange = 'NSE') {
+  return apiFetch('/api/ai/analyze', {
+    method: 'POST',
+    body: JSON.stringify({ symbol, exchange }),
+  })
+}
+
+/* ---------- Forex, Crypto, Commodities ---------- */
+
+export async function fetchForex(): Promise<ForexPair[]> {
+  return apiFetch('/api/market/forex')
+}
+
+export async function fetchCrypto(): Promise<CryptoAsset[]> {
+  return apiFetch('/api/market/crypto')
+}
+
+export async function fetchCommodities(): Promise<CommodityAsset[]> {
+  return apiFetch('/api/market/commodities')
+}
+
+/* ---------- Macro Economics ---------- */
+
+export async function fetchMacro(): Promise<MacroIndicator[]> {
+  return apiFetch('/api/market/macro')
+}
+
+/* ---------- Watchlist ---------- */
+
+export async function fetchWatchlists(userId: string) {
+  return apiFetch(`/api/watchlist?user_id=${userId}`)
+}
+
+/* ---------- Alerts ---------- */
+
+export async function fetchAlerts(userId: string) {
+  return apiFetch(`/api/alerts?user_id=${userId}`)
+}
+
+/* ---------- Sectors ---------- */
+
+export async function fetchSectors(): Promise<any[]> {
+  return apiFetch(`/api/market/sectors`)
 }
 
 export interface AIChunk {
@@ -257,66 +302,6 @@ export interface AIChunk {
   result?: any;
 }
 
-// Typed client export
-export const api = {
-  market: {
-    quote: (symbol: string, exchange = 'NSE') =>
-      fetchAPI<Quote>(`/api/market/quote?symbol=${symbol}&exchange=${exchange}`),
-    ohlcv: (symbol: string, exchange = 'NSE', period = '3mo', interval = '1d') =>
-      fetchAPI<Candle[]>(`/api/charts/ohlcv?symbol=${symbol}&exchange=${exchange}&period=${period}&interval=${interval}`),
-    indices: () => fetchAPI<IndicesData>('/api/market/indices'),
-    topMovers: (exchange = 'NSE') => fetchAPI<TopMovers>(`/api/market/movers?exchange=${exchange}`),
-    fundamentals: (symbol: string, exchange = 'NSE') =>
-      fetchAPI<Fundamentals>(`/api/market/fundamentals?symbol=${symbol}&exchange=${exchange}`),
-    technicals: (symbol: string, exchange = 'NSE') =>
-      fetchAPI<Technicals>(`/api/market/technicals?symbol=${symbol}&exchange=${exchange}`),
-  },
-  screener: {
-    run: (filters: ScreenerFilters) =>
-      fetchAPI<ScreenerResult[]>('/api/screener/run', { method: 'POST', body: JSON.stringify(filters) }),
-    savedList: () => fetchAPI<any[]>('/api/screener/saved'),
-    save: (name: string, filters: ScreenerFilters) =>
-      fetchAPI<any>('/api/screener/saved', { method: 'POST', body: JSON.stringify({ name, filters }) }),
-  },
-  portfolio: {
-    summary: () => fetchAPI<PortfolioSummary>('/api/portfolio'),
-    trade: (trade: TradeRequest) =>
-      fetchAPI<any>('/api/portfolio/trade', { method: 'POST', body: JSON.stringify(trade) }),
-    history: () => fetchAPI<TradeHistoryItem[]>('/api/portfolio/trades'),
-  },
-  watchlist: {
-    list: () => fetchAPI<WatchlistItem[]>('/api/watchlist'),
-    add: (symbol: string, exchange = 'NSE') =>
-      fetchAPI<WatchlistItem>('/api/watchlist/items', {
-        method: 'POST', body: JSON.stringify({ symbol, exchange })
-      }),
-    remove: (itemId: string) =>
-      fetchAPI<{ success: boolean; removed: string }>(`/api/watchlist/items/${itemId}`, { method: 'DELETE' }),
-  },
-  alerts: {
-    list: () => fetchAPI<PriceAlert[]>('/api/alerts'),
-    create: (alert: CreateAlertRequest) =>
-      fetchAPI<PriceAlert>('/api/alerts', { method: 'POST', body: JSON.stringify(alert) }),
-    delete: (alertId: string) => fetchAPI<{ success: boolean }>(`/api/alerts/${alertId}`, { method: 'DELETE' }),
-  },
-  news: {
-    feed: (symbol?: string, limit = 20) =>
-      fetchAPI<NewsItem[]>(`/api/news/feed?${symbol ? `symbol=${symbol}&` : ''}limit=${limit}`),
-  },
-  options: {
-    chain: (symbol: string, expiry?: string) =>
-      fetchAPI<OptionChainResponse>(`/api/options/chain?symbol=${symbol}${expiry ? `&expiry=${expiry}` : ''}`),
-  },
-  ai: {
-    chat: (messages: { role: string; content: string }[], contextSymbol?: string) =>
-      fetchAPI<{ answer: string }>('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages, context_symbol: contextSymbol })
-      }),
-  },
-};
-
 // SSE streaming AI analysis
 export function streamAnalysis(
   ticker: string,
@@ -327,7 +312,7 @@ export function streamAnalysis(
   onError: (err: any) => void
 ) {
   const body = JSON.stringify({ ticker, exchange, active_personas: activePersonas });
-  fetch(`${BASE_URL}/api/ai/analyze/stream`, {
+  fetch(`${API_BASE}/api/ai/analyze/stream`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body,
