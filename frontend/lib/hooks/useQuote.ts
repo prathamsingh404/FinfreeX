@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api, Quote } from '../api';
+import { fetchQuote as fetchQuoteApi, Quote } from '../api';
 
 export function useQuote(symbol: string, exchange = 'NSE') {
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -13,7 +13,7 @@ export function useQuote(symbol: string, exchange = 'NSE') {
     const fetchQuote = async () => {
       setIsLoading(true);
       try {
-        const res = await api.market.quote(symbol, exchange);
+        const res = await fetchQuoteApi(symbol, exchange);
         if (isMounted) {
           setQuote(res);
           setIsError(false);
