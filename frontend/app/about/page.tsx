@@ -6,18 +6,18 @@ const AboutPage = () => {
   return (
     <main className="pt-40 pb-24 px-6 max-w-4xl mx-auto">
       <div className="text-center mb-16">
-        <h1 className="text-4xl md:text-6xl font-semibold tracking-tighter text-slate-200 uppercase mb-6">
+        <h1 className="text-4xl md:text-6xl font-semibold tracking-tighter text-foreground uppercase mb-6">
           Democratizing <br /> Institutional Alpha
         </h1>
-        <p className="text-slate-400 text-base md:text-lg mx-auto max-w-2xl leading-relaxed text-balance">
+        <p className="text-soft text-base md:text-lg mx-auto max-w-2xl leading-relaxed text-balance">
           For too long, the most powerful predictive models, sentiment engines, and risk management tools have been locked behind the closed doors of billion-dollar hedge funds. We are changing that.
         </p>
       </div>
 
       <div className="glass-panel p-8 md:p-12 rounded-[2rem] mb-16 relative overflow-hidden border border-white/[0.06] bg-white/[0.03] shadow-lg shadow-black/20">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 blur-[80px] rounded-full pointer-events-none"></div>
-        <h2 className="text-xl font-semibold tracking-tight text-slate-200 mb-6">Our Mission</h2>
-        <div className="space-y-6 text-slate-300 leading-relaxed text-xs md:text-sm">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald/[0.05] blur-[80px] rounded-full pointer-events-none"></div>
+        <h2 className="text-xl font-semibold tracking-tight text-foreground mb-6">Our Mission</h2>
+        <div className="space-y-6 text-soft leading-relaxed text-xs md:text-sm">
           <p>
             PortAI was founded by former quantitative analysts and AI researchers who witnessed the growing disparity between institutional capabilities and the tools available to retail investors.
           </p>
@@ -32,16 +32,16 @@ const AboutPage = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="p-6 rounded-2xl bg-white/[0.03] border border-white/[0.06] text-center shadow-lg shadow-black/20">
-          <div className="text-3xl font-bold text-indigo-400 font-mono mb-2">150k+</div>
-          <div className="text-[10px] text-slate-500 font-semibold">Portfolios Analyzed</div>
+          <div className="text-3xl font-bold text-emerald-bright font-mono mb-2">150k+</div>
+          <div className="text-[10px] text-muted font-semibold">Portfolios Analyzed</div>
         </div>
         <div className="p-6 rounded-2xl bg-white/[0.03] border border-white/[0.06] text-center shadow-lg shadow-black/20">
-          <div className="text-3xl font-bold text-indigo-400 font-mono mb-2">$2B+</div>
-          <div className="text-[10px] text-slate-500 font-semibold">Assets Tracked</div>
+          <div className="text-3xl font-bold text-emerald-bright font-mono mb-2">$2B+</div>
+          <div className="text-[10px] text-muted font-semibold">Assets Tracked</div>
         </div>
         <div className="p-6 rounded-2xl bg-white/[0.03] border border-white/[0.06] text-center shadow-lg shadow-black/20">
-          <div className="text-3xl font-bold text-indigo-400 font-mono mb-2">&lt;50ms</div>
-          <div className="text-[10px] text-slate-500 font-semibold">Signal Latency</div>
+          <div className="text-3xl font-bold text-emerald-bright font-mono mb-2">&lt;50ms</div>
+          <div className="text-[10px] text-muted font-semibold">Signal Latency</div>
         </div>
       </div>
     </main>
@@ -50,4 +50,4 @@ const AboutPage = () => {
 
 export default AboutPage;
 
-// About PortAI - Institutional Alpha democratized for retail investors
+// About FinfreeX - Institutional Alpha democratized for retail investors
