@@ -14,22 +14,28 @@ module.exports = {
         'surface-2': 'var(--surface-2)',
         elevated: 'var(--elevated)',
         border: 'var(--border)',
-        // Brand
+        'border-strong': 'var(--border-strong)',
+        // Brand (rgb + <alpha-value> so /NN opacity modifiers work)
         emerald: {
-          DEFAULT: 'var(--emerald)',
-          bright: 'var(--emerald-bright)',
-          dim: 'var(--emerald-dim)',
+          DEFAULT: 'rgb(8 153 129 / <alpha-value>)',
+          bright: 'rgb(12 195 165 / <alpha-value>)',
+          dim: 'rgb(5 107 90 / <alpha-value>)',
         },
         coral: {
-          DEFAULT: 'var(--coral)',
-          bright: 'var(--coral-bright)',
+          DEFAULT: 'rgb(242 54 69 / <alpha-value>)',
+          bright: 'rgb(255 77 90 / <alpha-value>)',
         },
         amber: {
-          DEFAULT: 'var(--amber)',
+          DEFAULT: 'rgb(217 147 13 / <alpha-value>)',
         },
-        primary: 'var(--primary)',
+        primary: 'rgb(41 98 255 / <alpha-value>)',
         muted: 'var(--text-muted)',
         soft: 'var(--text-soft)',
+        ai: {
+          DEFAULT: 'rgb(124 106 255 / <alpha-value>)',
+          bright: 'rgb(157 139 255 / <alpha-value>)',
+          dim: 'rgb(77 63 214 / <alpha-value>)',
+        },
       },
       fontFamily: {
         sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'],
@@ -47,6 +53,7 @@ module.exports = {
         'slide-up': 'slideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         'marquee-slow': 'marquee 60s linear infinite',
         'spin-slow': 'spinSlow 18s linear infinite',
+        'agent-pulse': 'agentPulse 1.8s ease-in-out infinite',
       },
       keyframes: {
         float: {
@@ -64,6 +71,10 @@ module.exports = {
         marquee: {
           '0%': { transform: 'translateX(0)' },
           '100%': { transform: 'translateX(-50%)' },
+        },
+        agentPulse: {
+          '0%, 100%': { boxShadow: '0 0 0 0 rgba(124, 106, 255, 0.35)' },
+          '50%': { boxShadow: '0 0 0 6px rgba(124, 106, 255, 0)' },
         },
       },
     },

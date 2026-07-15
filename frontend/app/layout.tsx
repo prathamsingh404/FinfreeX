@@ -15,6 +15,7 @@ export const viewport = {
 }
 
 import Header from '@/components/Header'
+import CommandPalette from '@/components/CommandPalette'
 import { AuthProvider } from '@/context/AuthContext'
 import AuthLanyardBadge from '@/components/AuthLanyardBadge'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         <AuthProvider>
           <Header />
+          <CommandPalette />
           {children}
           <AuthLanyardBadge />
           <div className="fixed bottom-14 right-4 z-[70] lg:hidden">

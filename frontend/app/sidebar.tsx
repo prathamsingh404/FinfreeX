@@ -1,25 +1,90 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { NAV } from '@/lib/nav'
+import { NAV, NavGroup, NavItem } from '@/lib/nav'
+import { openCommandPalette } from '@/components/CommandPalette'
 
 export { NAV as features } from '@/lib/nav'
 
-export default function Sidebar() {
+function NavLink({ item, accent, onNavigate }: { item: NavItem; accent?: 'ai'; onNavigate: () => void }) {
   const pathname = usePathname()
-  const [isOpen, setIsOpen] = useState(false)
-  const [query, setQuery] = useState('')
+  const isActive = pathname === item.route
+  const activeCls =
+    accent === 'ai'
+      ? 'bg-ai/12 text-ai-bright'
+      : 'bg-primary/12 text-primary'
+  return (
+    <li>
+      <Link
+        href={item.route}
+        onClick={onNavigate}
+        className={`flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-[13px] font-medium transition-colors relative ${
+          isActive ? activeCls : 'text-soft hover:text-foreground hover:bg-white/[0.04]'
+        }`}
+      >
+        {isActive && (
+          <span
+            className={`absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full ${
+              accent === 'ai' ? 'bg-ai' : 'bg-primary'
+            }`}
+          ></span>
+        )}
+        <iconify-icon
+          icon={item.icon}
+          width="16"
+          class={isActive ? (accent === 'ai' ? 'text-ai-bright' : 'text-primary') : 'text-muted'}
+        ></iconify-icon>
+        {item.title}
+      </Link>
+    </li>
+  )
+}
 
-  const groups = useMemo(() => {
-    if (!query.trim()) return NAV
-    const q = query.toLowerCase()
-    return NAV.map((g) => ({
-      ...g,
-      items: g.items.filter((i) => i.title.toLowerCase().includes(q)),
-    })).filter((g) => g.items.length)
-  }, [query])
+function Group({ group, onNavigate }: { group: NavGroup; onNavigate: () => void }) {
+  const pathname = usePathname()
+  const core = group.items.filter((i) => i.tier !== 'pro')
+  const pro = group.items.filter((i) => i.tier === 'pro')
+  // Auto-expand the "More" section when the active route lives inside it
+  const [showPro, setShowPro] = useState(() => pro.some((i) => i.route === pathname))
+
+  return (
+    <div>
+      <h4 className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase mb-1.5 px-2 text-muted">
+        {group.accent === 'ai' && <span className="w-1.5 h-1.5 rounded-full bg-ai agent-pulse"></span>}
+        {group.category}
+      </h4>
+      <ul className="space-y-px">
+        {core.map((item) => (
+          <NavLink key={item.route} item={item} accent={group.accent} onNavigate={onNavigate} />
+        ))}
+        {showPro &&
+          pro.map((item) => (
+            <NavLink key={item.route} item={item} accent={group.accent} onNavigate={onNavigate} />
+          ))}
+        {pro.length > 0 && (
+          <li>
+            <button
+              onClick={() => setShowPro((v) => !v)}
+              className="w-full flex items-center gap-2.5 px-2.5 py-[6px] rounded-md text-xs font-medium text-muted hover:text-soft hover:bg-white/[0.03] transition-colors cursor-pointer"
+            >
+              <iconify-icon
+                icon={showPro ? 'solar:alt-arrow-up-linear' : 'solar:alt-arrow-down-linear'}
+                width="14"
+              ></iconify-icon>
+              {showPro ? 'Less' : `${pro.length} more`}
+            </button>
+          </li>
+        )}
+      </ul>
+    </div>
+  )
+}
+
+export default function Sidebar() {
+  const [isOpen, setIsOpen] = useState(false)
+  const close = () => setIsOpen(false)
 
   return (
     <>
@@ -33,7 +98,7 @@ export default function Sidebar() {
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] lg:hidden" onClick={() => setIsOpen(false)}></div>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] lg:hidden" onClick={close}></div>
       )}
 
       <aside
@@ -55,47 +120,27 @@ export default function Sidebar() {
           </div>
         </Link>
 
-        {/* Search */}
+        {/* Command palette trigger */}
         <div className="px-3 py-3 shrink-0">
-          <div className="flex items-center gap-2 px-3 h-9 rounded-md bg-white/[0.04] border border-border focus-within:border-primary/40">
-            <iconify-icon icon="solar:magnifer-linear" width="15" className="text-muted"></iconify-icon>
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search tools…"
-              className="bg-transparent outline-none text-xs text-foreground placeholder:text-muted w-full"
-            />
-          </div>
+          <button
+            onClick={() => {
+              close()
+              openCommandPalette()
+            }}
+            className="w-full flex items-center gap-2 px-3 h-9 rounded-md bg-white/[0.04] border border-border hover:border-border-strong text-left transition-colors cursor-pointer group"
+          >
+            <iconify-icon icon="solar:magnifer-linear" width="15" class="text-muted"></iconify-icon>
+            <span className="text-xs text-muted group-hover:text-soft flex-1">Search anything…</span>
+            <span className="kbd">Ctrl</span>
+            <span className="kbd">K</span>
+          </button>
         </div>
 
         {/* Links */}
         <nav className="flex-1 overflow-y-auto w-full px-3 pb-4 space-y-5 custom-scrollbar">
-          {groups.map((group, i) => (
-            <div key={i} className="px-1">
-              <h4 className="text-[10px] font-bold text-muted tracking-widest uppercase mb-2 px-2">{group.category}</h4>
-              <ul className="space-y-0.5">
-                {group.items.map((item, j) => {
-                  const isActive = pathname === item.route
-                  return (
-                    <li key={j}>
-                      <Link
-                        href={item.route}
-                        onClick={() => setIsOpen(false)}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition-colors relative ${
-                          isActive ? 'bg-primary/12 text-primary' : 'text-soft hover:text-foreground hover:bg-white/[0.04]'
-                        }`}
-                      >
-                        {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 rounded-r-full bg-primary"></span>}
-                        <iconify-icon icon={item.icon} width="17" className={isActive ? 'text-primary' : 'text-muted'}></iconify-icon>
-                        {item.title}
-                      </Link>
-                    </li>
-                  )
-                })}
-              </ul>
-            </div>
+          {NAV.map((group) => (
+            <Group key={group.category} group={group} onNavigate={close} />
           ))}
-          {groups.length === 0 && <p className="text-xs text-muted px-3">No tools match “{query}”.</p>}
         </nav>
 
         {/* Status */}

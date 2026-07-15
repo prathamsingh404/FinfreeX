@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { TOP_NAV } from '@/lib/nav'
 import LanguageSwitcher from './LanguageSwitcher'
+import { openCommandPalette } from './CommandPalette'
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false)
@@ -57,6 +58,16 @@ export default function Header() {
 
         {/* Actions */}
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={openCommandPalette}
+            aria-label="Open command palette"
+            className="hidden sm:flex items-center gap-2 px-3 h-8 rounded-md bg-white/[0.04] border border-border hover:border-border-strong text-muted hover:text-soft transition-colors cursor-pointer"
+          >
+            <iconify-icon icon="solar:magnifer-linear" width="14"></iconify-icon>
+            <span className="text-xs">Search</span>
+            <span className="kbd">Ctrl</span>
+            <span className="kbd">K</span>
+          </button>
           <div className="hidden lg:block">
             <LanguageSwitcher />
           </div>

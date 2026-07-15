@@ -1,23 +1,25 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ============================================================
-   FinfreeX — Flat Institutional Design System
-   Inspired by TradingView, TickerTape, & Screener.in
-   No AI slop gradients. Sharp borders, clear structured UI.
+   FinfreeX Design System v2 — "Intelligence OS"
+   Three visual layers:
+     1. AI Intelligence  → iris accent, glow, motion
+     2. Market Research  → flat institutional, emerald/coral semantics
+     3. Professional     → dense, monochrome, terminal-like
    ============================================================ */
 
 :root {
   /* Canvas / neutrals */
-  --bg: #0c1017;
-  --surface: #121824;
-  --surface-2: #182030;
-  --elevated: #1e293b;
-  --border: #1e293b;
-  --border-strong: #334155;
+  --bg: #0a0d13;
+  --surface: #10141d;
+  --surface-2: #161c28;
+  --elevated: #1c2433;
+  --border: #1d2536;
+  --border-strong: #2e3a52;
 
   /* Brand / Semantic */
   --emerald: #089981;
@@ -25,19 +27,42 @@
   --emerald-dim: #056b5a;
   --coral: #f23645;
   --coral-bright: #ff4d5a;
-  --amber: #d97706;
+  --amber: #d9930d;
   --primary: #2962ff;
+
+  /* AI Intelligence layer */
+  --ai: #7c6aff;
+  --ai-bright: #9d8bff;
+  --ai-dim: #4d3fd6;
+  --ai-glow: rgba(124, 106, 255, 0.16);
 
   /* Text */
   --text: #f8fafc;
   --text-soft: #94a3b8;
-  --text-muted: #64748b;
+  --text-muted: #5d6b82;
 
   /* Semantic */
   --up: #089981;
   --down: #f23645;
 
-  --radius: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+
+  /* Type scale (perfect fourth-ish, capped) */
+  --fs-xs: 11px;
+  --fs-sm: 12.5px;
+  --fs-base: 14px;
+  --fs-md: 16px;
+  --fs-lg: 20px;
+  --fs-xl: 26px;
+  --fs-2xl: 34px;
+  --fs-3xl: 46px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 150ms;
+  --dur-base: 250ms;
+  --dur-slow: 450ms;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -51,6 +76,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.5;
+  font-size: var(--fs-base);
 }
 
 /* ─── Scrollbar ─── */
@@ -99,9 +125,40 @@ body {
   border: 1px solid var(--border);
 }
 
+/* ─── AI Intelligence surfaces ─── */
+.ai-surface {
+  background: linear-gradient(180deg, rgba(124, 106, 255, 0.07), rgba(124, 106, 255, 0.02) 60%), var(--surface);
+  border: 1px solid rgba(124, 106, 255, 0.22);
+  border-radius: var(--radius-lg);
+}
+.ai-glow {
+  box-shadow: 0 0 0 1px rgba(124, 106, 255, 0.25), 0 0 32px -8px var(--ai-glow);
+}
+.ai-ring:focus-within {
+  border-color: rgba(124, 106, 255, 0.55);
+  box-shadow: 0 0 0 3px rgba(124, 106, 255, 0.14), 0 0 44px -6px var(--ai-glow);
+}
+.ai-text { color: var(--ai-bright); }
+
+/* Animated iris beam for AI hero borders */
+@keyframes ai-beam {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.ai-beam-border {
+  position: relative;
+  border-radius: var(--radius-lg);
+  padding: 1px;
+  background: linear-gradient(90deg,
+    rgba(124,106,255,0.45), rgba(41,98,255,0.25), rgba(12,195,165,0.25), rgba(124,106,255,0.45));
+  background-size: 200% 100%;
+  animation: ai-beam 6s linear infinite;
+}
+
 /* ─── Card hover lift ─── */
-.card-hover { transition: border-color 0.2s ease, background-color 0.2s ease; }
-.card-hover:hover { border-color: var(--primary); }
+.card-hover { transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s var(--ease-out); }
+.card-hover:hover { border-color: var(--border-strong); }
+.card-lift:hover { transform: translateY(-2px); border-color: var(--border-strong); }
 
 /* ─── Accent text ─── */
 .accent-text { color: var(--primary); }
@@ -127,6 +184,42 @@ body {
 
 @keyframes ticker-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 .ticker-live { animation: ticker-pulse 2s ease-in-out infinite; }
+
+/* Agent working pulse (GitHub-Actions-style) */
+@keyframes agent-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(124, 106, 255, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(124, 106, 255, 0); }
+}
+.agent-pulse { animation: agent-pulse 1.8s ease-in-out infinite; }
+
+/* Thinking shimmer for streaming AI text */
+@keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+.thinking-shimmer {
+  background: linear-gradient(90deg, var(--text-muted) 25%, var(--text) 50%, var(--text-muted) 75%);
+  background-size: 400px 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 2.2s linear infinite;
+}
+
+/* Skeleton loading */
+@keyframes skeleton { 0% { background-position: -200px 0; } 100% { background-position: 200px 0; } }
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--elevated) 50%, var(--surface-2) 75%);
+  background-size: 400px 100%;
+  animation: skeleton 1.4s ease-in-out infinite;
+  border-radius: var(--radius);
+}
+
+/* Streaming caret */
+@keyframes caret-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+.stream-caret::after {
+  content: '▍';
+  color: var(--ai-bright);
+  animation: caret-blink 0.9s step-end infinite;
+  margin-left: 1px;
+}
 
 ::selection { background-color: var(--primary); color: #ffffff; }
 
@@ -161,3 +254,22 @@ body {
   border: 1px solid var(--border);
 }
 
+/* ─── Kbd (command palette hints) ─── */
+.kbd {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 20px; padding: 0 5px;
+  border-radius: 5px; border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 500;
+  color: var(--text-soft);
+  box-shadow: 0 1px 0 var(--border-strong);
+}
+
+/* ─── Reduced motion ─── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

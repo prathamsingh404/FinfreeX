@@ -1,128 +1,575 @@
 'use client'
-import { useState, useRef, useEffect } from 'react'
-import PageShell from '@/components/PageShell'
-import { Card, Badge, Btn } from '@/components/ui/kit'
-import { useScreener, usePortfolio } from '@/lib/hooks/useMarketData'
-import { useAuth } from '@/context/AuthContext'
 
-type Msg = { role: 'user' | 'ai'; text: string }
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import Sidebar from '@/app/sidebar'
+import { Card, Change, fmt } from '@/components/ui/kit'
+import {
+  AgentCard,
+  AgentInfo,
+  AIPromptInput,
+  AIScoreRing,
+  ConsensusBar,
+  InsightCard,
+  PromptChips,
+  Signal,
+  SignalBadge,
+  VerdictCard,
+} from '@/components/ui/ai'
+import { streamAnalysis, AIChunk } from '@/lib/api'
+import { useQuote, useNews } from '@/lib/hooks/useMarketData'
 
-const SUGGESTIONS = [
-  'Analyze my portfolio risk',
-  'What are the top momentum stocks?',
-  'Summarize today\u2019s market',
-  'Suggest a sector rotation strategy',
+/* ============================================================
+   AI Analyst — the flagship. Perplexity × Bloomberg:
+   left: run history · center: live research canvas · right: context
+   ============================================================ */
+
+const EXAMPLES = [
+  'Analyze RELIANCE',
+  'Is TCS overvalued?',
+  'Analyze NVDA',
+  'HDFCBANK risk check',
 ]
 
-function analyze(query: string, screenerData: any[], portfolioData: any): string {
+const SPECIALISTS: { key: string; name: string; icon: string; match: string[] }[] = [
+  { key: 'technical', name: 'Technical', icon: 'solar:chart-2-linear', match: ['technical', 'chart', 'momentum'] },
+  { key: 'fundamental', name: 'Fundamental', icon: 'solar:document-text-linear', match: ['fundamental', 'financial'] },
+  { key: 'macro', name: 'Macro', icon: 'solar:earth-linear', match: ['macro', 'econom'] },
+  { key: 'news', name: 'News & Sentiment', icon: 'solar:notebook-linear', match: ['news', 'sentiment'] },
+  { key: 'valuation', name: 'Valuation', icon: 'solar:calculator-linear', match: ['valuation', 'value'] },
+  { key: 'risk', name: 'Risk', icon: 'solar:shield-warning-linear', match: ['risk'] },
+]
+
+const PIPELINE = ['Data Collection', 'Specialists', 'Investor Personas', 'Risk Engine', 'Portfolio Manager', 'Final Verdict']
+
+/* Well-known company names → tickers so natural questions still resolve */
+const NAME_TO_TICKER: Record<string, { symbol: string; exchange: string }> = {
+  reliance: { symbol: 'RELIANCE', exchange: 'NSE' },
+  tcs: { symbol: 'TCS', exchange: 'NSE' },
+  infosys: { symbol: 'INFY', exchange: 'NSE' },
+  'hdfc bank': { symbol: 'HDFCBANK', exchange: 'NSE' },
+  hdfcbank: { symbol: 'HDFCBANK', exchange: 'NSE' },
+  'icici bank': { symbol: 'ICICIBANK', exchange: 'NSE' },
+  'tata motors': { symbol: 'TATAMOTORS', exchange: 'NSE' },
+  tatamotors: { symbol: 'TATAMOTORS', exchange: 'NSE' },
+  adani: { symbol: 'ADANIENT', exchange: 'NSE' },
+  'bajaj finance': { symbol: 'BAJFINANCE', exchange: 'NSE' },
+  nifty: { symbol: 'NIFTY50', exchange: 'NSE' },
+  nvidia: { symbol: 'NVDA', exchange: 'NASDAQ' },
+  apple: { symbol: 'AAPL', exchange: 'NASDAQ' },
+  microsoft: { symbol: 'MSFT', exchange: 'NASDAQ' },
+  tesla: { symbol: 'TSLA', exchange: 'NASDAQ' },
+  amd: { symbol: 'AMD', exchange: 'NASDAQ' },
+  google: { symbol: 'GOOGL', exchange: 'NASDAQ' },
+  alphabet: { symbol: 'GOOGL', exchange: 'NASDAQ' },
+  amazon: { symbol: 'AMZN', exchange: 'NASDAQ' },
+  meta: { symbol: 'META', exchange: 'NASDAQ' },
+}
+const US_TICKERS = new Set(['NVDA', 'AAPL', 'MSFT', 'TSLA', 'AMD', 'GOOGL', 'AMZN', 'META', 'NFLX', 'INTC'])
+
+function resolveTicker(query: string): { symbol: string; exchange: string } | null {
   const q = query.toLowerCase()
-  if (q.includes('portfolio') || q.includes('risk')) {
-    if (!portfolioData) return "I cannot access your live portfolio data right now. Please ensure you're logged in and the portfolio service is running."
-    return `Your portfolio is valued at \u20B9${(portfolioData.totalValue / 1e5).toFixed(2)}L with a total P&L of ${portfolioData.totalPnlPct || 0}%. I'd suggest reviewing any oversized positions based on live data.`
+  for (const [name, t] of Object.entries(NAME_TO_TICKER)) {
+    if (q.includes(name)) return t
   }
-  if (q.includes('momentum') || q.includes('top')) {
-    if (!screenerData || screenerData.length === 0) return "I'm currently unable to fetch live market movers. Please check the market data connection."
-    const movers = [...screenerData].sort((a, b) => (b.return_1m || 0) - (a.return_1m || 0)).slice(0, 3)
-    return `Today's strongest momentum names from the live screener: ${movers.map((m) => `${m.symbol} (+${(m.return_1m || 0).toFixed(2)}%)`).join(', ')}. These show positive relative strength.`
+  const caps = query.match(/\b[A-Z]{2,12}\b/g)?.filter((w) => !['AI', 'PE', 'PB', 'ROE', 'RSI', 'ATH', 'VS'].includes(w))
+  if (caps?.length) {
+    const symbol = caps[0]
+    return { symbol, exchange: US_TICKERS.has(symbol) ? 'NASDAQ' : 'NSE' }
   }
-  if (q.includes('market') || q.includes('summar')) {
-    if (!screenerData || screenerData.length === 0) return "Market data is currently unavailable."
-    const adv = screenerData.filter((x) => (x.return_1m || 0) >= 0).length
-    return `Based on live screener data, market breadth is ${adv > screenerData.length / 2 ? 'positive' : 'negative'} with ${adv}/${screenerData.length} tracked equities advancing.`
-  }
-  if (q.includes('sector') || q.includes('rotation')) {
-    return `Sector rotation signals are derived from live market momentum. You can view the Sectors dashboard for a detailed breakdown.`
-  }
-  return `I am currently analyzing live API data. I'd recommend maintaining a diversified allocation. Ask me about your portfolio, specific sectors, or momentum ideas.`
+  return null
 }
 
-export default function AiAnalystPage() {
-  const { user } = useAuth()
-  const userId = user?.id || 'demo-user-123'
-  
-  const { data: screenerData } = useScreener({ universe: 'ALL' })
-  const { data: portfolioData } = usePortfolio(userId)
+function normSignal(raw: unknown): Signal | undefined {
+  if (typeof raw !== 'string') return undefined
+  const s = raw.toUpperCase()
+  if (['BUY', 'STRONG BUY', 'ACCUMULATE', 'INCREASE'].some((x) => s.includes(x))) return 'BUY'
+  if (['SELL', 'REDUCE', 'EXIT'].some((x) => s.includes(x))) return 'SELL'
+  if (s.includes('BULL')) return 'BULLISH'
+  if (s.includes('BEAR')) return 'BEARISH'
+  if (s.includes('HOLD')) return 'HOLD'
+  if (s.includes('NEUTRAL')) return 'NEUTRAL'
+  return undefined
+}
 
-  const [messages, setMessages] = useState<Msg[]>([
-    { role: 'ai', text: 'Hello! I\u2019m your AI financial analyst. Ask me about your portfolio, market conditions, momentum ideas, or sector strategy based on live data.' },
-  ])
-  const [input, setInput] = useState('')
-  const [thinking, setThinking] = useState(false)
-  const endRef = useRef<HTMLDivElement>(null)
+function normConfidence(raw: unknown): number | undefined {
+  const n = typeof raw === 'string' ? parseFloat(raw) : typeof raw === 'number' ? raw : NaN
+  if (Number.isNaN(n)) return undefined
+  return Math.round(n <= 1 ? n * 100 : n)
+}
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, thinking])
+function pick(obj: any, keys: string[]): unknown {
+  if (!obj || typeof obj !== 'object') return undefined
+  for (const k of keys) if (obj[k] !== undefined && obj[k] !== null) return obj[k]
+  return undefined
+}
 
-  function send(text: string) {
-    const q = text.trim()
-    if (!q || thinking) return
-    setMessages((m) => [...m, { role: 'user', text: q }])
-    setInput('')
-    setThinking(true)
-    setTimeout(() => {
-      setMessages((m) => [...m, { role: 'ai', text: analyze(q, screenerData || [], portfolioData) }])
-      setThinking(false)
-    }, 650)
-  }
+interface PersonaResult {
+  name: string
+  signal?: Signal
+  confidence?: number
+  reason?: string
+}
+
+interface Run {
+  id: string
+  query: string
+  symbol: string
+  exchange: string
+  verdict?: { signal: Signal; confidence: number; summary: string }
+  at: number
+}
+
+const HISTORY_KEY = 'finfreex-analyst-history'
+
+function AnalystWorkspace() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  const [query, setQuery] = useState('')
+  const [symbol, setSymbol] = useState('')
+  const [exchange, setExchange] = useState('NSE')
+  const [running, setRunning] = useState(false)
+  const [statuses, setStatuses] = useState<string[]>([])
+  const [stage, setStage] = useState(0)
+  const [marketData, setMarketData] = useState<any>(null)
+  const [agents, setAgents] = useState<Record<string, AgentInfo>>({})
+  const [personas, setPersonas] = useState<PersonaResult[]>([])
+  const [verdict, setVerdict] = useState<{ signal: Signal; confidence: number; summary: string } | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [history, setHistory] = useState<Run[]>([])
+  const startedRef = useRef(false)
+  const canvasEndRef = useRef<HTMLDivElement>(null)
+
+  const { data: quote } = useQuote(symbol || 'RELIANCE', exchange)
+  const { data: news } = useNews(symbol || undefined)
+
+  useEffect(() => {
+    try {
+      setHistory(JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'))
+    } catch {}
+  }, [])
+
+  const seedAgents = () =>
+    Object.fromEntries(
+      SPECIALISTS.map((s) => [s.key, { name: s.name, icon: s.icon, status: 'idle' as const }])
+    )
+
+  const run = useCallback((q: string) => {
+    const target = resolveTicker(q)
+    if (!target) {
+      setError('Name a stock — a ticker like RELIANCE or NVDA, or a company like “Tata Motors”.')
+      return
+    }
+    setQuery(q)
+    setSymbol(target.symbol)
+    setExchange(target.exchange)
+    setRunning(true)
+    setError(null)
+    setStatuses([`Resolving ${target.symbol} on ${target.exchange}…`])
+    setStage(0)
+    setMarketData(null)
+    setAgents(seedAgents())
+    setPersonas([])
+    setVerdict(null)
+
+    let finalVerdict: { signal: Signal; confidence: number; summary: string } | undefined
+
+    streamAnalysis(
+      target.symbol,
+      target.exchange,
+      ['buffett', 'jhunjhunwala', 'graham', 'burry'],
+      (chunk: AIChunk) => {
+        if (chunk.type === 'status' && chunk.message) {
+          setStatuses((s) => [...s.slice(-7), chunk.message!])
+          const m = chunk.message.toLowerCase()
+          if (m.includes('risk')) setStage(3)
+          else if (m.includes('portfolio')) setStage(4)
+        }
+        if (chunk.type === 'market_data') {
+          setStage(1)
+          setMarketData(chunk.data ?? chunk.result ?? null)
+          // Data collected → specialists start thinking
+          setAgents((a) => {
+            const next = { ...a }
+            for (const k of Object.keys(next)) next[k] = { ...next[k], status: 'thinking' }
+            return next
+          })
+        }
+        if (chunk.type === 'specialist') {
+          setStage((s) => Math.max(s, 1))
+          const name = String(chunk.agent ?? '').toLowerCase()
+          const spec = SPECIALISTS.find((s) => s.match.some((m) => name.includes(m)))
+          if (spec) {
+            const r = chunk.result ?? chunk.data ?? {}
+            setAgents((a) => ({
+              ...a,
+              [spec.key]: {
+                ...a[spec.key],
+                status: 'done',
+                signal: normSignal(pick(r, ['signal', 'action', 'recommendation', 'rating'])),
+                confidence: normConfidence(pick(r, ['confidence', 'score'])),
+                thought: String(pick(r, ['reasoning', 'summary', 'analysis', 'message']) ?? '').slice(0, 220) || undefined,
+              },
+            }))
+          }
+        }
+        if (chunk.type === 'persona') {
+          setStage((s) => Math.max(s, 2))
+          const r = chunk.result ?? chunk.data ?? {}
+          setPersonas((p) => [
+            ...p.filter((x) => x.name !== chunk.persona),
+            {
+              name: String(chunk.persona ?? 'Persona'),
+              signal: normSignal(pick(r, ['signal', 'action', 'recommendation'])),
+              confidence: normConfidence(pick(r, ['confidence', 'score'])),
+              reason: String(pick(r, ['reasoning', 'summary', 'message']) ?? '').slice(0, 200) || undefined,
+            },
+          ])
+        }
+        if (chunk.type === 'final_verdict') {
+          setStage(5)
+          const r = chunk.result ?? chunk.data ?? {}
+          finalVerdict = {
+            signal: normSignal(pick(r, ['signal', 'action', 'recommendation'])) ?? 'NEUTRAL',
+            confidence: normConfidence(pick(r, ['confidence', 'score'])) ?? 50,
+            summary:
+              String(pick(r, ['reasoning', 'summary', 'thesis', 'message']) ?? '') ||
+              'Committee verdict computed from specialist and persona signals.',
+          }
+          setVerdict(finalVerdict)
+        }
+        if (chunk.type === 'error') {
+          setError(chunk.message || 'The analysis engine returned an error.')
+        }
+        canvasEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+      },
+      () => {
+        setRunning(false)
+        setStage(5)
+        // Any agent still marked thinking closes as done
+        setAgents((a) => {
+          const next = { ...a }
+          for (const k of Object.keys(next))
+            if (next[k].status === 'thinking') next[k] = { ...next[k], status: 'done' }
+          return next
+        })
+        const entry: Run = {
+          id: `${Date.now()}`,
+          query: q,
+          symbol: target.symbol,
+          exchange: target.exchange,
+          verdict: finalVerdict,
+          at: Date.now(),
+        }
+        setHistory((h) => {
+          const next = [entry, ...h].slice(0, 20)
+          try {
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(next))
+          } catch {}
+          return next
+        })
+      },
+      (err) => {
+        setRunning(false)
+        setError(
+          `Could not reach the analysis engine (${err?.message ?? 'network error'}). ` +
+            'Check that the backend is running, then retry.'
+        )
+      }
+    )
+  }, [])
+
+  // Auto-run when arriving with ?q= from homepage / command palette
+  useEffect(() => {
+    const q = searchParams.get('q')
+    if (q && !startedRef.current) {
+      startedRef.current = true
+      run(q)
+    }
+  }, [searchParams, run])
+
+  const agentList = SPECIALISTS.map((s) => agents[s.key]).filter(Boolean)
+  const doneAgents = agentList.filter((a) => a.status === 'done' && a.signal)
+  const bullish = doneAgents.filter((a) => ['BUY', 'BULLISH'].includes(a.signal!)).length
+  const bearish = doneAgents.filter((a) => ['SELL', 'BEARISH'].includes(a.signal!)).length
+  const neutral = doneAgents.length - bullish - bearish
+
+  const hasSession = running || verdict || agentList.length > 0
 
   return (
-    <PageShell
-      title="AI Financial Analyst"
-      category="Intelligence"
-      subtitle="Conversational market intelligence grounded in your live data."
-      icon="solar:magic-stick-3-bold-duotone"
-    >
-      <Card className="flex flex-col border-border" pad={false}>
-        <div className="flex-1 p-5 space-y-4 max-h-[52vh] overflow-y-auto">
-          {messages.map((m, i) => (
-            <div key={i} className={`flex gap-3 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              {m.role === 'ai' && (
-                <div className="w-8 h-8 rounded-xl bg-primary/12 border border-primary/25 text-primary flex items-center justify-center shrink-0">
-                  <iconify-icon icon="solar:magic-stick-3-bold-duotone" width="16"></iconify-icon>
+    <>
+      <Sidebar />
+      <div className="lg:pl-64 min-h-[100dvh] pt-20 flex">
+        {/* ─── Center: research canvas ─── */}
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-4 sm:px-6 pb-6">
+            <div className="mx-auto max-w-3xl">
+              {!hasSession ? (
+                /* Empty state that teaches */
+                <div className="pt-[10vh] text-center">
+                  <div className="inline-flex w-14 h-14 rounded-2xl bg-ai/15 border border-ai/30 text-ai-bright items-center justify-center mb-6">
+                    <iconify-icon icon="solar:magic-stick-3-linear" width="26"></iconify-icon>
+                  </div>
+                  <h1 className="text-3xl font-extrabold tracking-tight text-balance">What should we research?</h1>
+                  <p className="text-soft mt-3 max-w-md mx-auto text-pretty">
+                    Six specialist agents pull live data, debate the stock and hand you one verdict with confidence.
+                  </p>
+                  <div className="mt-8">
+                    <AIPromptInput autoFocus placeholder="Analyze any stock — try “Analyze RELIANCE”" onSubmit={run} />
+                  </div>
+                  <div className="mt-4">
+                    <PromptChips prompts={EXAMPLES} onPick={run} />
+                  </div>
+
+                  {/* Pipeline preview */}
+                  <div className="mt-14 text-left">
+                    <div className="text-[11px] font-bold uppercase tracking-widest text-muted mb-4 text-center">
+                      How a verdict is formed
+                    </div>
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      {PIPELINE.map((p, i) => (
+                        <React.Fragment key={p}>
+                          <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-surface border border-border text-soft">
+                            {p}
+                          </span>
+                          {i < PIPELINE.length - 1 && (
+                            <iconify-icon icon="solar:arrow-right-linear" width="13" class="text-muted"></iconify-icon>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="pt-4 space-y-5">
+                  {/* Query + pipeline */}
+                  <div>
+                    <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-ai-bright mb-2">
+                      <iconify-icon icon="solar:magic-stick-3-linear" width="13"></iconify-icon>
+                      {running ? <span className="thinking-shimmer">Researching</span> : 'Research complete'}
+                      {symbol && <SignalBadge signal={verdict?.signal ?? 'NEUTRAL'} className={verdict ? '' : 'opacity-0'} />}
+                    </div>
+                    <h1 className="text-2xl font-extrabold tracking-tight text-balance">{query}</h1>
+
+                    {/* Orchestration rail */}
+                    <div className="mt-4 flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+                      {PIPELINE.map((p, i) => {
+                        const state = i < stage ? 'done' : i === stage && running ? 'active' : i === stage ? 'done' : 'pending'
+                        return (
+                          <React.Fragment key={p}>
+                            <div
+                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10.5px] font-semibold whitespace-nowrap border transition-colors ${
+                                state === 'done'
+                                  ? 'bg-emerald/10 border-emerald/25 text-emerald-bright'
+                                  : state === 'active'
+                                  ? 'bg-ai/12 border-ai/35 text-ai-bright agent-pulse'
+                                  : 'bg-surface border-border text-muted'
+                              }`}
+                            >
+                              {state === 'done' && <iconify-icon icon="solar:check-read-linear" width="11"></iconify-icon>}
+                              {state === 'active' && <span className="w-1.5 h-1.5 rounded-full bg-ai-bright"></span>}
+                              {p}
+                            </div>
+                            {i < PIPELINE.length - 1 && <span className="w-3 h-px bg-border shrink-0"></span>}
+                          </React.Fragment>
+                        )
+                      })}
+                    </div>
+
+                    {/* Live status feed */}
+                    {running && statuses.length > 0 && (
+                      <div className="mt-3 text-xs text-muted font-mono truncate">
+                        <span className="thinking-shimmer">{statuses[statuses.length - 1]}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {error && (
+                    <InsightCard tone="coral" icon="solar:danger-triangle-linear" title="Analysis interrupted" body={error} />
+                  )}
+
+                  {/* Market snapshot */}
+                  {(marketData || quote) && symbol && (
+                    <Card hover={false} className="flex flex-wrap items-center gap-x-8 gap-y-3">
+                      <div>
+                        <div className="text-[11px] text-muted font-medium">{exchange}</div>
+                        <div className="text-lg font-extrabold text-foreground">{symbol}</div>
+                      </div>
+                      {quote && (
+                        <>
+                          <div>
+                            <div className="text-[11px] text-muted font-medium">Price</div>
+                            <div className="text-lg font-bold tabular-nums">{fmt(quote.current_price)}</div>
+                          </div>
+                          <div>
+                            <div className="text-[11px] text-muted font-medium">Today</div>
+                            <Change value={quote.change_pct} className="text-base" />
+                          </div>
+                          <div className="hidden sm:block">
+                            <div className="text-[11px] text-muted font-medium">Range</div>
+                            <div className="text-sm font-semibold tabular-nums text-soft">
+                              {fmt(quote.low)} – {fmt(quote.high)}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                      {verdict && (
+                        <div className="ml-auto">
+                          <AIScoreRing score={verdict.confidence} size={72} />
+                        </div>
+                      )}
+                    </Card>
+                  )}
+
+                  {/* Agent grid — watch them work */}
+                  {agentList.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-sm font-bold text-foreground">Specialist agents</h2>
+                        {doneAgents.length > 0 && (
+                          <span className="text-[11px] text-muted">
+                            {doneAgents.length}/{agentList.length} reported
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-3">
+                        {SPECIALISTS.map((s) => agents[s.key] && <AgentCard key={s.key} agent={agents[s.key]} />)}
+                      </div>
+                      {doneAgents.length >= 2 && (
+                        <div className="mt-4 max-w-sm">
+                          <div className="text-[10.5px] font-bold uppercase tracking-widest text-muted mb-2">Agent consensus</div>
+                          <ConsensusBar bullish={bullish} bearish={bearish} neutral={neutral} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Investor personas */}
+                  {personas.length > 0 && (
+                    <div>
+                      <h2 className="text-sm font-bold text-foreground mb-3">Investor committee</h2>
+                      <div className="grid sm:grid-cols-2 gap-3">
+                        {personas.map((p) => (
+                          <div key={p.name} className="rounded-lg bg-surface border border-border p-4">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-[13px] font-bold text-foreground capitalize">{p.name}</span>
+                              {p.signal && <SignalBadge signal={p.signal} />}
+                            </div>
+                            {p.reason && <p className="text-xs text-soft leading-relaxed">{p.reason}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Verdict */}
+                  {verdict && (
+                    <VerdictCard
+                      signal={verdict.signal}
+                      confidence={verdict.confidence}
+                      title={`${symbol} — committee verdict`}
+                      summary={verdict.summary}
+                    />
+                  )}
+
+                  <div ref={canvasEndRef} />
                 </div>
               )}
-              <div className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${m.role === 'user' ? 'bg-primary text-[#04120C] font-medium' : 'bg-surface-2 border border-border text-foreground'}`}>
-                {m.text}
-              </div>
             </div>
-          ))}
-          {thinking && (
-            <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-xl bg-primary/12 border border-primary/25 text-primary flex items-center justify-center shrink-0">
-                <iconify-icon icon="solar:magic-stick-3-bold-duotone" width="16"></iconify-icon>
-              </div>
-              <div className="rounded-2xl px-4 py-3 bg-surface-2 border border-border flex gap-1 items-center">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+          </div>
+
+          {/* Follow-up input pinned to bottom once a session exists */}
+          {hasSession && (
+            <div className="shrink-0 border-t border-border bg-background/80 backdrop-blur px-4 sm:px-6 py-3">
+              <div className="mx-auto max-w-3xl">
+                <AIPromptInput size="md" placeholder="Research another stock…" onSubmit={run} />
               </div>
             </div>
           )}
-          <div ref={endRef} />
         </div>
-        <div className="border-t border-border p-4">
-          <div className="flex flex-wrap gap-2 mb-3">
-            {SUGGESTIONS.map((s) => (
-              <button key={s} onClick={() => send(s)} className="px-3 py-1.5 rounded-lg bg-surface border border-border text-xs text-soft hover:text-primary hover:border-primary/40 transition-colors">
-                {s}
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229) send(input) }}
-              placeholder="Ask about markets, your portfolio, or strategy..."
-              className="flex-1 bg-surface-2 border border-border rounded-xl px-4 py-2.5 text-sm outline-none focus:border-primary/40 text-foreground placeholder:text-muted"
-            />
-            <Btn variant="primary" onClick={() => send(input)}>Send</Btn>
-          </div>
-        </div>
-      </Card>
-      <div className="mt-4 flex items-center gap-2 text-xs text-muted">
-        <Badge tone="amber">Pending API Integration</Badge>
-        This AI chat interface currently generates rules-based responses from your live market data. Backend LLM API integration is pending.
+
+        {/* ─── Right rail: context ─── */}
+        <aside className="hidden xl:flex w-80 shrink-0 border-l border-border flex-col overflow-y-auto custom-scrollbar px-4 py-5 gap-5">
+          {symbol ? (
+            <>
+              <div>
+                <div className="text-[10.5px] font-bold uppercase tracking-widest text-muted mb-2.5">Quick actions</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Link href="/technical-charts" className="chip justify-center py-2 text-soft hover:text-foreground hover:border-border-strong transition-colors">
+                    <iconify-icon icon="solar:chart-2-linear" width="13"></iconify-icon> Chart
+                  </Link>
+                  <Link href="/fundamental-analysis" className="chip justify-center py-2 text-soft hover:text-foreground hover:border-border-strong transition-colors">
+                    <iconify-icon icon="solar:document-text-linear" width="13"></iconify-icon> Financials
+                  </Link>
+                  <Link href="/alerts" className="chip justify-center py-2 text-soft hover:text-foreground hover:border-border-strong transition-colors">
+                    <iconify-icon icon="solar:bell-linear" width="13"></iconify-icon> Alert
+                  </Link>
+                  <Link href="/peer-comparison" className="chip justify-center py-2 text-soft hover:text-foreground hover:border-border-strong transition-colors">
+                    <iconify-icon icon="solar:users-group-two-rounded-linear" width="13"></iconify-icon> Peers
+                  </Link>
+                </div>
+              </div>
+
+              {Array.isArray(news) && news.length > 0 && (
+                <div>
+                  <div className="text-[10.5px] font-bold uppercase tracking-widest text-muted mb-2.5">Latest on {symbol}</div>
+                  <div className="space-y-2.5">
+                    {news.slice(0, 5).map((n: any, i: number) => (
+                      <a key={i} href={n.url} target="_blank" rel="noreferrer" className="block rounded-lg bg-surface border border-border p-3 hover:border-border-strong transition-colors">
+                        <p className="text-xs font-medium text-foreground leading-snug line-clamp-2">{n.title}</p>
+                        <div className="mt-1.5 flex items-center gap-2 text-[10.5px] text-muted">
+                          <span className="truncate">{n.source}</span>
+                          {n.sentiment_label && (
+                            <span className={n.sentiment_label === 'positive' ? 'text-emerald-bright' : n.sentiment_label === 'negative' ? 'text-coral' : ''}>
+                              · {n.sentiment_label}
+                            </span>
+                          )}
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div>
+              <div className="text-[10.5px] font-bold uppercase tracking-widest text-muted mb-2.5">Recent research</div>
+              {history.length === 0 && <p className="text-xs text-muted">Your past analyses will appear here.</p>}
+            </div>
+          )}
+
+          {history.length > 0 && (
+            <div>
+              <div className="text-[10.5px] font-bold uppercase tracking-widest text-muted mb-2.5">History</div>
+              <div className="space-y-2">
+                {history.slice(0, 8).map((h) => (
+                  <button
+                    key={h.id}
+                    onClick={() => run(h.query)}
+                    className="w-full text-left rounded-lg bg-surface border border-border p-3 hover:border-ai/40 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-foreground truncate">{h.symbol}</span>
+                      {h.verdict && <SignalBadge signal={h.verdict.signal} />}
+                    </div>
+                    <p className="text-[11px] text-muted truncate mt-1">{h.query}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </aside>
       </div>
-    </PageShell>
+    </>
+  )
+}
+
+export default function AiAnalystPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <AnalystWorkspace />
+    </Suspense>
   )
 }
