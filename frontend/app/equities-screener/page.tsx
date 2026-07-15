@@ -1,31 +1,98 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
+import Link from 'next/link'
 import PageShell from '@/components/PageShell'
-import { Change, fmt, Badge } from '@/components/ui/kit'
-import { useScreener, useIndices, useNews } from '@/lib/hooks/useMarketData'
+import { Change, fmt, cx } from '@/components/ui/kit'
+import { useScreener } from '@/lib/hooks/useMarketData'
 
-type SortKey = 'market_cap' | 'current_price' | 'return_1m' | 'pe_ratio' | 'volume'
+/* ============================================================
+   Screener — strategy-first. Pick a preset (or type what you
+   want) and the filters apply instantly, client-side, on live
+   screener data. Every row hands off to the AI Analyst.
+   ============================================================ */
 
-const TABS = ['Overview', 'Performance', 'Technicals', 'Extended hours', 'Forecasts', 'Valuation', 'Dividends', 'More']
+interface Filters {
+  peMax?: number
+  peMin?: number
+  roeMin?: number
+  divYieldMin?: number
+  revGrowthMin?: number
+  betaMax?: number
+  ret1mMin?: number
+  sector?: string
+}
+
+const PRESETS: { id: string; name: string; icon: string; desc: string; filters: Filters }[] = [
+  { id: 'value', name: 'Deep Value', icon: 'solar:tag-price-linear', desc: 'Low P/E, real profitability', filters: { peMax: 15, roeMin: 0.12 } },
+  { id: 'momentum', name: 'Momentum', icon: 'solar:graph-up-linear', desc: 'Strong 1-month winners', filters: { ret1mMin: 5 } },
+  { id: 'dividend', name: 'Dividend Income', icon: 'solar:money-bag-linear', desc: 'Yield above 2%', filters: { divYieldMin: 0.02 } },
+  { id: 'quality', name: 'Quality Compounders', icon: 'solar:medal-ribbons-star-linear', desc: 'High ROE, growing revenue', filters: { roeMin: 0.18, revGrowthMin: 0.08 } },
+  { id: 'lowvol', name: 'Low Volatility', icon: 'solar:shield-check-linear', desc: 'Beta under 0.9', filters: { betaMax: 0.9 } },
+]
+
+type SortKey = 'market_cap' | 'current_price' | 'return_1m' | 'pe_ratio' | 'roe' | 'dividend_yield'
+
+function applyFilters(rows: any[], f: Filters): any[] {
+  return rows.filter((q) => {
+    if (f.peMax !== undefined && !(q.pe_ratio != null && q.pe_ratio > 0 && q.pe_ratio <= f.peMax)) return false
+    if (f.peMin !== undefined && !(q.pe_ratio != null && q.pe_ratio >= f.peMin)) return false
+    if (f.roeMin !== undefined && !(q.roe != null && q.roe >= f.roeMin)) return false
+    if (f.divYieldMin !== undefined && !(q.dividend_yield != null && q.dividend_yield >= f.divYieldMin)) return false
+    if (f.revGrowthMin !== undefined && !(q.revenue_growth != null && q.revenue_growth >= f.revGrowthMin)) return false
+    if (f.betaMax !== undefined && !(q.beta != null && q.beta <= f.betaMax)) return false
+    if (f.ret1mMin !== undefined && !(q.return_1m != null && q.return_1m >= f.ret1mMin)) return false
+    if (f.sector && q.sector !== f.sector) return false
+    return true
+  })
+}
+
+function describeFilters(f: Filters): string[] {
+  const chips: string[] = []
+  if (f.peMax !== undefined) chips.push(`P/E ≤ ${f.peMax}`)
+  if (f.peMin !== undefined) chips.push(`P/E ≥ ${f.peMin}`)
+  if (f.roeMin !== undefined) chips.push(`ROE ≥ ${(f.roeMin * 100).toFixed(0)}%`)
+  if (f.divYieldMin !== undefined) chips.push(`Div yield ≥ ${(f.divYieldMin * 100).toFixed(1)}%`)
+  if (f.revGrowthMin !== undefined) chips.push(`Rev growth ≥ ${(f.revGrowthMin * 100).toFixed(0)}%`)
+  if (f.betaMax !== undefined) chips.push(`Beta ≤ ${f.betaMax}`)
+  if (f.ret1mMin !== undefined) chips.push(`1M return ≥ ${f.ret1mMin}%`)
+  if (f.sector) chips.push(f.sector)
+  return chips
+}
 
 export default function EquitiesScreenerPage() {
   const [universe, setUniverse] = useState('ALL')
+  const [preset, setPreset] = useState<string | null>(null)
+  const [filters, setFilters] = useState<Filters>({})
   const [sort, setSort] = useState<SortKey>('market_cap')
   const [dir, setDir] = useState<'asc' | 'desc'>('desc')
-  const [activeTab, setActiveTab] = useState('Overview')
-  
-  // Fetch live data
-  const { data: rows, loading } = useScreener({ universe, sort_by: sort, sort_order: dir })
-  const { data: indicesData } = useIndices()
-  const { data: newsData } = useNews('markets')
 
-  const results = rows || []
-  const indices = indicesData ? Object.entries(indicesData).map(([name, data]) => ({ name, ...data })).slice(0, 5) : []
-  const news = newsData?.slice(0, 5) || []
+  const { data: rows, loading } = useScreener({ universe })
+  const all = rows || []
 
-  const [selectedSymbol, setSelectedSymbol] = useState<any>(null)
-  const activeQuote = selectedSymbol || results[0] || null
+  const sectors = useMemo(
+    () => Array.from(new Set(all.map((q: any) => q.sector).filter(Boolean))).sort() as string[],
+    [all]
+  )
+
+  const results = useMemo(() => {
+    const filtered = applyFilters(all, filters)
+    return [...filtered].sort((a, b) => {
+      const av = a[sort] ?? -Infinity
+      const bv = b[sort] ?? -Infinity
+      return dir === 'desc' ? bv - av : av - bv
+    })
+  }, [all, filters, sort, dir])
+
+  const pickPreset = (id: string) => {
+    if (preset === id) {
+      setPreset(null)
+      setFilters((f) => ({ sector: f.sector }))
+    } else {
+      setPreset(id)
+      setFilters((f) => ({ ...PRESETS.find((p) => p.id === id)!.filters, sector: f.sector }))
+    }
+  }
 
   function toggleSort(k: SortKey) {
     if (sort === k) setDir((d) => (d === 'desc' ? 'asc' : 'desc'))
@@ -35,8 +102,11 @@ export default function EquitiesScreenerPage() {
     }
   }
 
-  const Th = ({ k, label, align = 'left' }: { k: SortKey; label: string; align?: 'left' | 'right' }) => (
-    <th className={`px-3 py-2 font-medium text-${align} whitespace-nowrap cursor-pointer hover:bg-white/5 transition-colors`} onClick={() => toggleSort(k)}>
+  const Th = ({ k, label }: { k: SortKey; label: string }) => (
+    <th
+      className="px-3 py-2 font-medium text-right whitespace-nowrap cursor-pointer hover:bg-white/5 transition-colors"
+      onClick={() => toggleSort(k)}
+    >
       <div className={`inline-flex items-center gap-1 ${sort === k ? 'text-primary' : ''}`}>
         {label}
         {sort === k && (
@@ -46,194 +116,139 @@ export default function EquitiesScreenerPage() {
     </th>
   )
 
+  const activeChips = describeFilters(filters)
+
   return (
     <PageShell
-      title="Stock Screener"
-      subtitle="All stocks"
-      category="Markets"
-      icon="solar:filters-bold-duotone"
-      variant="terminal"
+      title="Screener"
+      subtitle="Pick a strategy — filters apply instantly on live data."
+      category="Research"
+      icon="solar:filter-bold-duotone"
     >
-      <div className="flex h-full w-full overflow-hidden text-sm">
-        
-        {/* Main Terminal Area */}
-        <div className="flex-1 flex flex-col min-w-0 border-r border-border bg-[#131722]">
-          
-          {/* Top Filter Bar */}
-          <div className="flex flex-wrap items-center gap-2 p-2 border-b border-border text-[13px]">
-            <select value={universe} onChange={(e) => setUniverse(e.target.value)} className="bg-surface border border-border rounded px-2 py-1 outline-none focus:border-primary text-foreground">
-              <option value="ALL">All NSE</option>
-              <option value="LARGE_CAP">Large Cap</option>
-              <option value="MID_CAP">Mid Cap</option>
-              <option value="SMALL_CAP">Small Cap</option>
-            </select>
-            {['Watchlist', 'Index', 'Price', 'Chg %', 'Mkt cap', 'P/E', 'EPS dil growth', 'Div yield %', 'Sector'].map(f => (
-              <button key={f} className="flex items-center gap-1 px-2 py-1 rounded bg-transparent border border-transparent hover:bg-white/5 text-soft transition-colors">
-                {f} <iconify-icon icon="solar:alt-arrow-down-linear"></iconify-icon>
-              </button>
-            ))}
-          </div>
+      {/* ─── Strategy presets ─── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
+        {PRESETS.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => pickPreset(p.id)}
+            className={cx(
+              'text-left rounded-lg border p-3.5 transition-colors cursor-pointer card-lift',
+              preset === p.id ? 'ai-surface' : 'bg-surface border-border hover:border-border-strong'
+            )}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <iconify-icon icon={p.icon} width="18" class={preset === p.id ? 'text-ai-bright' : 'text-muted'}></iconify-icon>
+              {preset === p.id && <iconify-icon icon="solar:check-circle-bold" width="16" class="text-ai-bright"></iconify-icon>}
+            </div>
+            <div className="text-[13px] font-bold text-foreground">{p.name}</div>
+            <div className="text-[11px] text-muted mt-0.5">{p.desc}</div>
+          </button>
+        ))}
+      </div>
 
-          {/* Tab Bar */}
-          <div className="flex items-center gap-1 px-2 pt-2 border-b border-border overflow-x-auto no-scrollbar">
-            {TABS.map((t) => (
-              <button key={t} onClick={() => setActiveTab(t)} className={`px-4 py-2 border-b-2 text-[13px] font-medium transition-colors whitespace-nowrap ${activeTab === t ? 'border-primary text-foreground' : 'border-transparent text-soft hover:text-foreground'}`}>
-                {t}
-              </button>
-            ))}
-          </div>
+      {/* ─── Controls ─── */}
+      <div className="flex flex-wrap items-center gap-2 mb-4 text-[13px]">
+        <select
+          value={universe}
+          onChange={(e) => setUniverse(e.target.value)}
+          className="bg-surface border border-border rounded-md px-2.5 py-1.5 outline-none focus:border-primary text-foreground text-xs"
+        >
+          <option value="ALL">All NSE</option>
+          <option value="LARGE_CAP">Large Cap</option>
+          <option value="MID_CAP">Mid Cap</option>
+          <option value="SMALL_CAP">Small Cap</option>
+        </select>
+        <select
+          value={filters.sector ?? ''}
+          onChange={(e) => setFilters((f) => ({ ...f, sector: e.target.value || undefined }))}
+          className="bg-surface border border-border rounded-md px-2.5 py-1.5 outline-none focus:border-primary text-foreground text-xs"
+        >
+          <option value="">All sectors</option>
+          {sectors.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
 
-          {/* Data Table */}
-          <div className="flex-1 overflow-auto bg-[#131722]">
-            <table className="w-full text-left border-collapse">
-              <thead className="sticky top-0 bg-[#131722] z-10 shadow-sm border-b border-border text-[11px] text-soft uppercase tracking-wider">
+        {activeChips.map((c) => (
+          <span key={c} className="chip text-ai-bright border-ai/30 bg-ai/10">{c}</span>
+        ))}
+        {(preset || activeChips.length > 0) && (
+          <button
+            onClick={() => {
+              setPreset(null)
+              setFilters({})
+            }}
+            className="text-xs text-muted hover:text-coral transition-colors cursor-pointer"
+          >
+            Clear all
+          </button>
+        )}
+
+        <span className="ml-auto text-xs text-muted tabular-nums">
+          {loading ? '…' : `${results.length} of ${all.length} stocks`}
+        </span>
+      </div>
+
+      {/* ─── Results ─── */}
+      <div className="surface overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead className="border-b border-border text-[11px] text-soft uppercase tracking-wider">
+              <tr>
+                <th className="px-4 py-2 font-medium">Symbol</th>
+                <Th k="current_price" label="Price" />
+                <Th k="return_1m" label="1M %" />
+                <Th k="market_cap" label="Mkt cap" />
+                <Th k="pe_ratio" label="P/E" />
+                <Th k="roe" label="ROE" />
+                <Th k="dividend_yield" label="Div yield" />
+                <th className="px-3 py-2 font-medium">Sector</th>
+                <th className="px-3 py-2 font-medium text-right"></th>
+              </tr>
+            </thead>
+            <tbody className="text-[13px]">
+              {loading ? (
+                [...Array(8)].map((_, i) => (
+                  <tr key={i} className="border-b border-white/[0.03]">
+                    <td colSpan={9} className="px-4 py-2"><div className="skeleton h-8 w-full" /></td>
+                  </tr>
+                ))
+              ) : results.length === 0 ? (
                 <tr>
-                  <th className="px-4 py-2 font-medium w-64">Symbol</th>
-                  <Th k="current_price" label="Price" align="right" />
-                  <Th k="return_1m" label="Chg %" align="right" />
-                  <Th k="volume" label="Vol" align="right" />
-                  <th className="px-3 py-2 font-medium text-right">Rel vol</th>
-                  <Th k="market_cap" label="Mkt cap" align="right" />
-                  <Th k="pe_ratio" label="P/E" align="right" />
-                  <th className="px-3 py-2 font-medium text-right">EPS dil TTM</th>
-                  <th className="px-3 py-2 font-medium text-right">EPS growth</th>
-                  <th className="px-3 py-2 font-medium text-right">Div yield</th>
-                  <th className="px-4 py-2 font-medium">Sector</th>
+                  <td colSpan={9} className="px-4 py-12 text-center">
+                    <p className="text-sm text-soft">No stocks pass this screen right now.</p>
+                    <p className="text-xs text-muted mt-1.5">Loosen a filter — or try the Momentum preset, it almost always has names.</p>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="text-[13px]">
-                {loading ? (
-                  <tr>
-                    <td colSpan={11} className="px-4 py-10 text-center text-soft">Loading market data...</td>
-                  </tr>
-                ) : results.length === 0 ? (
-                  <tr>
-                    <td colSpan={11} className="px-4 py-10 text-center text-soft">No stocks match your criteria.</td>
-                  </tr>
-                ) : results.map((q: any) => (
-                  <tr 
-                    key={q.symbol} 
-                    onClick={() => setSelectedSymbol(q)}
-                    className={`border-b border-white/[0.03] hover:bg-white/[0.02] cursor-pointer transition-colors ${activeQuote?.symbol === q.symbol ? 'bg-white/[0.04]' : ''}`}
-                  >
-                    <td className="px-4 py-2 flex items-center gap-2">
-                      <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[9px] font-bold overflow-hidden shrink-0">
-                        {q.symbol.charAt(0)}
-                      </div>
+              ) : (
+                results.map((q: any) => (
+                  <tr key={q.symbol} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors group">
+                    <td className="px-4 py-2.5">
                       <div className="flex flex-col min-w-0">
                         <span className="font-semibold text-foreground truncate">{q.symbol}</span>
-                        <span className="text-[11px] text-soft truncate">{q.name}</span>
+                        <span className="text-[11px] text-soft truncate max-w-[180px]">{q.name}</span>
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums">{fmt(q.current_price, { decimals: 2 })}</td>
-                    <td className="px-3 py-2 text-right"><Change value={q.return_1m} /></td>
-                    <td className="px-3 py-2 text-right tabular-nums">{fmt(q.avg_volume || 0, { compact: true })}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-soft">{(q.volume_ratio || (Math.random() * 2 + 0.5)).toFixed(2)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{fmt(q.market_cap, { compact: true })}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{q.pe_ratio ? fmt(q.pe_ratio, { decimals: 2 }) : '—'}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{q.pe_ratio ? fmt(q.current_price / q.pe_ratio, { decimals: 2 }) : '—'}</td>
-                    <td className="px-3 py-2 text-right"><Change value={(Math.random() * 40 - 10)} /></td>
-                    <td className="px-3 py-2 text-right tabular-nums text-soft">{(Math.random() * 3).toFixed(2)}%</td>
-                    <td className="px-4 py-2 text-soft truncate">{q.sector || '—'}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{fmt(q.current_price, { decimals: 2 })}</td>
+                    <td className="px-3 py-2.5 text-right"><Change value={q.return_1m ?? 0} showArrow={false} /></td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{fmt(q.market_cap, { compact: true })}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{q.pe_ratio ? fmt(q.pe_ratio, { decimals: 1 }) : '—'}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{q.roe != null ? `${(q.roe * 100).toFixed(1)}%` : '—'}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-soft">{q.dividend_yield != null ? `${(q.dividend_yield * 100).toFixed(2)}%` : '—'}</td>
+                    <td className="px-3 py-2.5 text-soft truncate max-w-[140px]">{q.sector || '—'}</td>
+                    <td className="px-3 py-2.5 text-right">
+                      <Link
+                        href={`/ai-analyst?q=${encodeURIComponent(`Analyze ${q.symbol}`)}`}
+                        className="opacity-0 group-hover:opacity-100 inline-flex items-center gap-1 px-2 py-1 rounded-md bg-ai/12 border border-ai/30 text-ai-bright text-[10.5px] font-bold transition-opacity"
+                      >
+                        <iconify-icon icon="solar:magic-stick-3-linear" width="11"></iconify-icon> Ask AI
+                      </Link>
+                    </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Right Sidebar */}
-        <div className="w-[320px] bg-[#1e222d] shrink-0 flex flex-col border-l border-border hidden lg:flex">
-          <div className="p-3 border-b border-border flex items-center justify-between">
-            <h3 className="font-semibold text-sm">Watchlist</h3>
-            <div className="flex gap-2 text-soft">
-              <button className="hover:text-foreground"><iconify-icon icon="solar:add-circle-linear"></iconify-icon></button>
-              <button className="hover:text-foreground"><iconify-icon icon="solar:settings-linear"></iconify-icon></button>
-            </div>
-          </div>
-          
-          <div className="flex-1 overflow-auto flex flex-col">
-            <div className="p-3 bg-white/[0.02] text-xs font-bold text-soft uppercase tracking-wider flex items-center justify-between">
-              <span>Indices</span>
-              <iconify-icon icon="solar:alt-arrow-down-linear"></iconify-icon>
-            </div>
-            {indices.map(idx => (
-              <div key={idx.name} className="px-3 py-2 flex items-center justify-between hover:bg-white/5 cursor-pointer border-b border-white/[0.02]">
-                <div className="flex items-center gap-2">
-                  <span className={`w-1.5 h-1.5 rounded-full ${idx.change_pct >= 0 ? 'bg-primary' : 'bg-coral'}`}></span>
-                  <span className="font-semibold">{idx.name}</span>
-                </div>
-                <div className="flex items-center gap-3 text-right">
-                  <span className="tabular-nums text-foreground">{fmt(idx.price, { decimals: 2 })}</span>
-                  <div className="w-16"><Change value={idx.change_pct} showArrow={false} /></div>
-                </div>
-              </div>
-            ))}
-            
-            <div className="p-3 bg-white/[0.02] text-xs font-bold text-soft uppercase tracking-wider flex items-center justify-between mt-2">
-              <span>Stocks</span>
-              <iconify-icon icon="solar:alt-arrow-down-linear"></iconify-icon>
-            </div>
-            {results.slice(0, 10).map((q: any) => (
-              <div key={q.symbol} onClick={() => setSelectedSymbol(q)} className={`px-3 py-2 flex items-center justify-between hover:bg-white/5 cursor-pointer border-b border-white/[0.02] ${activeQuote?.symbol === q.symbol ? 'bg-white/5' : ''}`}>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded bg-white/10 flex items-center justify-center text-[8px] font-bold overflow-hidden shrink-0">{q.symbol.charAt(0)}</div>
-                  <span className="font-semibold truncate max-w-[80px]">{q.symbol}</span>
-                </div>
-                <div className="flex items-center gap-3 text-right">
-                  <span className="tabular-nums text-foreground">{fmt(q.current_price, { decimals: 2 })}</span>
-                  <div className="w-16"><Change value={q.return_1m} showArrow={false} /></div>
-                </div>
-              </div>
-            ))}
-          </div>
-          
-          {/* Active Symbol Details */}
-          {activeQuote && (
-            <div className="p-4 border-t border-border bg-[#131722]">
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-6 h-6 rounded bg-primary/20 text-primary flex items-center justify-center font-bold">{activeQuote.symbol.charAt(0)}</div>
-                    <span className="text-lg font-bold">{activeQuote.symbol}</span>
-                  </div>
-                  <div className="text-xs text-soft">{activeQuote.name} • NSE</div>
-                </div>
-                <div className="flex gap-1 text-soft">
-                  <iconify-icon icon="solar:star-linear" class="cursor-pointer hover:text-foreground text-lg"></iconify-icon>
-                  <iconify-icon icon="solar:menu-dots-bold" class="cursor-pointer hover:text-foreground text-lg"></iconify-icon>
-                </div>
-              </div>
-              <div className="flex items-end gap-2 mb-2">
-                <span className="text-2xl font-bold tabular-nums text-foreground">{fmt(activeQuote.current_price, { decimals: 2 })}</span>
-                <span className="text-xs text-soft mb-1">INR</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <Change value={activeQuote.return_1m} />
-              </div>
-              <div className="mt-2 text-[11px] text-soft flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-bright ticker-live"></span> Market open
-              </div>
-            </div>
-          )}
-
-          {/* Related News */}
-          {news.length > 0 && (
-            <div className="p-4 border-t border-border bg-[#1e222d] flex-1 overflow-y-auto min-h-[200px]">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-sm">News</h3>
-                <span className="text-xs text-soft hover:text-foreground cursor-pointer">More</span>
-              </div>
-              <div className="space-y-4">
-                {news.map((n: any, i: number) => (
-                  <div key={i} className="group cursor-pointer">
-                    <div className="text-xs text-soft mb-1">{n.source} • {new Date(n.published_at).toLocaleTimeString()}</div>
-                    <h4 className="text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-3">{n.headline}</h4>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </PageShell>

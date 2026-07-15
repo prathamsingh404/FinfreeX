@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import Link from 'next/link'
 import PageShell from '@/components/PageShell'
 import { Change, fmt, Badge } from '@/components/ui/kit'
 import { useScreener, useIndices, useNews } from '@/lib/hooks/useMarketData'
@@ -59,6 +60,26 @@ export default function MarketPage() {
         {/* Main Terminal Area */}
         <div className="flex-1 flex flex-col min-w-0 border-r border-border bg-[#131722]">
           
+          {/* AI market brief */}
+          {!loading && results.length > 0 && (() => {
+            const adv = results.filter((x: any) => (x.return_1m || 0) >= 0).length
+            const pct = Math.round((adv / results.length) * 100)
+            return (
+              <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-ai/[0.05] text-xs">
+                <iconify-icon icon="solar:magic-stick-3-linear" width="13" class="text-ai-bright shrink-0"></iconify-icon>
+                <span className="text-soft truncate">
+                  Breadth {pct >= 50 ? 'positive' : 'negative'}: {adv}/{results.length} advancing ({pct}%).
+                </span>
+                <Link
+                  href={`/ai-analyst?q=${encodeURIComponent("Summarize today's market")}`}
+                  className="ml-auto shrink-0 text-ai-bright font-semibold hover:underline"
+                >
+                  Full AI brief →
+                </Link>
+              </div>
+            )
+          })()}
+
           {/* Top Filter Bar */}
           <div className="flex flex-wrap items-center gap-2 p-2 border-b border-border text-[13px]">
             <select value={universe} onChange={(e) => setUniverse(e.target.value)} className="bg-surface border border-border rounded px-2 py-1 outline-none focus:border-primary text-foreground">
@@ -128,12 +149,12 @@ export default function MarketPage() {
                     <td className="px-3 py-2 text-right tabular-nums">{fmt(q.current_price, { decimals: 2 })}</td>
                     <td className="px-3 py-2 text-right"><Change value={q.return_1m} /></td>
                     <td className="px-3 py-2 text-right tabular-nums">{fmt(q.avg_volume || 0, { compact: true })}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-soft">{(q.volume_ratio || (Math.random() * 2 + 0.5)).toFixed(2)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-soft">{q.volume_ratio ? q.volume_ratio.toFixed(2) : '—'}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{fmt(q.market_cap, { compact: true })}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{q.pe_ratio ? fmt(q.pe_ratio, { decimals: 2 }) : '—'}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{q.pe_ratio ? fmt(q.current_price / q.pe_ratio, { decimals: 2 }) : '—'}</td>
-                    <td className="px-3 py-2 text-right"><Change value={(Math.random() * 40 - 10)} /></td>
-                    <td className="px-3 py-2 text-right tabular-nums text-soft">{(Math.random() * 3).toFixed(2)}%</td>
+                    <td className="px-3 py-2 text-right">{typeof q.revenue_growth === 'number' ? <Change value={q.revenue_growth * 100} showArrow={false} /> : <span className="text-soft">—</span>}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-soft">{typeof q.dividend_yield === 'number' ? `${(q.dividend_yield * 100).toFixed(2)}%` : '—'}</td>
                     <td className="px-4 py-2 text-soft truncate">{q.sector || '—'}</td>
                   </tr>
                 ))}
@@ -214,6 +235,13 @@ export default function MarketPage() {
               <div className="mt-2 text-[11px] text-soft flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-bright ticker-live"></span> Market open
               </div>
+              <Link
+                href={`/ai-analyst?q=${encodeURIComponent(`Analyze ${activeQuote.symbol}`)}`}
+                className="mt-3 flex items-center justify-center gap-1.5 w-full h-8 rounded-md bg-ai/12 border border-ai/30 text-ai-bright text-xs font-bold hover:bg-ai/20 transition-colors"
+              >
+                <iconify-icon icon="solar:magic-stick-3-linear" width="13"></iconify-icon>
+                Ask AI about {activeQuote.symbol}
+              </Link>
             </div>
           )}
 
@@ -228,7 +256,7 @@ export default function MarketPage() {
                 {news.map((n: any, i: number) => (
                   <div key={i} className="group cursor-pointer">
                     <div className="text-xs text-soft mb-1">{n.source} • {new Date(n.published_at).toLocaleTimeString()}</div>
-                    <h4 className="text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-3">{n.headline}</h4>
+                    <h4 className="text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-3">{n.title}</h4>
                   </div>
                 ))}
               </div>
