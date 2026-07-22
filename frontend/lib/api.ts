@@ -1,18 +1,29 @@
-/* ============================================================
-   FinfreeX — Centralized API Client
-   All data fetching goes through here. No mock data.
-   ============================================================ */
+import { supabase } from '@/lib/supabase'
 
 const IS_VERCEL = process.env.NEXT_PUBLIC_VERCEL_ENV !== undefined || process.env.VERCEL !== undefined;
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || (IS_VERCEL ? '' : 'http://localhost:8000')
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  let token: string | undefined
+  try {
+    const { data } = await supabase.auth.getSession()
+    token = data?.session?.access_token
+  } catch (e) {
+    console.warn("Auth session fetch bypassed or failed:", e)
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options?.headers as Record<string, string>),
+  }
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
+    headers: headers as HeadersInit,
   })
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText)
@@ -22,6 +33,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 /* ---------- Types ---------- */
+
 
 export interface Quote {
   symbol: string
@@ -239,13 +251,26 @@ export async function fetchOptionsChain(symbol: string, expiry?: string): Promis
 
 /* ---------- Portfolio ---------- */
 
-export async function fetchPortfolio(userId: string) {
-  return apiFetch(`/api/portfolio/${userId}`)
+export async function fetchPortfolio(): Promise<any> {
+  return apiFetch('/api/portfolio')
 }
 
-export async function fetchPortfolioHoldings(userId: string) {
-  return apiFetch(`/api/portfolio/${userId}/holdings`)
+export async function fetchPortfolioHoldings(): Promise<any[]> {
+  return apiFetch('/api/portfolio/holdings')
 }
+
+export async function executeTrade(symbol: string, exchange: string, tradeType: 'BUY' | 'SELL', quantity: number): Promise<any> {
+  return apiFetch('/api/portfolio/trade', {
+    method: 'POST',
+    body: JSON.stringify({ symbol, exchange, trade_type: tradeType, quantity }),
+  })
+}
+
+export async function fetchTrades(): Promise<any[]> {
+  return apiFetch('/api/portfolio/trades')
+}
+
+
 
 /* ---------- AI ---------- */
 
@@ -253,6 +278,13 @@ export async function fetchAIAnalysis(symbol: string, exchange = 'NSE') {
   return apiFetch('/api/ai/analyze', {
     method: 'POST',
     body: JSON.stringify({ symbol, exchange }),
+  })
+}
+
+export async function fetchAIChat(messages: { role: string; content: string }[], contextSymbol?: string): Promise<{ answer: string }> {
+  return apiFetch('/api/ai/chat', {
+    method: 'POST',
+    body: JSON.stringify({ messages, context_symbol: contextSymbol }),
   })
 }
 
@@ -352,3 +384,20 @@ export function streamAnalysis(
     onError(err);
   });
 }
+
+/* ---------- Broker Integration ---------- */
+
+export async function fetchBrokerLoginUrl(): Promise<{ login_url: string }> {
+  return apiFetch('/api/broker/login-url')
+}
+
+export async function fetchBrokerHoldings(): Promise<any[]> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('upstox_access_token') : null
+  if (!token) return []
+  return apiFetch('/api/broker/holdings', {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  })
+}
+
