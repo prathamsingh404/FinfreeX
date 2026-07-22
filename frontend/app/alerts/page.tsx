@@ -157,16 +157,16 @@ export default function AlertsPage() {
 
   return (
     <PageShell
-      title="Alerts & Automations"
-      subtitle="Write a sentence. FinfreeX watches the market and pings you."
-      category="Intelligence"
+      title="Alerts"
+      subtitle="Describe a condition in plain English. We watch the market and notify you."
+      category="Analysis"
       icon="solar:bell-bold-duotone"
     >
       {/* ─── Natural-language builder ─── */}
-      <div className="ai-beam-border ai-glow mb-3 max-w-3xl">
-        <div className="rounded-[11px] bg-elevated ai-ring flex items-center gap-3 pl-5 pr-2.5 h-14">
-          <span className="text-sm font-semibold text-ai-bright shrink-0 hidden sm:inline">Notify me if</span>
-          <iconify-icon icon="solar:bell-linear" width="16" class="text-ai-bright sm:hidden"></iconify-icon>
+      <div className="mb-3 max-w-3xl">
+        <div className="rounded-md bg-surface border border-border focus-ring transition-colors flex items-center gap-3 pl-4 pr-2 h-12">
+          <span className="text-sm text-muted shrink-0 hidden sm:inline">Notify me if</span>
+          <iconify-icon icon="solar:bell-linear" width="15" class="text-muted sm:hidden"></iconify-icon>
           <input
             value={input}
             onChange={(e) => {
@@ -181,7 +181,7 @@ export default function AlertsPage() {
           <button
             onClick={() => create(input)}
             disabled={!input.trim()}
-            className="px-4 h-9 rounded-lg bg-ai hover:bg-ai-bright text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+            className="px-4 h-8 rounded bg-primary hover:bg-primary/90 text-white text-xs font-semibold transition-colors cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed shrink-0"
           >
             Create
           </button>
@@ -207,7 +207,7 @@ export default function AlertsPage() {
               <button
                 key={t}
                 onClick={() => create(t)}
-                className="px-3 py-1.5 rounded-full text-[11px] font-medium text-soft bg-white/[0.04] border border-border hover:border-ai/40 hover:text-ai-bright transition-colors cursor-pointer"
+                className="px-2.5 py-1 rounded text-[11px] text-soft bg-transparent border border-border hover:border-border-strong hover:text-foreground transition-colors cursor-pointer"
               >
                 + {t}
               </button>
@@ -260,7 +260,7 @@ export default function AlertsPage() {
                           title={c.label}
                           className={cx(
                             'flex items-center gap-1 px-2 py-1 rounded-md border text-[10.5px] font-semibold transition-colors cursor-pointer',
-                            on ? 'bg-ai/12 border-ai/35 text-ai-bright' : 'bg-transparent border-border text-muted hover:text-soft'
+                            on ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-transparent border-border text-muted hover:text-soft'
                           )}
                         >
                           <iconify-icon icon={c.icon} width="11"></iconify-icon>
@@ -297,7 +297,7 @@ export default function AlertsPage() {
 
         {/* ─── Digests ─── */}
         <div className="space-y-3 h-fit">
-          <h2 className="text-sm font-bold text-foreground">AI digests</h2>
+          <h2 className="text-sm font-semibold text-foreground">Digests</h2>
           {[
             {
               title: 'Daily Digest',
@@ -307,8 +307,8 @@ export default function AlertsPage() {
               toggle: () => setDigestDaily((v) => !v),
             },
             {
-              title: 'Weekly AI Report',
-              desc: 'Sunday deep-dive: portfolio health, sector rotation and agent outlook.',
+              title: 'Weekly Report',
+              desc: 'Sunday deep-dive: portfolio review, sector rotation and the week ahead.',
               icon: 'solar:document-text-linear',
               on: digestWeekly,
               toggle: () => setDigestWeekly((v) => !v),
@@ -319,18 +319,18 @@ export default function AlertsPage() {
               onClick={d.toggle}
               className={cx(
                 'w-full text-left rounded-lg border p-4 transition-colors cursor-pointer',
-                d.on ? 'ai-surface' : 'bg-surface border-border hover:border-border-strong'
+                d.on ? 'bg-surface border-border-strong' : 'bg-surface border-border hover:border-border-strong'
               )}
             >
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-2">
-                  <iconify-icon icon={d.icon} width="16" class={d.on ? 'text-ai-bright' : 'text-muted'}></iconify-icon>
-                  <span className="text-[13px] font-bold text-foreground">{d.title}</span>
+                  <iconify-icon icon={d.icon} width="15" class={d.on ? 'text-soft' : 'text-muted'}></iconify-icon>
+                  <span className="text-[13px] font-semibold text-foreground">{d.title}</span>
                 </div>
                 <span
                   className={cx(
-                    'w-8 h-[18px] rounded-full relative transition-colors',
-                    d.on ? 'bg-ai' : 'bg-white/10'
+                    'w-8 h-[18px] rounded-full relative transition-colors shrink-0',
+                    d.on ? 'bg-primary' : 'bg-white/10'
                   )}
                 >
                   <span

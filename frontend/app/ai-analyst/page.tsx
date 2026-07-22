@@ -17,7 +17,7 @@ import {
   SignalBadge,
   VerdictCard,
 } from '@/components/ui/ai'
-import { streamAnalysis, AIChunk } from '@/lib/api'
+import { streamAnalysis, AIChunk, fetchAIChat } from '@/lib/api'
 import { useQuote, useNews } from '@/lib/hooks/useMarketData'
 
 /* ============================================================
@@ -68,16 +68,84 @@ const NAME_TO_TICKER: Record<string, { symbol: string; exchange: string }> = {
 }
 const US_TICKERS = new Set(['NVDA', 'AAPL', 'MSFT', 'TSLA', 'AMD', 'GOOGL', 'AMZN', 'META', 'NFLX', 'INTC'])
 
+const KNOWN_TICKERS = new Set([
+  'RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'HINDUNILVR',
+  'ICICIBANK', 'KOTAKBANK', 'BHARTIARTL', 'ITC', 'AXISBANK',
+  'SBIN', 'SBI', 'LT', 'WIPRO', 'HCLTECH', 'BAJFINANCE',
+  'ASIANPAINT', 'MARUTI', 'NESTLEIND', 'TITAN', 'ULTRACEMCO',
+  'ONGC', 'NTPC', 'POWERGRID', 'COALINDIA', 'BPCL',
+  'TECHM', 'DIVISLAB', 'DRREDDY', 'CIPLA', 'SUNPHARMA',
+  'APOLLOHOSP', 'BAJAJFINSV', 'BRITANNIA', 'ADANIENT', 'ADANIPORTS',
+  'TATACONSUM', 'TATAMOTORS', 'TATASTEEL', 'HINDALCO', 'JSWSTEEL',
+  'M&M', 'HEROMOTOCO', 'EICHERMOT', 'INDUSINDBK', 'HDFCLIFE',
+  'SBILIFE', 'UPL', 'GRASIM', 'SHREECEM', 'LTIM', 'ZOMATO',
+  'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'META', 'NVDA', 'TSLA', 'AMD', 'NFLX', 'INTC'
+])
+
 function resolveTicker(query: string): { symbol: string; exchange: string } | null {
-  const q = query.toLowerCase()
-  for (const [name, t] of Object.entries(NAME_TO_TICKER)) {
-    if (q.includes(name)) return t
+  const q = query.toLowerCase().trim()
+  if (!q) return null
+
+  // 0. Detect comparative query intent
+  const comparativeKeywords = ['vs', 'versus', 'compare', 'comparison', 'difference', 'better']
+  const isComparative = comparativeKeywords.some(kw => q.includes(kw))
+  if (isComparative) {
+    return null
   }
+  
+  // 1. Check exact key matches in NAME_TO_TICKER (e.g. "tata motors")
+  let exactMatch: { symbol: string; exchange: string } | null = null
+  for (const [name, t] of Object.entries(NAME_TO_TICKER)) {
+    if (q.includes(name)) {
+      exactMatch = t
+      break
+    }
+  }
+  
+  // 2. Split query by non-alphanumeric characters to get individual words
+  const words = q.split(/[^a-zA-Z0-9]/).map(w => w.toUpperCase()).filter(Boolean)
+  
+  // 3. Find unique tickers in query
+  const foundSymbols = new Set<string>()
+  for (const word of words) {
+    if (KNOWN_TICKERS.has(word)) {
+      foundSymbols.add(word)
+    } else if (word === 'SBI') {
+      foundSymbols.add('SBIN')
+    } else if (word === 'GOOGLE') {
+      foundSymbols.add('GOOGL')
+    }
+  }
+
+  // If query mentions multiple unique tickers, treat it as comparative Q&A
+  if (foundSymbols.size > 1) {
+    return null
+  }
+
+  // If we had an exact match, return it
+  if (exactMatch) return exactMatch
+  
+  // 4. Return single found ticker
+  if (foundSymbols.size === 1) {
+    const symbol = Array.from(foundSymbols)[0]
+    const exchange = US_TICKERS.has(symbol) ? 'NASDAQ' : 'NSE'
+    return { symbol, exchange }
+  }
+  
+  // 5. Fallback: If there is any capitalized word of 2-12 letters in the original query
   const caps = query.match(/\b[A-Z]{2,12}\b/g)?.filter((w) => !['AI', 'PE', 'PB', 'ROE', 'RSI', 'ATH', 'VS'].includes(w))
   if (caps?.length) {
     const symbol = caps[0]
     return { symbol, exchange: US_TICKERS.has(symbol) ? 'NASDAQ' : 'NSE' }
   }
+  
+  // 6. Hard fallback: If query is just a single word (even lowercase), treat it as a ticker!
+  // e.g. user typed "zomato" or "tsla"
+  const cleanWord = query.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+  if (/^[A-Z0-9]{2,12}$/.test(cleanWord)) {
+    return { symbol: cleanWord, exchange: US_TICKERS.has(cleanWord) ? 'NASDAQ' : 'NSE' }
+  }
+  
   return null
 }
 
@@ -137,6 +205,7 @@ function AnalystWorkspace() {
   const [agents, setAgents] = useState<Record<string, AgentInfo>>({})
   const [personas, setPersonas] = useState<PersonaResult[]>([])
   const [verdict, setVerdict] = useState<{ signal: Signal; confidence: number; summary: string } | null>(null)
+  const [generalAIChatAnswer, setGeneralAIChatAnswer] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [history, setHistory] = useState<Run[]>([])
   const startedRef = useRef(false)
@@ -157,16 +226,34 @@ function AnalystWorkspace() {
     )
 
   const run = useCallback((q: string) => {
+    setQuery(q)
+    setError(null)
+    setGeneralAIChatAnswer(null)
+
     const target = resolveTicker(q)
     if (!target) {
-      setError('Name a stock — a ticker like RELIANCE or NVDA, or a company like “Tata Motors”.')
+      setRunning(true)
+      setSymbol('')
+      setStatuses(['Connecting to general PortAI intelligence engine...'])
+      setStage(0)
+      setMarketData(null)
+      setAgents({})
+      setPersonas([])
+      setVerdict(null)
+      fetchAIChat([{ role: 'user', content: q }])
+        .then((res) => {
+          setGeneralAIChatAnswer(res.answer)
+          setRunning(false)
+        })
+        .catch((err) => {
+          setError(err.message || 'Failed to complete Q&A chat request.')
+          setRunning(false)
+        })
       return
     }
-    setQuery(q)
     setSymbol(target.symbol)
     setExchange(target.exchange)
     setRunning(true)
-    setError(null)
     setStatuses([`Resolving ${target.symbol} on ${target.exchange}…`])
     setStage(0)
     setMarketData(null)
@@ -296,7 +383,7 @@ function AnalystWorkspace() {
   const bearish = doneAgents.filter((a) => ['SELL', 'BEARISH'].includes(a.signal!)).length
   const neutral = doneAgents.length - bullish - bearish
 
-  const hasSession = running || verdict || agentList.length > 0
+  const hasSession = running || verdict || agentList.length > 0 || !!generalAIChatAnswer
 
   return (
     <>
@@ -307,82 +394,72 @@ function AnalystWorkspace() {
           <div className="flex-1 overflow-y-auto custom-scrollbar px-4 sm:px-6 pb-6">
             <div className="mx-auto max-w-3xl">
               {!hasSession ? (
-                /* Empty state that teaches */
-                <div className="pt-[10vh] text-center">
-                  <div className="inline-flex w-14 h-14 rounded-2xl bg-ai/15 border border-ai/30 text-ai-bright items-center justify-center mb-6">
-                    <iconify-icon icon="solar:magic-stick-3-linear" width="26"></iconify-icon>
-                  </div>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-balance">What should we research?</h1>
-                  <p className="text-soft mt-3 max-w-md mx-auto text-pretty">
-                    Six specialist agents pull live data, debate the stock and hand you one verdict with confidence.
+                <div className="pt-[12vh]">
+                  <h1 className="text-2xl font-semibold tracking-tight text-balance">Research assistant</h1>
+                  <p className="text-soft mt-2.5 max-w-lg text-pretty text-[15px] leading-relaxed">
+                    Name a company and six models review it independently — technical, fundamental,
+                    macro, news, valuation and risk. You see each conclusion and the reasoning behind it.
                   </p>
-                  <div className="mt-8">
-                    <AIPromptInput autoFocus placeholder="Analyze any stock — try “Analyze RELIANCE”" onSubmit={run} />
+                  <div className="mt-7 max-w-xl">
+                    <AIPromptInput autoFocus placeholder="Try “Analyze RELIANCE”" onSubmit={run} />
                   </div>
-                  <div className="mt-4">
+                  <div className="mt-3">
                     <PromptChips prompts={EXAMPLES} onPick={run} />
                   </div>
 
-                  {/* Pipeline preview */}
-                  <div className="mt-14 text-left">
-                    <div className="text-[11px] font-bold uppercase tracking-widest text-muted mb-4 text-center">
-                      How a verdict is formed
-                    </div>
-                    <div className="flex flex-wrap items-center justify-center gap-2">
+                  <div className="mt-12 pt-6 border-t border-border">
+                    <div className="text-[11px] uppercase tracking-wider text-muted mb-3">How it runs</div>
+                    <ol className="flex flex-wrap items-center gap-x-2 gap-y-2">
                       {PIPELINE.map((p, i) => (
-                        <React.Fragment key={p}>
-                          <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-surface border border-border text-soft">
+                        <li key={p} className="flex items-center gap-2">
+                          <span className="text-[13px] text-soft">
+                            <span className="text-muted tabular-nums mr-1.5">{i + 1}</span>
                             {p}
                           </span>
-                          {i < PIPELINE.length - 1 && (
-                            <iconify-icon icon="solar:arrow-right-linear" width="13" class="text-muted"></iconify-icon>
-                          )}
-                        </React.Fragment>
+                          {i < PIPELINE.length - 1 && <span className="text-muted">·</span>}
+                        </li>
                       ))}
-                    </div>
+                    </ol>
                   </div>
                 </div>
               ) : (
                 <div className="pt-4 space-y-5">
-                  {/* Query + pipeline */}
+                  {/* Query + progress */}
                   <div>
-                    <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-ai-bright mb-2">
-                      <iconify-icon icon="solar:magic-stick-3-linear" width="13"></iconify-icon>
-                      {running ? <span className="thinking-shimmer">Researching</span> : 'Research complete'}
-                      {symbol && <SignalBadge signal={verdict?.signal ?? 'NEUTRAL'} className={verdict ? '' : 'opacity-0'} />}
+                    <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted mb-2">
+                      {running ? 'Running' : 'Complete'}
                     </div>
-                    <h1 className="text-2xl font-extrabold tracking-tight text-balance">{query}</h1>
+                    <div className="flex items-start justify-between gap-4">
+                      <h1 className="text-xl font-semibold tracking-tight text-balance">{query}</h1>
+                      {verdict && <SignalBadge signal={verdict.signal} />}
+                    </div>
 
-                    {/* Orchestration rail */}
+                    {/* Stage rail */}
                     <div className="mt-4 flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
                       {PIPELINE.map((p, i) => {
                         const state = i < stage ? 'done' : i === stage && running ? 'active' : i === stage ? 'done' : 'pending'
                         return (
                           <React.Fragment key={p}>
                             <div
-                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10.5px] font-semibold whitespace-nowrap border transition-colors ${
+                              className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10.5px] whitespace-nowrap border transition-colors ${
                                 state === 'done'
-                                  ? 'bg-emerald/10 border-emerald/25 text-emerald-bright'
+                                  ? 'bg-white/[0.04] border-border text-soft'
                                   : state === 'active'
-                                  ? 'bg-ai/12 border-ai/35 text-ai-bright agent-pulse'
-                                  : 'bg-surface border-border text-muted'
+                                  ? 'bg-primary/10 border-primary/30 text-primary'
+                                  : 'bg-transparent border-border text-muted'
                               }`}
                             >
-                              {state === 'done' && <iconify-icon icon="solar:check-read-linear" width="11"></iconify-icon>}
-                              {state === 'active' && <span className="w-1.5 h-1.5 rounded-full bg-ai-bright"></span>}
+                              {state === 'done' && <iconify-icon icon="solar:check-read-linear" width="10"></iconify-icon>}
                               {p}
                             </div>
-                            {i < PIPELINE.length - 1 && <span className="w-3 h-px bg-border shrink-0"></span>}
+                            {i < PIPELINE.length - 1 && <span className="w-2 h-px bg-border shrink-0"></span>}
                           </React.Fragment>
                         )
                       })}
                     </div>
 
-                    {/* Live status feed */}
                     {running && statuses.length > 0 && (
-                      <div className="mt-3 text-xs text-muted font-mono truncate">
-                        <span className="thinking-shimmer">{statuses[statuses.length - 1]}</span>
-                      </div>
+                      <div className="mt-3 text-xs text-muted truncate">{statuses[statuses.length - 1]}</div>
                     )}
                   </div>
 
@@ -394,40 +471,35 @@ function AnalystWorkspace() {
                   {(marketData || quote) && symbol && (
                     <Card hover={false} className="flex flex-wrap items-center gap-x-8 gap-y-3">
                       <div>
-                        <div className="text-[11px] text-muted font-medium">{exchange}</div>
-                        <div className="text-lg font-extrabold text-foreground">{symbol}</div>
+                        <div className="text-[11px] text-muted">{exchange}</div>
+                        <div className="text-base font-semibold text-foreground">{symbol}</div>
                       </div>
                       {quote && (
                         <>
                           <div>
-                            <div className="text-[11px] text-muted font-medium">Price</div>
-                            <div className="text-lg font-bold tabular-nums">{fmt(quote.current_price)}</div>
+                            <div className="text-[11px] text-muted">Price</div>
+                            <div className="text-base font-semibold tabular-nums">{fmt(quote.current_price)}</div>
                           </div>
                           <div>
-                            <div className="text-[11px] text-muted font-medium">Today</div>
-                            <Change value={quote.change_pct} className="text-base" />
+                            <div className="text-[11px] text-muted">Today</div>
+                            <Change value={quote.change_pct} className="text-sm" />
                           </div>
                           <div className="hidden sm:block">
-                            <div className="text-[11px] text-muted font-medium">Range</div>
-                            <div className="text-sm font-semibold tabular-nums text-soft">
+                            <div className="text-[11px] text-muted">Day range</div>
+                            <div className="text-sm tabular-nums text-soft">
                               {fmt(quote.low)} – {fmt(quote.high)}
                             </div>
                           </div>
                         </>
                       )}
-                      {verdict && (
-                        <div className="ml-auto">
-                          <AIScoreRing score={verdict.confidence} size={72} />
-                        </div>
-                      )}
                     </Card>
                   )}
 
-                  {/* Agent grid — watch them work */}
+                  {/* Model results */}
                   {agentList.length > 0 && (
                     <div>
                       <div className="flex items-center justify-between mb-3">
-                        <h2 className="text-sm font-bold text-foreground">Specialist agents</h2>
+                        <h2 className="text-sm font-semibold text-foreground">Models</h2>
                         {doneAgents.length > 0 && (
                           <span className="text-[11px] text-muted">
                             {doneAgents.length}/{agentList.length} reported
@@ -439,7 +511,7 @@ function AnalystWorkspace() {
                       </div>
                       {doneAgents.length >= 2 && (
                         <div className="mt-4 max-w-sm">
-                          <div className="text-[10.5px] font-bold uppercase tracking-widest text-muted mb-2">Agent consensus</div>
+                          <div className="text-[10.5px] uppercase tracking-wider text-muted mb-2">Consensus</div>
                           <ConsensusBar bullish={bullish} bearish={bearish} neutral={neutral} />
                         </div>
                       )}
@@ -449,12 +521,12 @@ function AnalystWorkspace() {
                   {/* Investor personas */}
                   {personas.length > 0 && (
                     <div>
-                      <h2 className="text-sm font-bold text-foreground mb-3">Investor committee</h2>
+                      <h2 className="text-sm font-semibold text-foreground mb-3">Investor styles</h2>
                       <div className="grid sm:grid-cols-2 gap-3">
                         {personas.map((p) => (
-                          <div key={p.name} className="rounded-lg bg-surface border border-border p-4">
+                          <div key={p.name} className="rounded-md bg-surface border border-border p-4">
                             <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-[13px] font-bold text-foreground capitalize">{p.name}</span>
+                              <span className="text-[13px] font-semibold text-foreground capitalize">{p.name}</span>
                               {p.signal && <SignalBadge signal={p.signal} />}
                             </div>
                             {p.reason && <p className="text-xs text-soft leading-relaxed">{p.reason}</p>}
@@ -469,9 +541,21 @@ function AnalystWorkspace() {
                     <VerdictCard
                       signal={verdict.signal}
                       confidence={verdict.confidence}
-                      title={`${symbol} — committee verdict`}
+                      title={`${symbol} — combined view`}
                       summary={verdict.summary}
                     />
+                  )}
+
+                  {generalAIChatAnswer && (
+                    <div className="rounded-2xl border border-border bg-surface p-6 shadow-lg shadow-black/10">
+                      <div className="flex items-center gap-2 text-primary font-semibold text-sm mb-4">
+                        <iconify-icon icon="solar:magic-stick-3-bold" class="text-primary shrink-0" width="18"></iconify-icon>
+                        PortAI Financial Response
+                      </div>
+                      <div className="prose prose-invert max-w-none text-soft text-sm leading-relaxed whitespace-pre-wrap">
+                        {generalAIChatAnswer}
+                      </div>
+                    </div>
                   )}
 
                   <div ref={canvasEndRef} />
@@ -482,9 +566,9 @@ function AnalystWorkspace() {
 
           {/* Follow-up input pinned to bottom once a session exists */}
           {hasSession && (
-            <div className="shrink-0 border-t border-border bg-background/80 backdrop-blur px-4 sm:px-6 py-3">
+            <div className="shrink-0 border-t border-border bg-background px-4 sm:px-6 py-3">
               <div className="mx-auto max-w-3xl">
-                <AIPromptInput size="md" placeholder="Research another stock…" onSubmit={run} />
+                <AIPromptInput size="md" placeholder="Analyze another company" onSubmit={run} />
               </div>
             </div>
           )}
@@ -495,7 +579,7 @@ function AnalystWorkspace() {
           {symbol ? (
             <>
               <div>
-                <div className="text-[10.5px] font-bold uppercase tracking-widest text-muted mb-2.5">Quick actions</div>
+                <div className="text-[10.5px] uppercase tracking-wider text-muted mb-2.5">Quick actions</div>
                 <div className="grid grid-cols-2 gap-2">
                   <Link href="/technical-charts" className="chip justify-center py-2 text-soft hover:text-foreground hover:border-border-strong transition-colors">
                     <iconify-icon icon="solar:chart-2-linear" width="13"></iconify-icon> Chart
@@ -514,11 +598,11 @@ function AnalystWorkspace() {
 
               {Array.isArray(news) && news.length > 0 && (
                 <div>
-                  <div className="text-[10.5px] font-bold uppercase tracking-widest text-muted mb-2.5">Latest on {symbol}</div>
+                  <div className="text-[10.5px] uppercase tracking-wider text-muted mb-2.5">Latest on {symbol}</div>
                   <div className="space-y-2.5">
                     {news.slice(0, 5).map((n: any, i: number) => (
-                      <a key={i} href={n.url} target="_blank" rel="noreferrer" className="block rounded-lg bg-surface border border-border p-3 hover:border-border-strong transition-colors">
-                        <p className="text-xs font-medium text-foreground leading-snug line-clamp-2">{n.title}</p>
+                      <a key={i} href={n.url} target="_blank" rel="noreferrer" className="block rounded-md bg-surface border border-border p-3 hover:border-border-strong transition-colors">
+                        <p className="text-xs text-foreground leading-snug line-clamp-2">{n.title}</p>
                         <div className="mt-1.5 flex items-center gap-2 text-[10.5px] text-muted">
                           <span className="truncate">{n.source}</span>
                           {n.sentiment_label && (
@@ -535,23 +619,23 @@ function AnalystWorkspace() {
             </>
           ) : (
             <div>
-              <div className="text-[10.5px] font-bold uppercase tracking-widest text-muted mb-2.5">Recent research</div>
+              <div className="text-[10.5px] uppercase tracking-wider text-muted mb-2.5">Recent</div>
               {history.length === 0 && <p className="text-xs text-muted">Your past analyses will appear here.</p>}
             </div>
           )}
 
           {history.length > 0 && (
             <div>
-              <div className="text-[10.5px] font-bold uppercase tracking-widest text-muted mb-2.5">History</div>
+              <div className="text-[10.5px] uppercase tracking-wider text-muted mb-2.5">History</div>
               <div className="space-y-2">
                 {history.slice(0, 8).map((h) => (
                   <button
                     key={h.id}
                     onClick={() => run(h.query)}
-                    className="w-full text-left rounded-lg bg-surface border border-border p-3 hover:border-ai/40 transition-colors cursor-pointer"
+                    className="w-full text-left rounded-md bg-surface border border-border p-3 hover:border-border-strong transition-colors cursor-pointer"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-bold text-foreground truncate">{h.symbol}</span>
+                      <span className="text-xs font-semibold text-foreground truncate">{h.symbol}</span>
                       {h.verdict && <SignalBadge signal={h.verdict.signal} />}
                     </div>
                     <p className="text-[11px] text-muted truncate mt-1">{h.query}</p>
