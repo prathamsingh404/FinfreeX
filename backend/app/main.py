@@ -4,8 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
 from app.config import get_settings
-from app.routers import market, screener, portfolio, watchlist, alerts, ai, news, options, charts, notifications
+from app.routers import market, screener, portfolio, watchlist, alerts, ai, news, options, charts, notifications, broker
 from app.services.alert_service import start_alert_checker
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -14,6 +15,10 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Check Supabase connectivity asynchronously
+    from app.services.portfolio_service import check_supabase_connection
+    await check_supabase_connection()
+
     # Start background price alerts scheduler
     logging.info("Starting background alert checking task...")
     alert_task = asyncio.create_task(start_alert_checker())
@@ -47,6 +52,7 @@ app.include_router(market.router, prefix="/api/market", tags=["Market Data"])
 app.include_router(charts.router, prefix="/api/charts", tags=["Candle Charts"])
 app.include_router(screener.router, prefix="/api/screener", tags=["Stock Screener"])
 app.include_router(portfolio.router, prefix="/api/portfolio", tags=["Paper Portfolio"])
+app.include_router(broker.router, prefix="/api/broker", tags=["Broker Integration"])
 app.include_router(watchlist.router, prefix="/api/watchlist", tags=["User Watchlists"])
 app.include_router(alerts.router, prefix="/api/alerts", tags=["Price Alerts"])
 app.include_router(ai.router, prefix="/api/ai", tags=["AI Advisor"])
