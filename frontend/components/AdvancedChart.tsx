@@ -134,7 +134,7 @@ export default function AdvancedChart({ data, volumeData, markers, height = 500,
         background: { type: ColorType.Solid, color: '#0a0a0b' },
         textColor: '#6b7280',
         fontSize: 10,
-        fontFamily: 'Inter, system-ui, sans-serif',
+        fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
       },
       grid: {
         vertLines: { color: 'rgba(255, 255, 255, 0.02)' },
