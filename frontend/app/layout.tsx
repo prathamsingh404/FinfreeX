@@ -3,13 +3,13 @@ import './globals.css'
 import Script from 'next/script'
 
 export const metadata: Metadata = {
-  title: 'FinfreeX — Institutional-Grade Financial Intelligence',
+  title: 'FinfreeX — Market Research Platform',
   description:
-    'AI-powered financial intelligence platform. Hedge-fund quality market analysis, screening, and portfolio tools for every investor.',
+    'Real-time market data, fundamental research, screening, derivatives and portfolio analytics in one workspace.',
 }
 
 export const viewport = {
-  themeColor: '#0c1017',
+  themeColor: '#0b0d11',
   width: 'device-width',
   initialScale: 1,
 }
@@ -83,7 +83,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         {/* Hide Google Translate widget chrome */}
         <style>{`
-          #gt_root { position: absolute; overflow: hidden; height: 1px; width: 1px; top: -1px; left: -1px; }
+          #gt_root, .skiptranslate:not([data-lang-root]), .goog-te-gadget { display: none !important; }
           .goog-te-banner-frame { display: none !important; }
           .goog-te-balloon-frame { display: none !important; }
           body { top: 0px !important; }
