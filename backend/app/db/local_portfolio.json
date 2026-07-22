@@ -1,0 +1,73 @@
+{
+  "portfolios": {
+    "00000000-0000-0000-0000-000000000000": {
+      "id": "2c09df55-58d6-46a8-b79d-9e1b3bb22269",
+      "user_id": "00000000-0000-0000-0000-000000000000",
+      "name": "My Paper Portfolio",
+      "initial_cash": 1000000.0,
+      "cash_balance": 976566.7000000001,
+      "currency": "INR"
+    }
+  },
+  "positions": {
+    "2c09df55-58d6-46a8-b79d-9e1b3bb22269_TCS": {
+      "id": "1c5f067b-4273-4bcd-b129-675fc444d5c1",
+      "portfolio_id": "2c09df55-58d6-46a8-b79d-9e1b3bb22269",
+      "symbol": "TCS",
+      "exchange": "NSE",
+      "quantity": 5,
+      "avg_buy_price": 2251.1
+    },
+    "2c09df55-58d6-46a8-b79d-9e1b3bb22269_NVDA": {
+      "id": "aa56c5a6-4a5c-4514-a446-f86a247eff8f",
+      "portfolio_id": "2c09df55-58d6-46a8-b79d-9e1b3bb22269",
+      "symbol": "NVDA",
+      "exchange": "NSE",
+      "quantity": 10,
+      "avg_buy_price": 750.52
+    },
+    "2c09df55-58d6-46a8-b79d-9e1b3bb22269_AAPL": {
+      "id": "ee83fbcd-2fd1-4e90-a049-921c2aa44218",
+      "portfolio_id": "2c09df55-58d6-46a8-b79d-9e1b3bb22269",
+      "symbol": "AAPL",
+      "exchange": "NSE",
+      "quantity": 10,
+      "avg_buy_price": 467.26
+    }
+  },
+  "trades": [
+    {
+      "id": "5af7f551-d806-40b1-96eb-62b8cb2d7da4",
+      "portfolio_id": "2c09df55-58d6-46a8-b79d-9e1b3bb22269",
+      "symbol": "AAPL",
+      "exchange": "NSE",
+      "trade_type": "BUY",
+      "quantity": 10,
+      "price": 467.26,
+      "total_value": 4672.6,
+      "executed_at": "2026-07-20T18:27:14.941304"
+    },
+    {
+      "id": "8ccac2cc-ae10-4976-bb9e-e2d892a01cb4",
+      "portfolio_id": "2c09df55-58d6-46a8-b79d-9e1b3bb22269",
+      "symbol": "NVDA",
+      "exchange": "NSE",
+      "trade_type": "BUY",
+      "quantity": 10,
+      "price": 750.52,
+      "total_value": 7505.2,
+      "executed_at": "2026-07-20T17:45:46.089080"
+    },
+    {
+      "id": "80951c78-8f7b-4c6a-9ac6-ca04c75cfc01",
+      "portfolio_id": "2c09df55-58d6-46a8-b79d-9e1b3bb22269",
+      "symbol": "TCS",
+      "exchange": "NSE",
+      "trade_type": "BUY",
+      "quantity": 5,
+      "price": 2251.1,
+      "total_value": 11255.5,
+      "executed_at": "2026-07-20T17:33:22.533248"
+    }
+  ]
+}
