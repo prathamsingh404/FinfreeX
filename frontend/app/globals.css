@@ -1,68 +1,70 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ============================================================
-   FinfreeX Design System v2 — "Intelligence OS"
-   Three visual layers:
-     1. AI Intelligence  → iris accent, glow, motion
-     2. Market Research  → flat institutional, emerald/coral semantics
-     3. Professional     → dense, monochrome, terminal-like
+   FinfreeX Design System
+   Flat, institutional, restrained. Reference points: Koyfin,
+   Stripe Dashboard, Linear.
+
+   Rules:
+   - No gradients. Anywhere.
+   - One accent (blue). Green/red are reserved for market values
+     and must never be used as decoration.
+   - No glows, beams, or decorative pulses.
+   - Depth comes from borders and surface steps, not shadow.
    ============================================================ */
 
 :root {
   /* Canvas / neutrals */
-  --bg: #0a0d13;
-  --surface: #10141d;
-  --surface-2: #161c28;
-  --elevated: #1c2433;
-  --border: #1d2536;
-  --border-strong: #2e3a52;
+  --bg: #0b0d11;
+  --surface: #12151b;
+  --surface-2: #171b23;
+  --elevated: #1c212b;
+  --border: #232935;
+  --border-strong: #333c4d;
 
-  /* Brand / Semantic */
-  --emerald: #089981;
-  --emerald-bright: #0cc3a5;
-  --emerald-dim: #056b5a;
-  --coral: #f23645;
-  --coral-bright: #ff4d5a;
-  --amber: #d9930d;
-  --primary: #2962ff;
+  /* Accent — the only decorative color */
+  --primary: #3b7dfc;
+  --primary-dim: #1e4fb0;
 
-  /* AI Intelligence layer */
-  --ai: #7c6aff;
-  --ai-bright: #9d8bff;
-  --ai-dim: #4d3fd6;
-  --ai-glow: rgba(124, 106, 255, 0.16);
+  /* Market values only */
+  --up: #22a06b;
+  --down: #e14b4b;
+  --warn: #c98a1e;
+
+  /* Aliases kept for existing components */
+  --emerald: #22a06b;
+  --emerald-bright: #2bbd80;
+  --emerald-dim: #17714b;
+  --coral: #e14b4b;
+  --coral-bright: #ef5f5f;
+  --amber: #c98a1e;
 
   /* Text */
-  --text: #f8fafc;
-  --text-soft: #94a3b8;
-  --text-muted: #5d6b82;
+  --text: #e8ecf2;
+  --text-soft: #98a2b3;
+  --text-muted: #667085;
 
-  /* Semantic */
-  --up: #089981;
-  --down: #f23645;
+  --radius: 6px;
+  --radius-lg: 8px;
 
-  --radius: 8px;
-  --radius-lg: 12px;
-
-  /* Type scale (perfect fourth-ish, capped) */
+  /* Type scale */
   --fs-xs: 11px;
   --fs-sm: 12.5px;
   --fs-base: 14px;
   --fs-md: 16px;
   --fs-lg: 20px;
   --fs-xl: 26px;
-  --fs-2xl: 34px;
-  --fs-3xl: 46px;
+  --fs-2xl: 32px;
+  --fs-3xl: 42px;
 
-  /* Motion */
+  /* Motion — short and functional */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --dur-fast: 150ms;
-  --dur-base: 250ms;
-  --dur-slow: 450ms;
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -70,7 +72,7 @@
 html { background: var(--bg); }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
@@ -79,11 +81,22 @@ body {
   font-size: var(--fs-base);
 }
 
+/* The house rule: prose is set in sans, every number is tabular mono.
+   Quotes, changes, tickers and metrics all read like a quotation page. */
+.tabular-nums,
+.font-mono,
+table td.num,
+[data-num] {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
 /* ─── Scrollbar ─── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.2); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.4); }
+::-webkit-scrollbar-thumb { background: rgba(152, 162, 179, 0.18); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(152, 162, 179, 0.34); }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .custom-scrollbar::-webkit-scrollbar { width: 5px; }
@@ -91,7 +104,7 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 
-/* ─── Flat Surfaces ─── */
+/* ─── Surfaces ─── */
 .surface {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -105,7 +118,7 @@ body {
 .glass-panel {
   background: var(--surface);
   border: 1px solid var(--border);
-  transition: border-color 0.2s ease;
+  transition: border-color var(--dur-base) ease;
 }
 .glass-panel:hover { border-color: var(--border-strong); }
 
@@ -113,7 +126,7 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  transition: border-color 0.2s ease;
+  transition: border-color var(--dur-base) ease;
 }
 .glass-card-elevated {
   background: var(--elevated);
@@ -125,100 +138,70 @@ body {
   border: 1px solid var(--border);
 }
 
-/* ─── AI Intelligence surfaces ─── */
-.ai-surface {
-  background: linear-gradient(180deg, rgba(124, 106, 255, 0.07), rgba(124, 106, 255, 0.02) 60%), var(--surface);
-  border: 1px solid rgba(124, 106, 255, 0.22);
-  border-radius: var(--radius-lg);
-}
-.ai-glow {
-  box-shadow: 0 0 0 1px rgba(124, 106, 255, 0.25), 0 0 32px -8px var(--ai-glow);
-}
-.ai-ring:focus-within {
-  border-color: rgba(124, 106, 255, 0.55);
-  box-shadow: 0 0 0 3px rgba(124, 106, 255, 0.14), 0 0 44px -6px var(--ai-glow);
-}
-.ai-text { color: var(--ai-bright); }
-
-/* Animated iris beam for AI hero borders */
-@keyframes ai-beam {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
-}
-.ai-beam-border {
-  position: relative;
-  border-radius: var(--radius-lg);
-  padding: 1px;
-  background: linear-gradient(90deg,
-    rgba(124,106,255,0.45), rgba(41,98,255,0.25), rgba(12,195,165,0.25), rgba(124,106,255,0.45));
-  background-size: 200% 100%;
-  animation: ai-beam 6s linear infinite;
-}
-
-/* ─── Card hover lift ─── */
-.card-hover { transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s var(--ease-out); }
-.card-hover:hover { border-color: var(--border-strong); }
-.card-lift:hover { transform: translateY(-2px); border-color: var(--border-strong); }
-
-/* ─── Accent text ─── */
-.accent-text { color: var(--primary); }
-.gradient-text { color: var(--primary); }
-
-/* ─── Animations ─── */
-@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-.fade-up { animation: fadeUp 0.4s ease-out forwards; }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-.fade-in { animation: fadeIn 0.3s ease-out forwards; }
-@keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-.slide-up { animation: slideUp 0.4s ease-out forwards; }
-
-@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-.marquee-track { display: flex; white-space: nowrap; width: max-content; will-change: transform; animation: marquee 40s linear infinite; }
-
-.stagger-1 { animation-delay: 0.03s; opacity: 0; }
-.stagger-2 { animation-delay: 0.06s; opacity: 0; }
-.stagger-3 { animation-delay: 0.09s; opacity: 0; }
-.stagger-4 { animation-delay: 0.12s; opacity: 0; }
-.stagger-5 { animation-delay: 0.15s; opacity: 0; }
-.stagger-6 { animation-delay: 0.18s; opacity: 0; }
-
-@keyframes ticker-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-.ticker-live { animation: ticker-pulse 2s ease-in-out infinite; }
-
-/* Agent working pulse (GitHub-Actions-style) */
-@keyframes agent-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(124, 106, 255, 0.35); }
-  50% { box-shadow: 0 0 0 6px rgba(124, 106, 255, 0); }
-}
-.agent-pulse { animation: agent-pulse 1.8s ease-in-out infinite; }
-
-/* Thinking shimmer for streaming AI text */
-@keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
-.thinking-shimmer {
-  background: linear-gradient(90deg, var(--text-muted) 25%, var(--text) 50%, var(--text-muted) 75%);
-  background-size: 400px 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: shimmer 2.2s linear infinite;
-}
-
-/* Skeleton loading */
-@keyframes skeleton { 0% { background-position: -200px 0; } 100% { background-position: 200px 0; } }
-.skeleton {
-  background: linear-gradient(90deg, var(--surface-2) 25%, var(--elevated) 50%, var(--surface-2) 75%);
-  background-size: 400px 100%;
-  animation: skeleton 1.4s ease-in-out infinite;
+/* Panel used for analysis/assistant output — a surface step, not a glow */
+.panel-accent {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--primary);
   border-radius: var(--radius);
 }
 
-/* Streaming caret */
-@keyframes caret-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-.stream-caret::after {
-  content: '▍';
-  color: var(--ai-bright);
-  animation: caret-blink 0.9s step-end infinite;
-  margin-left: 1px;
+/* ─── Hover ─── */
+.card-hover { transition: border-color var(--dur-base) ease, background-color var(--dur-base) ease; }
+.card-hover:hover { border-color: var(--border-strong); }
+.card-lift { transition: border-color var(--dur-base) ease, background-color var(--dur-base) ease; }
+.card-lift:hover { border-color: var(--border-strong); background: var(--surface-2); }
+
+/* ─── Focus ─── */
+.focus-ring:focus-within {
+  border-color: var(--primary);
+}
+
+/* ─── Text ─── */
+.accent-text { color: var(--primary); }
+.gradient-text { color: var(--text); }
+
+/* ─── Animations — entrance only ─── */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.fade-up { animation: fadeUp 0.3s ease-out forwards; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.fade-in { animation: fadeIn 0.2s ease-out forwards; }
+.slide-up { animation: fadeUp 0.3s ease-out forwards; }
+
+@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+.marquee-track { display: flex; white-space: nowrap; width: max-content; will-change: transform; animation: marquee 60s linear infinite; }
+.marquee-track:hover { animation-play-state: paused; }
+
+.stagger-1 { animation-delay: 0.02s; opacity: 0; }
+.stagger-2 { animation-delay: 0.04s; opacity: 0; }
+.stagger-3 { animation-delay: 0.06s; opacity: 0; }
+.stagger-4 { animation-delay: 0.08s; opacity: 0; }
+.stagger-5 { animation-delay: 0.10s; opacity: 0; }
+.stagger-6 { animation-delay: 0.12s; opacity: 0; }
+
+/* Price tick flash — the only motion tied to live values */
+@keyframes tick-up { 0% { background-color: rgba(34, 160, 107, 0.16); } 100% { background-color: transparent; } }
+@keyframes tick-down { 0% { background-color: rgba(225, 75, 75, 0.16); } 100% { background-color: transparent; } }
+.tick-up { animation: tick-up 0.6s ease-out; }
+.tick-down { animation: tick-down 0.6s ease-out; }
+
+/* Indeterminate progress for in-flight work */
+@keyframes bar-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+.working-bar { position: relative; overflow: hidden; background: var(--border); }
+.working-bar::after {
+  content: '';
+  position: absolute; inset: 0;
+  width: 33%;
+  background: var(--primary);
+  animation: bar-slide 1.1s ease-in-out infinite;
+}
+
+/* Skeleton — solid step, no shimmer sweep */
+@keyframes skeleton-fade { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+.skeleton {
+  background: var(--surface-2);
+  animation: skeleton-fade 1.4s ease-in-out infinite;
+  border-radius: var(--radius);
 }
 
 ::selection { background-color: var(--primary); color: #ffffff; }
@@ -228,41 +211,40 @@ body {
   background-image:
     linear-gradient(var(--border) 1px, transparent 1px),
     linear-gradient(90deg, var(--border) 1px, transparent 1px);
-  background-size: 40px 40px;
+  background-size: 44px 44px;
 }
 
-/* ─── Semantic value colors ─── */
+/* ─── Market value colors ─── */
 .val-up { color: var(--up); }
 .val-down { color: var(--down); }
 
 /* ─── Severity ─── */
-.severity-HIGH { color: var(--coral-bright); background: rgba(242, 54, 69, 0.1); border-color: rgba(242, 54, 69, 0.2); }
-.severity-MEDIUM { color: var(--amber); background: rgba(217, 119, 6, 0.1); border-color: rgba(217, 119, 6, 0.2); }
-.severity-LOW { color: var(--emerald-bright); background: rgba(8, 153, 129, 0.1); border-color: rgba(8, 153, 129, 0.2); }
+.severity-HIGH { color: var(--down); background: rgba(225, 75, 75, 0.10); border-color: rgba(225, 75, 75, 0.22); }
+.severity-MEDIUM { color: var(--warn); background: rgba(201, 138, 30, 0.10); border-color: rgba(201, 138, 30, 0.22); }
+.severity-LOW { color: var(--up); background: rgba(34, 160, 107, 0.10); border-color: rgba(34, 160, 107, 0.22); }
 
-/* ─── Action Tags ─── */
-.action-BUY { color: var(--emerald-bright); background: rgba(8, 153, 129, 0.1); }
-.action-SELL { color: var(--coral-bright); background: rgba(242, 54, 69, 0.1); }
-.action-HOLD { color: var(--amber); background: rgba(217, 119, 6, 0.1); }
-.action-REDUCE { color: var(--coral-bright); background: rgba(242, 54, 69, 0.1); }
-.action-INCREASE { color: var(--emerald-bright); background: rgba(8, 153, 129, 0.1); }
+/* ─── Action tags ─── */
+.action-BUY { color: var(--up); background: rgba(34, 160, 107, 0.10); }
+.action-SELL { color: var(--down); background: rgba(225, 75, 75, 0.10); }
+.action-HOLD { color: var(--warn); background: rgba(201, 138, 30, 0.10); }
+.action-REDUCE { color: var(--down); background: rgba(225, 75, 75, 0.10); }
+.action-INCREASE { color: var(--up); background: rgba(34, 160, 107, 0.10); }
 
 /* ─── Chip ─── */
 .chip {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 4px 10px; border-radius: var(--radius); font-size: 11px; font-weight: 600;
+  padding: 4px 9px; border-radius: var(--radius); font-size: 11px; font-weight: 500;
   border: 1px solid var(--border);
 }
 
-/* ─── Kbd (command palette hints) ─── */
+/* ─── Kbd ─── */
 .kbd {
   display: inline-flex; align-items: center; justify-content: center;
-  min-width: 20px; height: 20px; padding: 0 5px;
-  border-radius: 5px; border: 1px solid var(--border-strong);
+  min-width: 19px; height: 19px; padding: 0 5px;
+  border-radius: 4px; border: 1px solid var(--border-strong);
   background: var(--surface-2);
-  font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 500;
-  color: var(--text-soft);
-  box-shadow: 0 1px 0 var(--border-strong);
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500;
+  color: var(--text-muted);
 }
 
 /* ─── Reduced motion ─── */

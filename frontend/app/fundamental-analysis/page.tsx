@@ -1,6 +1,8 @@
 'use client'
-import React, { useMemo, useState } from 'react'
+
+import React, { Suspense, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import PageShell from '@/components/PageShell'
 import { Card, SectionTitle, Change, fmt, cx } from '@/components/ui/kit'
 import { AIScoreRing, InsightCard, SignalBadge, Signal } from '@/components/ui/ai'
@@ -16,39 +18,102 @@ const TABS = ['Overview', 'Financials', 'News'] as const
 type Tab = (typeof TABS)[number]
 
 /** Transparent rule-based grade from live fundamentals (not an LLM). */
-function gradeCompany(c: any): { score: number; signal: Signal; notes: { title: string; body: string; tone: 'emerald' | 'amber' | 'coral' | 'ai' }[] } | null {
+function gradeCompany(c: any): {
+  score: number;
+  signal: Signal;
+  notes: { title: string; body: string; tone: 'emerald' | 'amber' | 'coral' | 'ai' }[];
+} | null {
   if (!c) return null
   let score = 50
   const notes: { title: string; body: string; tone: 'emerald' | 'amber' | 'coral' | 'ai' }[] = []
-
+  
   const roe = c.roe ?? null
   if (roe != null) {
     const roePct = roe > 1 ? roe : roe * 100
-    if (roePct >= 18) { score += 12; notes.push({ title: 'Strong ROE', body: `Return on equity of ${roePct.toFixed(1)}% — capital is compounding efficiently.`, tone: 'emerald' }) }
-    else if (roePct < 8) { score -= 10; notes.push({ title: 'Weak ROE', body: `ROE of ${roePct.toFixed(1)}% underperforms cost of capital for most sectors.`, tone: 'coral' }) }
+    if (roePct >= 18) {
+      score += 12
+      notes.push({
+        title: 'Strong ROE',
+        body: `Return on equity of ${roePct.toFixed(1)}% — capital is compounding efficiently.`,
+        tone: 'emerald'
+      })
+    } else if (roePct < 8) {
+      score -= 10
+      notes.push({
+        title: 'Weak ROE',
+        body: `ROE of ${roePct.toFixed(1)}% underperforms cost of capital for most sectors.`,
+        tone: 'coral'
+      })
+    }
   }
+
   const growth = c.revenue_growth ?? null
   if (growth != null) {
     const g = growth > 1 ? growth : growth * 100
-    if (g >= 12) { score += 10; notes.push({ title: 'Revenue expanding', body: `Top line growing ${g.toFixed(1)}% — demand is real.`, tone: 'emerald' }) }
-    else if (g < 0) { score -= 10; notes.push({ title: 'Shrinking revenue', body: `Revenue contracting ${Math.abs(g).toFixed(1)}% — verify whether cyclical or structural.`, tone: 'coral' }) }
+    if (g >= 12) {
+      score += 10
+      notes.push({
+        title: 'Revenue expanding',
+        body: `Top line growing ${g.toFixed(1)}% — demand is real.`,
+        tone: 'emerald'
+      })
+    } else if (g < 0) {
+      score -= 10
+      notes.push({
+        title: 'Shrinking revenue',
+        body: `Revenue contracting ${Math.abs(g).toFixed(1)}% — verify whether cyclical or structural.`,
+        tone: 'coral'
+      })
+    }
   }
+
   const de = c.debt_to_equity ?? null
   if (de != null) {
     const d = de > 10 ? de / 100 : de
-    if (d > 1.5) { score -= 12; notes.push({ title: 'Leveraged balance sheet', body: `Debt/equity ≈ ${d.toFixed(2)} — rate hikes bite here.`, tone: 'amber' }) }
-    else if (d < 0.5) { score += 6 }
+    if (d > 1.5) {
+      score -= 12
+      notes.push({
+        title: 'Leveraged balance sheet',
+        body: `Debt/equity ≈ ${d.toFixed(2)} — rate hikes bite here.`,
+        tone: 'amber'
+      })
+    } else if (d < 0.5) {
+      score += 6
+    }
   }
+
   const margins = c.profit_margins ?? null
   if (margins != null) {
     const m = margins > 1 ? margins : margins * 100
-    if (m >= 15) score += 8
-    else if (m < 5) { score -= 6; notes.push({ title: 'Thin margins', body: `Net margin ${m.toFixed(1)}% leaves little cushion in downturns.`, tone: 'amber' }) }
+    if (m >= 15) {
+      score += 8
+    } else if (m < 5) {
+      score -= 6
+      notes.push({
+        title: 'Thin margins',
+        body: `Net margin ${m.toFixed(1)}% leaves little cushion in downturns.`,
+        tone: 'amber'
+      })
+    }
   }
+
   const pe = c.pe_ratio ?? null
   if (pe != null && pe > 0) {
-    if (pe < 15) { score += 8; notes.push({ title: 'Undemanding valuation', body: `P/E of ${pe.toFixed(1)} prices in little optimism.`, tone: 'ai' }) }
-    else if (pe > 45) { score -= 8; notes.push({ title: 'Rich valuation', body: `P/E of ${pe.toFixed(1)} — growth must deliver or the multiple compresses.`, tone: 'amber' }) }
+    if (pe < 15) {
+      score += 8
+      notes.push({
+        title: 'Undemanding valuation',
+        body: `P/E of ${pe.toFixed(1)} prices in little optimism.`,
+        tone: 'ai'
+      })
+    } else if (pe > 45) {
+      score -= 8
+      notes.push({
+        title: 'Rich valuation',
+        body: `P/E of ${pe.toFixed(1)} — growth must deliver or the multiple compresses.`,
+        tone: 'amber'
+      })
+    }
   }
 
   score = Math.round(Math.max(5, Math.min(95, score)))
@@ -56,17 +121,18 @@ function gradeCompany(c: any): { score: number; signal: Signal; notes: { title: 
   return { score, signal, notes: notes.slice(0, 3) }
 }
 
-export default function FundamentalAnalysisPage() {
-  const [symbol, setSymbol] = useState('RELIANCE')
-  const [input, setInput] = useState('RELIANCE')
+function StockResearch() {
+  const searchParams = useSearchParams()
+  const initial = (searchParams.get('symbol') || 'RELIANCE').toUpperCase()
+  const [symbol, setSymbol] = useState(initial)
+  const [input, setInput] = useState(initial)
   const [tab, setTab] = useState<Tab>('Overview')
-
+  
   const { data: company, loading } = useFundamentals(symbol, 'NSE')
   const { data: quote } = useQuote(symbol, 'NSE')
   const { data: news } = useNews(symbol)
-
+  
   const grade = useMemo(() => gradeCompany(company), [company])
-
   const range = useMemo(() => {
     const hi = company?.['52w_high']
     const lo = company?.['52w_low']
@@ -141,12 +207,12 @@ export default function FundamentalAnalysisPage() {
             <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
               <div className="min-w-0">
                 <div className="text-[11px] text-muted font-medium">{company.sector} · {company.industry}</div>
-                <h2 className="text-xl font-extrabold tracking-tight text-foreground truncate">{company.company_name}</h2>
+                <h2 className="text-xl font-semibold tracking-tight text-foreground truncate">{company.company_name}</h2>
                 <div className="text-xs text-soft">{company.symbol} · NSE</div>
               </div>
               {quote && (
                 <div>
-                  <div className="text-2xl font-extrabold tabular-nums">₹{fmt(quote.current_price)}</div>
+                  <div className="text-2xl font-semibold tabular-nums">₹{fmt(quote.current_price)}</div>
                   <Change value={quote.change_pct} className="text-sm" />
                 </div>
               )}
@@ -172,10 +238,9 @@ export default function FundamentalAnalysisPage() {
                     <div className="mt-1.5">
                       <Link
                         href={`/ai-analyst?q=${encodeURIComponent(`Analyze ${symbol}`)}`}
-                        className="text-[11px] font-bold text-ai-bright hover:underline inline-flex items-center gap-1"
+                        className="text-[11px] text-primary hover:underline"
                       >
-                        <iconify-icon icon="solar:magic-stick-3-linear" width="11"></iconify-icon>
-                        Run 6-agent analysis
+                        Run full analysis
                       </Link>
                     </div>
                   </div>
@@ -222,11 +287,8 @@ export default function FundamentalAnalysisPage() {
                   ))}
                 </div>
               </Card>
-
               <div className="space-y-3">
-                <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-ai-bright">
-                  <iconify-icon icon="solar:magic-stick-3-linear" width="13"></iconify-icon> What the numbers say
-                </div>
+                <div className="text-[11px] uppercase tracking-wider text-muted">What the numbers say</div>
                 {grade?.notes.length ? (
                   grade.notes.map((n) => <InsightCard key={n.title} title={n.title} body={n.body} tone={n.tone} />)
                 ) : (
@@ -287,5 +349,13 @@ export default function FundamentalAnalysisPage() {
         </>
       )}
     </PageShell>
+  )
+}
+
+export default function FundamentalAnalysisPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <StockResearch />
+    </Suspense>
   )
 }
