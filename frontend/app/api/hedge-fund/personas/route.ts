@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 const STRATTON_API_URL = process.env.STRATTON_API_URL || 'http://localhost:8000';
+
 
 export async function GET() {
   try {
