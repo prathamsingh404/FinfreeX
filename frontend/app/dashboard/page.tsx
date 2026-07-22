@@ -18,7 +18,7 @@ export default function DashboardPage() {
   // Use a dummy user ID if not logged in to let the API fail gracefully instead of breaking hooks
   const userId = user?.id || 'demo-user-123'
   
-  const { data: pf, loading: pfLoading } = usePortfolio(userId)
+  const { data: pf, loading: pfLoading } = usePortfolio()
   const { data: indicesData } = useIndices()
   const { data: moversData } = useMovers('NSE')
   const { data: newsData } = useNews('markets', 'business')

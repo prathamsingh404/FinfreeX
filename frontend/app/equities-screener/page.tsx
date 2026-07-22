@@ -133,14 +133,14 @@ export default function EquitiesScreenerPage() {
             onClick={() => pickPreset(p.id)}
             className={cx(
               'text-left rounded-lg border p-3.5 transition-colors cursor-pointer card-lift',
-              preset === p.id ? 'ai-surface' : 'bg-surface border-border hover:border-border-strong'
+              preset === p.id ? 'bg-surface-2 border-primary/40' : 'bg-surface border-border hover:border-border-strong'
             )}
           >
             <div className="flex items-center justify-between mb-2">
-              <iconify-icon icon={p.icon} width="18" class={preset === p.id ? 'text-ai-bright' : 'text-muted'}></iconify-icon>
-              {preset === p.id && <iconify-icon icon="solar:check-circle-bold" width="16" class="text-ai-bright"></iconify-icon>}
+              <iconify-icon icon={p.icon} width="17" class={preset === p.id ? 'text-primary' : 'text-muted'}></iconify-icon>
+              {preset === p.id && <iconify-icon icon="solar:check-circle-bold" width="15" class="text-primary"></iconify-icon>}
             </div>
-            <div className="text-[13px] font-bold text-foreground">{p.name}</div>
+            <div className="text-[13px] font-semibold text-foreground">{p.name}</div>
             <div className="text-[11px] text-muted mt-0.5">{p.desc}</div>
           </button>
         ))}
@@ -170,7 +170,7 @@ export default function EquitiesScreenerPage() {
         </select>
 
         {activeChips.map((c) => (
-          <span key={c} className="chip text-ai-bright border-ai/30 bg-ai/10">{c}</span>
+          <span key={c} className="chip text-soft bg-white/[0.04]">{c}</span>
         ))}
         {(preset || activeChips.length > 0) && (
           <button
@@ -239,9 +239,9 @@ export default function EquitiesScreenerPage() {
                     <td className="px-3 py-2.5 text-right">
                       <Link
                         href={`/ai-analyst?q=${encodeURIComponent(`Analyze ${q.symbol}`)}`}
-                        className="opacity-0 group-hover:opacity-100 inline-flex items-center gap-1 px-2 py-1 rounded-md bg-ai/12 border border-ai/30 text-ai-bright text-[10.5px] font-bold transition-opacity"
+                        className="opacity-0 group-hover:opacity-100 inline-flex items-center px-2 py-1 rounded border border-border text-soft hover:text-foreground hover:border-border-strong text-[10.5px] font-medium transition-all"
                       >
-                        <iconify-icon icon="solar:magic-stick-3-linear" width="11"></iconify-icon> Ask AI
+                        Analyze
                       </Link>
                     </td>
                   </tr>
