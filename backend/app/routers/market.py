@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from app.services.market_data import get_quote, get_fundamentals, get_indices, get_top_movers, get_forex_data, get_crypto_data, get_commodities_data
+from app.services.market_data import get_quote, get_fundamentals, get_indices, get_top_movers, get_forex_data, get_crypto_data, get_commodities_data, get_sectors_data
 from app.services.technical_service import compute_indicators
 from app.services.macro_service import get_macro_indicators
 
@@ -49,4 +49,8 @@ async def commodities_endpoint():
 @router.get("/macro")
 async def macro_endpoint():
     return await get_macro_indicators()
+
+@router.get("/sectors")
+async def sectors_endpoint():
+    return await get_sectors_data()
 
