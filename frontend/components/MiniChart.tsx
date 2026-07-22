@@ -38,7 +38,7 @@ export default function MiniChart({ ticker, name, data, height = 250, live = fal
         background: { type: ColorType.Solid, color: 'transparent' },
         textColor: 'rgba(255,255,255,0.6)',
         fontSize: 10,
-        fontFamily: 'Inter, system-ui, sans-serif',
+        fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
       },
       grid: { vertLines: { visible: false }, horzLines: { color: 'rgba(255,255,255,0.05)' } },
       rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.1, bottom: 0.2 } },
