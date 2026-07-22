@@ -42,7 +42,7 @@ export default function EquityChart({ data, baseValue, height = 350, showBenchma
         background: { type: ColorType.Solid, color: 'transparent' },
         textColor: 'rgba(156, 163, 175, 0.6)',
         fontSize: 10,
-        fontFamily: 'Inter, system-ui, sans-serif',
+        fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
       },
       grid: {
         vertLines: { color: 'rgba(255, 255, 255, 0.02)' },
