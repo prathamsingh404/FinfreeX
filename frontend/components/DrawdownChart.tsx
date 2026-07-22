@@ -22,7 +22,7 @@ export default function DrawdownChart({ data, height = 300 }: DrawdownChartProps
         background: { type: ColorType.Solid, color: 'transparent' },
         textColor: '#636363',
         fontSize: 10,
-        fontFamily: 'Inter, system-ui, sans-serif',
+        fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
       },
       grid: {
         vertLines: { color: 'rgba(255, 255, 255, 0.03)' },
