@@ -10,32 +10,16 @@ export interface NavItem {
 export interface NavGroup {
   category: string
   icon: string
-  /** 'ai' groups get the intelligence accent treatment in the sidebar */
-  accent?: 'ai'
   items: NavItem[]
 }
 
 /*
- * Information architecture v2 — "experiences", not menu items.
- * Layer 1: Intelligence (the product)
- * Layer 2: Markets / Portfolio / Research / Macro (daily research)
- * Layer 3: Assets / Professional (progressive disclosure, tier: 'pro')
+ * Information architecture — grouped by job, ordered by daily use.
+ * Markets and Research lead; the assistant is one capability among
+ * many, not the product's whole identity. `tier: 'pro'` items sit
+ * behind each group's "more" expander.
  */
 export const NAV: NavGroup[] = [
-  {
-    category: 'Intelligence',
-    icon: 'solar:magic-stick-3-linear',
-    accent: 'ai',
-    items: [
-      { route: '/ai-analyst', title: 'AI Analyst', icon: 'solar:magic-stick-3-linear', tier: 'core', desc: 'Ask anything — six agents research it live' },
-      { route: '/intelligence', title: 'AI Workspace', icon: 'solar:cpu-bolt-linear', tier: 'core', desc: 'Saved research, reports and workspaces' },
-      { route: '/hedge-fund', title: 'Agent Studio', icon: 'solar:users-group-two-rounded-linear', tier: 'core', desc: 'Watch the multi-agent hedge fund work' },
-      { route: '/analysis', title: 'Research Reports', icon: 'solar:document-text-linear', tier: 'core', desc: 'Structured AI research output' },
-      { route: '/alerts', title: 'Alerts & Automations', icon: 'solar:bell-linear', tier: 'core', desc: 'Natural-language market alerts' },
-      { route: '/advisor', title: 'AI Advisor', icon: 'solar:chat-round-money-linear', tier: 'pro', desc: 'Personal portfolio guidance' },
-      { route: '/workflow', title: 'Workflows', icon: 'solar:routing-2-linear', tier: 'pro', desc: 'Chain analyses into repeatable flows' },
-    ],
-  },
   {
     category: 'Markets',
     icon: 'solar:chart-square-linear',
@@ -48,27 +32,40 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
-    category: 'Portfolio',
-    icon: 'solar:wallet-money-linear',
-    items: [
-      { route: '/portfolios', title: 'Portfolios', icon: 'solar:wallet-money-linear', tier: 'core', desc: 'Your holdings, health and exposure' },
-      { route: '/portfolio-analyzer', title: 'Analyzer', icon: 'solar:pie-chart-2-linear', tier: 'core', desc: 'AI-graded portfolio diagnostics' },
-      { route: '/paper-trading', title: 'Paper Trading', icon: 'solar:gamepad-linear', tier: 'core', desc: 'Practice with virtual capital' },
-      { route: '/risk-calculator', title: 'Risk', icon: 'solar:shield-warning-linear', tier: 'pro', desc: 'Position sizing and risk math' },
-    ],
-  },
-  {
     category: 'Research',
     icon: 'solar:filter-linear',
     items: [
       { route: '/equities-screener', title: 'Screener', icon: 'solar:filter-linear', tier: 'core', desc: 'Filter the market by any metric' },
       { route: '/fundamental-analysis', title: 'Fundamentals', icon: 'solar:document-text-linear', tier: 'core', desc: 'Company financials in depth' },
-      { route: '/news-sentiment', title: 'News', icon: 'solar:notebook-linear', tier: 'core', desc: 'News with AI sentiment scoring' },
-      { route: '/earnings-transcripts', title: 'Earnings', icon: 'solar:microphone-linear', tier: 'core', desc: 'Transcripts and earnings intel' },
+      { route: '/news-sentiment', title: 'News', icon: 'solar:notebook-linear', tier: 'core', desc: 'Company and market news' },
+      { route: '/earnings-transcripts', title: 'Earnings', icon: 'solar:microphone-linear', tier: 'core', desc: 'Transcripts and earnings history' },
       { route: '/financial-ratios', title: 'Ratios', icon: 'solar:calculator-linear', tier: 'pro', desc: 'Ratio deep-dives' },
       { route: '/peer-comparison', title: 'Peers', icon: 'solar:users-group-two-rounded-linear', tier: 'pro', desc: 'Side-by-side comparisons' },
       { route: '/corporate-actions', title: 'Corporate Actions', icon: 'solar:calendar-linear', tier: 'pro', desc: 'Dividends, splits, buybacks' },
       { route: '/esg-scores', title: 'ESG', icon: 'solar:leaf-linear', tier: 'pro', desc: 'Sustainability scores' },
+    ],
+  },
+  {
+    category: 'Portfolio',
+    icon: 'solar:wallet-money-linear',
+    items: [
+      { route: '/portfolios', title: 'Portfolios', icon: 'solar:wallet-money-linear', tier: 'core', desc: 'Your holdings, exposure and P&L' },
+      { route: '/portfolio-analyzer', title: 'Analyzer', icon: 'solar:pie-chart-2-linear', tier: 'core', desc: 'Portfolio diagnostics' },
+      { route: '/paper-trading', title: 'Paper Trading', icon: 'solar:gamepad-linear', tier: 'core', desc: 'Practice with virtual capital' },
+      { route: '/risk-calculator', title: 'Risk', icon: 'solar:shield-warning-linear', tier: 'pro', desc: 'Position sizing and risk math' },
+    ],
+  },
+  {
+    category: 'Analysis',
+    icon: 'solar:chart-square-linear',
+    items: [
+      { route: '/ai-analyst', title: 'Research Assistant', icon: 'solar:chat-square-linear', tier: 'core', desc: 'Run a multi-model analysis on any company' },
+      { route: '/alerts', title: 'Alerts', icon: 'solar:bell-linear', tier: 'core', desc: 'Conditional market alerts' },
+      { route: '/analysis', title: 'Saved Reports', icon: 'solar:document-text-linear', tier: 'core', desc: 'Past research output' },
+      { route: '/intelligence', title: 'Workspace', icon: 'solar:widget-5-linear', tier: 'pro', desc: 'Saved research workspaces' },
+      { route: '/hedge-fund', title: 'Model Committee', icon: 'solar:users-group-two-rounded-linear', tier: 'pro', desc: 'Run the full model committee' },
+      { route: '/advisor', title: 'Advisor', icon: 'solar:chat-round-money-linear', tier: 'pro', desc: 'Personal portfolio guidance' },
+      { route: '/workflow', title: 'Workflows', icon: 'solar:routing-2-linear', tier: 'pro', desc: 'Chain analyses into repeatable flows' },
     ],
   },
   {
@@ -116,10 +113,10 @@ export const NAV: NavGroup[] = [
 ]
 
 export const TOP_NAV: NavItem[] = [
-  { route: '/ai-analyst', title: 'AI Analyst', icon: 'solar:magic-stick-3-linear' },
   { route: '/market', title: 'Markets', icon: 'solar:chart-square-linear' },
+  { route: '/equities-screener', title: 'Screener', icon: 'solar:filter-linear' },
+  { route: '/fundamental-analysis', title: 'Research', icon: 'solar:document-text-linear' },
   { route: '/portfolios', title: 'Portfolio', icon: 'solar:wallet-money-linear' },
-  { route: '/equities-screener', title: 'Research', icon: 'solar:filter-linear' },
   { route: '/pricing', title: 'Pricing', icon: 'solar:tag-price-linear' },
 ]
 
