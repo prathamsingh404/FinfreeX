@@ -2,256 +2,138 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import MarketTicker from '@/components/home/MarketTicker'
-import { Card, Change, Badge } from '@/components/ui/kit'
-import { AIPromptInput, PromptChips, SignalBadge, ConfidenceMeter, type Signal } from '@/components/ui/ai'
-import { useMovers, useIndices } from '@/lib/hooks/useMarketData'
+import MarketScreener from '@/components/home/MarketScreener'
+import HeroQuotes from '@/components/home/HeroQuotes'
 
-const EXAMPLE_PROMPTS = [
-  'Analyze Reliance',
-  'Compare Nvidia vs AMD',
-  'Build me a portfolio',
-  'Find undervalued AI stocks',
-  'What should I buy today?',
-]
-
-const AGENTS = [
-  { name: 'Technical', icon: 'solar:chart-2-linear' },
-  { name: 'Fundamental', icon: 'solar:document-text-linear' },
-  { name: 'Macro', icon: 'solar:earth-linear' },
-  { name: 'News', icon: 'solar:notebook-linear' },
-  { name: 'Valuation', icon: 'solar:calculator-linear' },
-  { name: 'Risk', icon: 'solar:shield-warning-linear' },
-]
-
-const TRENDING_ANALYSES: { ticker: string; question: string; signal: Signal; confidence: number; time: string }[] = [
-  { ticker: 'RELIANCE', question: 'Is Reliance a buy after the retail demerger news?', signal: 'BUY', confidence: 78, time: '2m ago' },
-  { ticker: 'NVDA', question: 'Nvidia vs AMD — who wins the next 12 months?', signal: 'BULLISH', confidence: 71, time: '11m ago' },
-  { ticker: 'HDFCBANK', question: 'HDFC Bank margin pressure — hold or reduce?', signal: 'HOLD', confidence: 64, time: '24m ago' },
-  { ticker: 'TATAMOTORS', question: 'Tata Motors after JLR results — overextended?', signal: 'NEUTRAL', confidence: 55, time: '38m ago' },
-]
-
-const LAYERS = [
+const CAPABILITIES = [
   {
-    tag: 'Layer 1 — Intelligence',
-    tone: 'ai',
+    group: 'Data & Markets',
     items: [
-      { icon: 'solar:magic-stick-3-linear', title: 'AI Analyst', desc: 'Ask anything. Six specialist agents research it live and return a verdict with confidence.', href: '/ai-analyst' },
-      { icon: 'solar:users-group-two-rounded-linear', title: 'Agent Studio', desc: 'Watch the multi-agent hedge fund debate — technical, fundamental, macro, news, valuation, risk.', href: '/hedge-fund' },
-      { icon: 'solar:bell-linear', title: 'Alerts & Automations', desc: '“Notify me if Tesla RSI drops below 30.” Natural-language alerts to Telegram, email or push.', href: '/alerts' },
+      { icon: 'solar:chart-square-linear', title: 'Live Markets', desc: 'Indices, movers, sectors and depth across Indian and global exchanges.', href: '/market' },
+      { icon: 'solar:chart-2-linear', title: 'Charting', desc: 'Full technical charting with indicators, drawing tools and multi-timeframe views.', href: '/technical-charts' },
+      { icon: 'solar:globe-linear', title: 'Global & Macro', desc: 'World indices, currencies, commodities, yields and economic calendars.', href: '/global-markets' },
     ],
   },
   {
-    tag: 'Layer 2 — Research',
-    tone: 'primary',
+    group: 'Research',
     items: [
-      { icon: 'solar:chart-square-linear', title: 'Live Markets', desc: 'Indices, movers, sectors and full-screen charts in real time.', href: '/market' },
-      { icon: 'solar:filter-linear', title: 'Screener', desc: 'Filter thousands of stocks across fundamental and technical metrics.', href: '/equities-screener' },
-      { icon: 'solar:pie-chart-2-linear', title: 'Portfolio', desc: 'Health score, risk, exposure and AI rebalancing suggestions.', href: '/portfolios' },
+      { icon: 'solar:filter-linear', title: 'Screener', desc: 'Filter thousands of stocks on fundamental, technical and valuation criteria.', href: '/equities-screener' },
+      { icon: 'solar:document-text-linear', title: 'Fundamentals', desc: 'Financial statements, ratios, peer comparison and earnings history.', href: '/fundamental-analysis' },
+      { icon: 'solar:notebook-linear', title: 'News & Filings', desc: 'Company news, corporate actions and transcripts, scored for sentiment.', href: '/news-sentiment' },
     ],
   },
   {
-    tag: 'Layer 3 — Professional',
-    tone: 'soft',
+    group: 'Portfolio & Tools',
     items: [
-      { icon: 'solar:diagram-down-linear', title: 'Options & Greeks', desc: 'Chains, OI, IV surfaces and Greeks visualization.', href: '/options-chain' },
-      { icon: 'solar:scanner-linear', title: 'Correlation & Rotation', desc: 'Cross-asset correlation matrices and sector rotation maps.', href: '/correlation-matrix' },
-      { icon: 'solar:history-linear', title: 'Backtesting', desc: 'Test strategies against decades of historical data.', href: '/backtesting' },
+      { icon: 'solar:wallet-money-linear', title: 'Portfolio Analytics', desc: 'Exposure, attribution, risk and rebalancing across your holdings.', href: '/portfolios' },
+      { icon: 'solar:diagram-down-linear', title: 'Derivatives', desc: 'Option chains, Greeks, open interest and volatility surfaces.', href: '/options-chain' },
+      { icon: 'solar:history-linear', title: 'Backtesting', desc: 'Test strategies against decades of historical data before risking capital.', href: '/backtesting' },
     ],
   },
 ]
 
 export default function HomePage() {
-  const router = useRouter()
-  const { data: moversData, loading: moversLoading } = useMovers('NSE')
-  const { data: indicesData } = useIndices()
-
-  const gainers = moversData?.gainers || []
-  const losers = moversData?.losers || []
-  const sectors = indicesData ? Object.entries(indicesData).map(([name, data]: [string, any]) => ({ name, ...data })).slice(0, 6) : []
-
-  const ask = (q: string) => router.push(`/ai-analyst?q=${encodeURIComponent(q)}`)
-
   return (
     <main className="relative">
-      {/* ─── Hero: the AI is the product ─── */}
-      <section className="relative z-0 pt-36 pb-20 px-4 sm:px-6 border-b border-border overflow-hidden">
-        <div className="absolute inset-0 -z-10 pointer-events-none">
-          <div className="absolute inset-0 grid-texture opacity-20"></div>
-          {/* Iris halo behind the prompt */}
-          <div className="absolute left-1/2 top-[46%] -translate-x-1/2 -translate-y-1/2 w-[720px] h-[380px] rounded-full bg-ai/10 blur-[120px]"></div>
-        </div>
+      {/* ─── Hero ─── */}
+      <section className="relative pt-32 pb-20 px-4 sm:px-6 border-b border-border overflow-hidden min-h-[78vh] flex items-center">
+        {/* Background market visual, low opacity, anchored right */}
+        <img
+          src="/hero-bg.webp"
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover object-right pointer-events-none select-none opacity-[0.28]"
+        />
+        {/* Flat scrim for legibility — solid tint, no gradient */}
+        <div className="absolute inset-0 bg-background/70 pointer-events-none" />
+        <div className="absolute inset-y-0 left-0 w-full lg:w-[58%] bg-background/80 pointer-events-none" />
 
-        <div className="mx-auto max-w-3xl text-center">
-          <Badge tone="neutral" className="mb-7 border-ai/25 bg-ai/10 text-ai-bright fade-up">
-            <span className="w-1.5 h-1.5 rounded-full bg-ai agent-pulse"></span>
-            6 agents · live market data · one verdict
-          </Badge>
+        <div className="mx-auto max-w-6xl w-full relative">
+          <div className="max-w-2xl">
+            <div className="fade-up text-[11px] uppercase tracking-[0.14em] text-muted mb-5">
+              Markets · Research · Portfolio · Analysis
+            </div>
 
-          <h1 className="fade-up stagger-1 text-4xl sm:text-5xl lg:text-[56px] font-extrabold tracking-tight leading-[1.08] text-balance">
-            Meet your AI<br />
-            <span className="text-ai-bright">Hedge Fund Analyst.</span>
-          </h1>
-          <p className="fade-up stagger-2 mt-5 text-base sm:text-lg text-soft max-w-xl mx-auto text-pretty leading-relaxed">
-            Ask anything about any stock, sector or your portfolio. Six specialist agents
-            research it live — and hand you a verdict, not a wall of text.
-          </p>
+            <h1 className="fade-up stagger-1 text-4xl sm:text-5xl lg:text-[52px] font-semibold tracking-[-0.03em] leading-[1.06] text-balance">
+              The market research
+              <br />
+              platform for serious
+              <br />
+              investors.
+            </h1>
 
-          <div className="fade-up stagger-3 mt-9">
-            <AIPromptInput size="lg" placeholder="Analyze any stock, compare rivals, build a portfolio…" onSubmit={ask} />
-          </div>
-          <div className="fade-up stagger-4 mt-4">
-            <PromptChips prompts={EXAMPLE_PROMPTS} onPick={ask} />
-          </div>
+            <p className="fade-up stagger-2 mt-5 text-base sm:text-[17px] text-soft max-w-lg text-pretty leading-relaxed">
+              Real-time data, deep fundamentals, screening, derivatives and portfolio
+              analytics — with AI-assisted research when you want a second opinion.
+              One workspace, no tab juggling.
+            </p>
 
-          {/* Agent strip */}
-          <div className="fade-up stagger-5 mt-12 flex flex-wrap items-center justify-center gap-2.5">
-            {AGENTS.map((a, i) => (
-              <div key={a.name} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-border text-xs font-medium text-soft">
-                <span className={`w-1.5 h-1.5 rounded-full ${i % 2 ? 'bg-ai' : 'bg-emerald'} ticker-live`} style={{ animationDelay: `${i * 0.3}s` }}></span>
-                <iconify-icon icon={a.icon} width="13" class="text-muted"></iconify-icon>
-                {a.name}
-              </div>
-            ))}
+            <div className="fade-up stagger-3 mt-8 flex flex-wrap items-center gap-3">
+              <Link
+                href="/market"
+                className="bg-primary hover:bg-primary/90 text-white px-5 py-2.5 rounded-md text-sm font-semibold transition-colors"
+              >
+                Explore the platform
+              </Link>
+              <Link
+                href="/equities-screener"
+                className="text-soft hover:text-foreground border border-border hover:border-border-strong px-5 py-2.5 rounded-md text-sm font-medium transition-colors"
+              >
+                Open the screener
+              </Link>
+            </div>
+
+            <div className="fade-up stagger-4 mt-12">
+              <HeroQuotes />
+            </div>
           </div>
         </div>
       </section>
 
       <MarketTicker />
 
-      {/* ─── Trending AI analyses ─── */}
+      {/* ─── Interactive market data ─── */}
       <section className="px-4 sm:px-6 py-14">
         <div className="mx-auto max-w-6xl">
-          <div className="flex items-end justify-between mb-5">
+          <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
             <div>
-              <div className="text-[11px] font-bold uppercase tracking-widest text-ai-bright mb-1.5 flex items-center gap-1.5">
-                <iconify-icon icon="solar:magic-stick-3-linear" width="13"></iconify-icon> Live intelligence
-              </div>
-              <h2 className="text-2xl font-extrabold tracking-tight">Trending analyses</h2>
+              <h2 className="text-2xl font-semibold tracking-tight">Today’s market</h2>
+              <p className="text-sm text-soft mt-1.5">
+                Sort, filter and click through to full research on any name.
+              </p>
             </div>
-            <Link href="/ai-analyst" className="text-xs font-semibold text-ai-bright inline-flex items-center gap-1">
-              Open AI Analyst <iconify-icon icon="solar:arrow-right-linear" width="14"></iconify-icon>
+            <Link href="/market" className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1">
+              Full market view
+              <iconify-icon icon="solar:arrow-right-linear" width="13"></iconify-icon>
             </Link>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {TRENDING_ANALYSES.map((t) => (
-              <button
-                key={t.ticker}
-                onClick={() => ask(t.question)}
-                className="text-left rounded-lg bg-surface border border-border hover:border-ai/40 transition-colors p-4 cursor-pointer card-lift"
-              >
-                <div className="flex items-center justify-between mb-2.5">
-                  <span className="text-[13px] font-extrabold text-foreground">{t.ticker}</span>
-                  <SignalBadge signal={t.signal} />
-                </div>
-                <p className="text-xs text-soft leading-relaxed line-clamp-2 min-h-[32px]">{t.question}</p>
-                <div className="mt-3">
-                  <ConfidenceMeter value={t.confidence} compact />
-                </div>
-                <div className="mt-2 text-[10.5px] text-muted">{t.time} · 6 agents</div>
-              </button>
-            ))}
-          </div>
+          <MarketScreener />
         </div>
       </section>
 
-      {/* ─── Market summary ─── */}
-      <section className="px-4 sm:px-6 pb-14">
+      {/* ─── Capabilities ─── */}
+      <section className="px-4 sm:px-6 py-14 border-t border-border">
         <div className="mx-auto max-w-6xl">
-          <div className="flex items-end justify-between mb-5">
-            <h2 className="text-2xl font-extrabold tracking-tight">Market now</h2>
-            <Link href="/market" className="text-xs font-semibold text-primary inline-flex items-center gap-1">
-              Live market <iconify-icon icon="solar:arrow-right-linear" width="14"></iconify-icon>
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
-            {sectors.map((s) => {
-              const up = s.change_pct >= 0
-              return (
-                <div key={s.name} className={`glass-card card-hover p-4 border-l-2 ${up ? 'border-l-emerald' : 'border-l-coral'}`}>
-                  <div className="text-xs text-soft mb-2 truncate">{s.name}</div>
-                  <Change value={s.change_pct} className="text-lg" />
-                </div>
-              )
-            })}
-          </div>
-
-          <div className="grid lg:grid-cols-2 gap-4">
-            {[
-              { title: 'Top Gainers', tone: 'emerald' as const, rows: gainers },
-              { title: 'Top Losers', tone: 'coral' as const, rows: losers },
-            ].map((col) => (
-              <Card key={col.title} hover={false} className="border-border">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-foreground">{col.title}</h3>
-                  <Badge tone={col.tone}>NSE</Badge>
-                </div>
-                <div className="space-y-1">
-                  {moversLoading ? (
-                    <div className="space-y-2 py-2">
-                      {[...Array(4)].map((_, i) => (
-                        <div key={i} className="skeleton h-10 w-full" />
-                      ))}
-                    </div>
-                  ) : col.rows.length === 0 ? (
-                    <div className="py-4 text-center text-sm text-muted">No data available</div>
-                  ) : col.rows.slice(0, 6).map((r: any) => (
-                    <button
-                      key={r.symbol}
-                      onClick={() => ask(`Analyze ${r.symbol}`)}
-                      className="w-full flex items-center justify-between py-2 px-2 rounded-lg hover:bg-white/[0.03] cursor-pointer group"
-                    >
-                      <div className="min-w-0 text-left">
-                        <div className="text-sm font-semibold text-foreground truncate group-hover:text-ai-bright transition-colors">{r.symbol}</div>
-                        <div className="text-[11px] text-muted truncate max-w-[140px]">{r.exchange}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-semibold tabular-nums">{r.current_price.toLocaleString('en-IN')}</div>
-                        <Change value={r.change_pct} className="text-xs" />
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Three layers ─── */}
-      <section className="px-4 sm:px-6 pb-16 border-t border-border pt-14">
-        <div className="mx-auto max-w-6xl">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl font-extrabold tracking-tight text-balance">One intelligent operating system</h2>
-            <p className="text-soft mt-3 max-w-xl mx-auto text-pretty">
-              Intelligence on top. Research when you dig. Professional tools when you need them.
+          <div className="mb-10 max-w-xl">
+            <h2 className="text-2xl font-semibold tracking-tight text-balance">Everything in one place</h2>
+            <p className="text-soft mt-2.5 text-pretty">
+              The tools a professional desk expects, built for individual investors.
             </p>
           </div>
 
-          <div className="space-y-8">
-            {LAYERS.map((layer) => (
-              <div key={layer.tag}>
-                <div className={`text-[11px] font-bold uppercase tracking-widest mb-3 ${
-                  layer.tone === 'ai' ? 'text-ai-bright' : layer.tone === 'primary' ? 'text-primary' : 'text-muted'
-                }`}>
-                  {layer.tag}
-                </div>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {layer.items.map((f) => (
+          <div className="space-y-9">
+            {CAPABILITIES.map((section) => (
+              <div key={section.group}>
+                <div className="text-[11px] uppercase tracking-wider text-muted mb-3">{section.group}</div>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {section.items.map((f) => (
                     <Link key={f.title} href={f.href}>
-                      <div className={`h-full p-5 rounded-lg border transition-colors card-lift ${
-                        layer.tone === 'ai' ? 'ai-surface hover:border-ai/40' : 'bg-surface border-border hover:border-border-strong'
-                      }`}>
-                        <div className={`w-10 h-10 rounded-md border flex items-center justify-center mb-4 ${
-                          layer.tone === 'ai' ? 'bg-ai/15 border-ai/30 text-ai-bright' : 'bg-primary/12 border-primary/25 text-primary'
-                        }`}>
-                          <iconify-icon icon={f.icon} width="20"></iconify-icon>
-                        </div>
-                        <h3 className="text-base font-bold text-foreground mb-1.5">{f.title}</h3>
-                        <p className="text-sm text-soft leading-relaxed">{f.desc}</p>
+                      <div className="h-full p-5 rounded-md bg-surface border border-border card-lift">
+                        <iconify-icon icon={f.icon} width="18" class="text-soft"></iconify-icon>
+                        <h3 className="text-[15px] font-semibold text-foreground mt-3 mb-1.5">{f.title}</h3>
+                        <p className="text-[13px] text-soft leading-relaxed">{f.desc}</p>
                       </div>
                     </Link>
                   ))}
@@ -262,23 +144,59 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ─── CTA ─── */}
-      <section className="px-4 sm:px-6 pb-24">
-        <div className="mx-auto max-w-5xl">
-          <div className="ai-beam-border">
-            <div className="rounded-[11px] bg-elevated text-center py-14 px-6">
-              <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-balance">Your analyst is ready.</h2>
-              <p className="text-soft mt-3 max-w-md mx-auto text-pretty">Ask one question and watch six agents go to work — free to start.</p>
-              <div className="mt-7 flex flex-wrap justify-center gap-3">
-                <Link href="/ai-analyst" className="bg-ai hover:bg-ai-bright text-white px-7 py-3 rounded-md text-sm font-bold transition-colors inline-flex items-center gap-2">
-                  <iconify-icon icon="solar:magic-stick-3-linear" width="17"></iconify-icon>
-                  Ask the AI Analyst
+      {/* ─── AI as one capability, stated plainly ─── */}
+      <section className="px-4 sm:px-6 py-14 border-t border-border">
+        <div className="mx-auto max-w-6xl">
+          <div className="panel-accent p-8 sm:p-10">
+            <div className="max-w-2xl">
+              <div className="text-[11px] uppercase tracking-wider text-muted mb-2.5">Research assistant</div>
+              <h2 className="text-2xl font-semibold tracking-tight text-balance">
+                A second opinion, backed by the same data
+              </h2>
+              <p className="text-soft mt-3 text-[15px] leading-relaxed text-pretty">
+                Ask a question about any company and FinfreeX runs it through six specialist
+                models — technical, fundamental, macro, news, valuation and risk — then shows
+                you what each concluded and why. You keep the final call.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link
+                  href="/ai-analyst"
+                  className="bg-primary hover:bg-primary/90 text-white px-5 py-2.5 rounded-md text-sm font-semibold transition-colors"
+                >
+                  Try the assistant
                 </Link>
-                <Link href="/pricing" className="bg-transparent text-soft border border-border hover:border-border-strong px-7 py-3 rounded-md text-sm font-semibold transition-colors">
-                  View pricing
+                <Link
+                  href="/docs"
+                  className="text-soft hover:text-foreground border border-border hover:border-border-strong px-5 py-2.5 rounded-md text-sm font-medium transition-colors"
+                >
+                  How it works
                 </Link>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── CTA ─── */}
+      <section className="px-4 sm:px-6 py-16 border-t border-border">
+        <div className="mx-auto max-w-6xl flex flex-wrap items-center justify-between gap-6">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">Start researching</h2>
+            <p className="text-soft mt-1.5 text-sm">Free to use. No card required.</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/auth"
+              className="bg-primary hover:bg-primary/90 text-white px-5 py-2.5 rounded-md text-sm font-semibold transition-colors"
+            >
+              Create account
+            </Link>
+            <Link
+              href="/pricing"
+              className="text-soft hover:text-foreground border border-border hover:border-border-strong px-5 py-2.5 rounded-md text-sm font-medium transition-colors"
+            >
+              View pricing
+            </Link>
           </div>
         </div>
       </section>

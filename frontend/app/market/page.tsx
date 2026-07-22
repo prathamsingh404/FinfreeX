@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import Link from 'next/link'
 import PageShell from '@/components/PageShell'
 import { Change, fmt, Badge } from '@/components/ui/kit'
@@ -8,20 +8,30 @@ import { useScreener, useIndices, useNews } from '@/lib/hooks/useMarketData'
 
 type SortKey = 'market_cap' | 'current_price' | 'return_1m' | 'pe_ratio' | 'volume'
 
-const TABS = ['Overview', 'Performance', 'Technicals', 'Extended hours', 'Forecasts', 'Valuation', 'Dividends', 'More']
+const TABS = ['Overview', 'Performance', 'Valuation', 'Dividends', 'More']
+
+// Sector filter options
+const SECTOR_OPTIONS = ['All', 'Technology', 'Financial Services', 'Automobile', 'Energy', 'Consumer Goods', 'Healthcare', 'Industrials']
 
 export default function MarketPage() {
   const [universe, setUniverse] = useState('ALL')
   const [sort, setSort] = useState<SortKey>('market_cap')
   const [dir, setDir] = useState<'asc' | 'desc'>('desc')
   const [activeTab, setActiveTab] = useState('Overview')
+  const [sectorFilter, setSectorFilter] = useState('All')
+  const [showSectorDropdown, setShowSectorDropdown] = useState(false)
   
   // Fetch live data
   const { data: rows, loading } = useScreener({ universe, sort_by: sort, sort_order: dir })
   const { data: indicesData } = useIndices()
   const { data: newsData } = useNews('markets')
 
-  const results = rows || []
+  const results = useMemo(() => {
+    const all = rows || []
+    if (sectorFilter === 'All') return all
+    return all.filter((q: any) => q.sector === sectorFilter)
+  }, [rows, sectorFilter])
+
   const indices = indicesData ? Object.entries(indicesData).map(([name, data]) => ({ name, ...data })).slice(0, 5) : []
   const news = newsData?.slice(0, 5) || []
 
@@ -47,6 +57,171 @@ export default function MarketPage() {
     </th>
   )
 
+  /* ---- Tab-specific table columns ---- */
+  function renderHeaders() {
+    const base = <th className="px-4 py-2 font-medium w-64">Symbol</th>
+    switch (activeTab) {
+      case 'Performance':
+        return (
+          <tr>
+            {base}
+            <Th k="current_price" label="Price" align="right" />
+            <Th k="return_1m" label="1M Return" align="right" />
+            <th className="px-3 py-2 font-medium text-right">1Y Return</th>
+            <th className="px-3 py-2 font-medium text-right">52W High</th>
+            <th className="px-3 py-2 font-medium text-right">52W Low</th>
+            <th className="px-3 py-2 font-medium text-right">Beta</th>
+            <th className="px-4 py-2 font-medium">Sector</th>
+          </tr>
+        )
+      case 'Valuation':
+        return (
+          <tr>
+            {base}
+            <Th k="current_price" label="Price" align="right" />
+            <Th k="pe_ratio" label="P/E" align="right" />
+            <th className="px-3 py-2 font-medium text-right">P/B</th>
+            <th className="px-3 py-2 font-medium text-right">ROE</th>
+            <th className="px-3 py-2 font-medium text-right">Div Yield</th>
+            <th className="px-3 py-2 font-medium text-right">D/E</th>
+            <Th k="market_cap" label="Mkt Cap" align="right" />
+            <th className="px-4 py-2 font-medium">Sector</th>
+          </tr>
+        )
+      case 'Dividends':
+        return (
+          <tr>
+            {base}
+            <Th k="current_price" label="Price" align="right" />
+            <th className="px-3 py-2 font-medium text-right">Div Yield</th>
+            <th className="px-3 py-2 font-medium text-right">Profit Margin</th>
+            <Th k="pe_ratio" label="P/E" align="right" />
+            <Th k="market_cap" label="Mkt Cap" align="right" />
+            <th className="px-4 py-2 font-medium">Sector</th>
+          </tr>
+        )
+      case 'More':
+        return (
+          <tr>
+            {base}
+            <Th k="current_price" label="Price" align="right" />
+            <Th k="return_1m" label="Chg %" align="right" />
+            <Th k="volume" label="Vol" align="right" />
+            <Th k="market_cap" label="Mkt Cap" align="right" />
+            <th className="px-3 py-2 font-medium text-right">Beta</th>
+            <th className="px-3 py-2 font-medium text-right">52W High</th>
+            <th className="px-3 py-2 font-medium text-right">52W Low</th>
+            <th className="px-4 py-2 font-medium">Industry</th>
+          </tr>
+        )
+      default: // Overview
+        return (
+          <tr>
+            {base}
+            <Th k="current_price" label="Price" align="right" />
+            <Th k="return_1m" label="Chg %" align="right" />
+            <Th k="volume" label="Vol" align="right" />
+            <th className="px-3 py-2 font-medium text-right">Rel vol</th>
+            <Th k="market_cap" label="Mkt cap" align="right" />
+            <Th k="pe_ratio" label="P/E" align="right" />
+            <th className="px-3 py-2 font-medium text-right">EPS dil TTM</th>
+            <th className="px-3 py-2 font-medium text-right">Rev growth</th>
+            <th className="px-3 py-2 font-medium text-right">Div yield</th>
+            <th className="px-4 py-2 font-medium">Sector</th>
+          </tr>
+        )
+    }
+  }
+
+  function renderRow(q: any) {
+    const symbolCell = (
+      <td className="px-4 py-2 flex items-center gap-2">
+        <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[9px] font-bold overflow-hidden shrink-0">
+          {q.symbol.charAt(0)}
+        </div>
+        <div className="flex flex-col min-w-0">
+          <span className="font-semibold text-foreground truncate">{q.symbol}</span>
+          <span className="text-[11px] text-soft truncate">{q.name}</span>
+        </div>
+      </td>
+    )
+
+    switch (activeTab) {
+      case 'Performance':
+        return (
+          <>
+            {symbolCell}
+            <td className="px-3 py-2 text-right tabular-nums">{fmt(q.current_price, { decimals: 2 })}</td>
+            <td className="px-3 py-2 text-right"><Change value={q.return_1m} /></td>
+            <td className="px-3 py-2 text-right">{q.return_1y != null ? <Change value={q.return_1y} /> : <span className="text-soft">—</span>}</td>
+            <td className="px-3 py-2 text-right tabular-nums">{q['52w_high'] ? fmt(q['52w_high'], { decimals: 2 }) : '—'}</td>
+            <td className="px-3 py-2 text-right tabular-nums">{q['52w_low'] ? fmt(q['52w_low'], { decimals: 2 }) : '—'}</td>
+            <td className="px-3 py-2 text-right tabular-nums text-soft">{q.beta ? q.beta.toFixed(2) : '—'}</td>
+            <td className="px-4 py-2 text-soft truncate">{q.sector || '—'}</td>
+          </>
+        )
+      case 'Valuation':
+        return (
+          <>
+            {symbolCell}
+            <td className="px-3 py-2 text-right tabular-nums">{fmt(q.current_price, { decimals: 2 })}</td>
+            <td className="px-3 py-2 text-right tabular-nums">{q.pe_ratio ? fmt(q.pe_ratio, { decimals: 1 }) : '—'}</td>
+            <td className="px-3 py-2 text-right tabular-nums">{q.pb_ratio ? fmt(q.pb_ratio, { decimals: 2 }) : '—'}</td>
+            <td className="px-3 py-2 text-right">{typeof q.roe === 'number' ? <Change value={q.roe} showArrow={false} /> : <span className="text-soft">—</span>}</td>
+            <td className="px-3 py-2 text-right tabular-nums text-soft">{typeof q.dividend_yield === 'number' ? `${q.dividend_yield.toFixed(2)}%` : '—'}</td>
+            <td className="px-3 py-2 text-right tabular-nums">{q.debt_to_equity ? fmt(q.debt_to_equity, { decimals: 2 }) : '—'}</td>
+            <td className="px-3 py-2 text-right tabular-nums">{fmt(q.market_cap, { compact: true })}</td>
+            <td className="px-4 py-2 text-soft truncate">{q.sector || '—'}</td>
+          </>
+        )
+      case 'Dividends':
+        return (
+          <>
+            {symbolCell}
+            <td className="px-3 py-2 text-right tabular-nums">{fmt(q.current_price, { decimals: 2 })}</td>
+            <td className="px-3 py-2 text-right tabular-nums">{typeof q.dividend_yield === 'number' ? `${q.dividend_yield.toFixed(2)}%` : '—'}</td>
+            <td className="px-3 py-2 text-right">{typeof q.profit_margins === 'number' ? <Change value={q.profit_margins} showArrow={false} /> : <span className="text-soft">—</span>}</td>
+            <td className="px-3 py-2 text-right tabular-nums">{q.pe_ratio ? fmt(q.pe_ratio, { decimals: 1 }) : '—'}</td>
+            <td className="px-3 py-2 text-right tabular-nums">{fmt(q.market_cap, { compact: true })}</td>
+            <td className="px-4 py-2 text-soft truncate">{q.sector || '—'}</td>
+          </>
+        )
+      case 'More':
+        return (
+          <>
+            {symbolCell}
+            <td className="px-3 py-2 text-right tabular-nums">{fmt(q.current_price, { decimals: 2 })}</td>
+            <td className="px-3 py-2 text-right"><Change value={q.return_1m} /></td>
+            <td className="px-3 py-2 text-right tabular-nums">{fmt(q.avg_volume || 0, { compact: true })}</td>
+            <td className="px-3 py-2 text-right tabular-nums">{fmt(q.market_cap, { compact: true })}</td>
+            <td className="px-3 py-2 text-right tabular-nums text-soft">{q.beta ? q.beta.toFixed(2) : '—'}</td>
+            <td className="px-3 py-2 text-right tabular-nums">{q['52w_high'] ? fmt(q['52w_high'], { decimals: 2 }) : '—'}</td>
+            <td className="px-3 py-2 text-right tabular-nums">{q['52w_low'] ? fmt(q['52w_low'], { decimals: 2 }) : '—'}</td>
+            <td className="px-4 py-2 text-soft truncate">{q.industry || '—'}</td>
+          </>
+        )
+      default: // Overview
+        return (
+          <>
+            {symbolCell}
+            <td className="px-3 py-2 text-right tabular-nums">{fmt(q.current_price, { decimals: 2 })}</td>
+            <td className="px-3 py-2 text-right"><Change value={q.return_1m} /></td>
+            <td className="px-3 py-2 text-right tabular-nums">{fmt(q.avg_volume || 0, { compact: true })}</td>
+            <td className="px-3 py-2 text-right tabular-nums text-soft">{q.volume_ratio ? q.volume_ratio.toFixed(2) : '—'}</td>
+            <td className="px-3 py-2 text-right tabular-nums">{fmt(q.market_cap, { compact: true })}</td>
+            <td className="px-3 py-2 text-right tabular-nums">{q.pe_ratio ? fmt(q.pe_ratio, { decimals: 2 }) : '—'}</td>
+            <td className="px-3 py-2 text-right tabular-nums">{q.pe_ratio ? fmt(q.current_price / q.pe_ratio, { decimals: 2 }) : '—'}</td>
+            <td className="px-3 py-2 text-right">{typeof q.revenue_growth === 'number' ? <Change value={q.revenue_growth * 100} showArrow={false} /> : <span className="text-soft">—</span>}</td>
+            <td className="px-3 py-2 text-right tabular-nums text-soft">{typeof q.dividend_yield === 'number' ? `${(q.dividend_yield * 100).toFixed(2)}%` : '—'}</td>
+            <td className="px-4 py-2 text-soft truncate">{q.sector || '—'}</td>
+          </>
+        )
+    }
+  }
+
+  // Column count for empty/loading states
+  const colCount = activeTab === 'Dividends' ? 7 : activeTab === 'Performance' ? 8 : activeTab === 'Valuation' ? 9 : 11
+
   return (
     <PageShell
       title="Live Market Terminal"
@@ -65,16 +240,15 @@ export default function MarketPage() {
             const adv = results.filter((x: any) => (x.return_1m || 0) >= 0).length
             const pct = Math.round((adv / results.length) * 100)
             return (
-              <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-ai/[0.05] text-xs">
-                <iconify-icon icon="solar:magic-stick-3-linear" width="13" class="text-ai-bright shrink-0"></iconify-icon>
-                <span className="text-soft truncate">
-                  Breadth {pct >= 50 ? 'positive' : 'negative'}: {adv}/{results.length} advancing ({pct}%).
+              <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-surface text-xs">
+                <span className="text-muted truncate">
+                  Breadth: {adv} of {results.length} advancing ({pct}%)
                 </span>
                 <Link
                   href={`/ai-analyst?q=${encodeURIComponent("Summarize today's market")}`}
-                  className="ml-auto shrink-0 text-ai-bright font-semibold hover:underline"
+                  className="ml-auto shrink-0 text-primary hover:underline"
                 >
-                  Full AI brief →
+                  Market summary
                 </Link>
               </div>
             )
@@ -88,11 +262,43 @@ export default function MarketPage() {
               <option value="MID_CAP">Mid Cap</option>
               <option value="SMALL_CAP">Small Cap</option>
             </select>
-            {['Watchlist', 'Index', 'Price', 'Chg %', 'Mkt cap', 'P/E', 'EPS dil growth', 'Div yield %', 'Sector'].map(f => (
-              <button key={f} className="flex items-center gap-1 px-2 py-1 rounded bg-transparent border border-transparent hover:bg-white/5 text-soft transition-colors">
-                {f} <iconify-icon icon="solar:alt-arrow-down-linear"></iconify-icon>
+
+            {/* Sector filter dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowSectorDropdown((v) => !v)}
+                className={`flex items-center gap-1 px-2 py-1 rounded border transition-colors ${
+                  sectorFilter !== 'All'
+                    ? 'bg-primary/10 border-primary/30 text-primary'
+                    : 'bg-transparent border-transparent hover:bg-white/5 text-soft'
+                }`}
+              >
+                Sector{sectorFilter !== 'All' ? `: ${sectorFilter}` : ''}
+                <iconify-icon icon="solar:alt-arrow-down-linear"></iconify-icon>
               </button>
-            ))}
+              {showSectorDropdown && (
+                <div className="absolute top-full left-0 mt-1 bg-surface border border-border rounded-lg shadow-xl z-50 min-w-[180px] py-1">
+                  {SECTOR_OPTIONS.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => { setSectorFilter(s); setShowSectorDropdown(false) }}
+                      className={`w-full text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${sectorFilter === s ? 'text-primary font-medium' : 'text-foreground'}`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {sectorFilter !== 'All' && (
+              <button
+                onClick={() => setSectorFilter('All')}
+                className="text-xs text-muted hover:text-foreground transition-colors"
+              >
+                Clear filters ×
+              </button>
+            )}
           </div>
 
           {/* Tab Bar */}
@@ -108,28 +314,16 @@ export default function MarketPage() {
           <div className="flex-1 overflow-auto bg-[#131722]">
             <table className="w-full text-left border-collapse">
               <thead className="sticky top-0 bg-[#131722] z-10 shadow-sm border-b border-border text-[11px] text-soft uppercase tracking-wider">
-                <tr>
-                  <th className="px-4 py-2 font-medium w-64">Symbol</th>
-                  <Th k="current_price" label="Price" align="right" />
-                  <Th k="return_1m" label="Chg %" align="right" />
-                  <Th k="volume" label="Vol" align="right" />
-                  <th className="px-3 py-2 font-medium text-right">Rel vol</th>
-                  <Th k="market_cap" label="Mkt cap" align="right" />
-                  <Th k="pe_ratio" label="P/E" align="right" />
-                  <th className="px-3 py-2 font-medium text-right">EPS dil TTM</th>
-                  <th className="px-3 py-2 font-medium text-right">EPS growth</th>
-                  <th className="px-3 py-2 font-medium text-right">Div yield</th>
-                  <th className="px-4 py-2 font-medium">Sector</th>
-                </tr>
+                {renderHeaders()}
               </thead>
               <tbody className="text-[13px]">
                 {loading ? (
                   <tr>
-                    <td colSpan={11} className="px-4 py-10 text-center text-soft">Loading market data...</td>
+                    <td colSpan={colCount} className="px-4 py-10 text-center text-soft">Loading market data...</td>
                   </tr>
                 ) : results.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-4 py-10 text-center text-soft">No stocks match your criteria.</td>
+                    <td colSpan={colCount} className="px-4 py-10 text-center text-soft">No stocks match your criteria.</td>
                   </tr>
                 ) : results.map((q: any) => (
                   <tr 
@@ -137,25 +331,7 @@ export default function MarketPage() {
                     onClick={() => setSelectedSymbol(q)}
                     className={`border-b border-white/[0.03] hover:bg-white/[0.02] cursor-pointer transition-colors ${activeQuote?.symbol === q.symbol ? 'bg-white/[0.04]' : ''}`}
                   >
-                    <td className="px-4 py-2 flex items-center gap-2">
-                      <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[9px] font-bold overflow-hidden shrink-0">
-                        {q.symbol.charAt(0)}
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-foreground truncate">{q.symbol}</span>
-                        <span className="text-[11px] text-soft truncate">{q.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">{fmt(q.current_price, { decimals: 2 })}</td>
-                    <td className="px-3 py-2 text-right"><Change value={q.return_1m} /></td>
-                    <td className="px-3 py-2 text-right tabular-nums">{fmt(q.avg_volume || 0, { compact: true })}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-soft">{q.volume_ratio ? q.volume_ratio.toFixed(2) : '—'}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{fmt(q.market_cap, { compact: true })}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{q.pe_ratio ? fmt(q.pe_ratio, { decimals: 2 }) : '—'}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{q.pe_ratio ? fmt(q.current_price / q.pe_ratio, { decimals: 2 }) : '—'}</td>
-                    <td className="px-3 py-2 text-right">{typeof q.revenue_growth === 'number' ? <Change value={q.revenue_growth * 100} showArrow={false} /> : <span className="text-soft">—</span>}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-soft">{typeof q.dividend_yield === 'number' ? `${(q.dividend_yield * 100).toFixed(2)}%` : '—'}</td>
-                    <td className="px-4 py-2 text-soft truncate">{q.sector || '—'}</td>
+                    {renderRow(q)}
                   </tr>
                 ))}
               </tbody>
@@ -232,15 +408,11 @@ export default function MarketPage() {
               <div className="flex items-center gap-2 text-sm">
                 <Change value={activeQuote.return_1m} />
               </div>
-              <div className="mt-2 text-[11px] text-soft flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-bright ticker-live"></span> Market open
-              </div>
               <Link
                 href={`/ai-analyst?q=${encodeURIComponent(`Analyze ${activeQuote.symbol}`)}`}
-                className="mt-3 flex items-center justify-center gap-1.5 w-full h-8 rounded-md bg-ai/12 border border-ai/30 text-ai-bright text-xs font-bold hover:bg-ai/20 transition-colors"
+                className="mt-3 flex items-center justify-center w-full h-8 rounded border border-border text-soft hover:text-foreground hover:border-border-strong text-xs font-medium transition-colors"
               >
-                <iconify-icon icon="solar:magic-stick-3-linear" width="13"></iconify-icon>
-                Ask AI about {activeQuote.symbol}
+                Analyze {activeQuote.symbol}
               </Link>
             </div>
           )}
@@ -250,7 +422,7 @@ export default function MarketPage() {
             <div className="p-4 border-t border-border bg-[#1e222d] flex-1 overflow-y-auto min-h-[200px]">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-sm">News</h3>
-                <span className="text-xs text-soft hover:text-foreground cursor-pointer">More</span>
+                <Link href="/news-sentiment" className="text-xs text-soft hover:text-foreground cursor-pointer">More</Link>
               </div>
               <div className="space-y-4">
                 {news.map((n: any, i: number) => (
