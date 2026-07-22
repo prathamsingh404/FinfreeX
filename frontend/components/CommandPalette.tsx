@@ -18,7 +18,7 @@ export function openCommandPalette() {
 
 interface Entry {
   id: string
-  group: 'Ask AI' | 'Stocks' | 'Navigate' | 'Actions'
+  group: 'Research' | 'Stocks' | 'Navigate' | 'Actions'
   title: string
   hint?: string
   icon: string
@@ -114,10 +114,10 @@ export default function CommandPalette() {
       ? [
           {
             id: 'ask-ai',
-            group: 'Ask AI',
-            title: `Ask AI Analyst: “${q}”`,
-            hint: 'Six agents research it live',
-            icon: 'solar:magic-stick-3-linear',
+            group: 'Research',
+            title: `Analyze “${q}”`,
+            hint: 'Run the research assistant',
+            icon: 'solar:chart-square-linear',
             ai: true,
             run: (r) => r.push(`/ai-analyst?q=${encodeURIComponent(q)}`),
           },
@@ -125,10 +125,10 @@ export default function CommandPalette() {
       : [
           {
             id: 'ask-ai-empty',
-            group: 'Ask AI',
-            title: 'Ask the AI Analyst anything…',
-            hint: 'e.g. “Compare Nvidia vs AMD”',
-            icon: 'solar:magic-stick-3-linear',
+            group: 'Research',
+            title: 'Open the research assistant',
+            hint: 'e.g. “Analyze RELIANCE”',
+            icon: 'solar:chart-square-linear',
             ai: true,
             run: (r) => r.push('/ai-analyst'),
           },
@@ -231,19 +231,19 @@ export default function CommandPalette() {
 
   return (
     <div className="fixed inset-0 z-[200] flex items-start justify-center pt-[14vh] px-4" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm fade-in" onClick={() => setOpen(false)}></div>
+      <div className="absolute inset-0 bg-black/60 fade-in" onClick={() => setOpen(false)}></div>
 
-      <div className="relative w-full max-w-xl ai-beam-border fade-up">
-        <div className="rounded-[11px] bg-elevated overflow-hidden">
+      <div className="relative w-full max-w-xl fade-up">
+        <div className="rounded-lg bg-elevated border border-border-strong overflow-hidden">
           {/* Input */}
-          <div className="flex items-center gap-3 px-4 h-14 border-b border-border">
-            <iconify-icon icon="solar:magic-stick-3-linear" width="18" class="text-ai-bright"></iconify-icon>
+          <div className="flex items-center gap-3 px-4 border-b border-border" style={{ height: 52 }}>
+            <iconify-icon icon="solar:magnifer-linear" width="17" class="text-muted"></iconify-icon>
             <input
               ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={onInputKey}
-              placeholder="Search stocks, tools — or ask the AI anything…"
+              placeholder="Search stocks, pages or start an analysis"
               className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-muted"
               aria-label="Command palette search"
             />
@@ -258,7 +258,7 @@ export default function CommandPalette() {
               return (
                 <React.Fragment key={entry.id}>
                   {showHeader && (
-                    <div className="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted">
+                    <div className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
                       {entry.group}
                     </div>
                   )}
@@ -267,19 +267,13 @@ export default function CommandPalette() {
                     onClick={() => select(entry)}
                     onMouseMove={() => setActive(i)}
                     className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors cursor-pointer ${
-                      i === active ? (entry.ai ? 'bg-ai/12' : 'bg-white/[0.06]') : ''
+                      i === active ? 'bg-white/[0.05]' : ''
                     }`}
                   >
-                    <div
-                      className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 border ${
-                        entry.ai ? 'bg-ai/15 border-ai/30 text-ai-bright' : 'bg-white/[0.04] border-border text-soft'
-                      }`}
-                    >
+                    <div className="w-6 h-6 rounded flex items-center justify-center shrink-0 text-muted">
                       <iconify-icon icon={entry.icon} width="15"></iconify-icon>
                     </div>
-                    <span className={`text-sm font-medium truncate ${entry.ai ? 'text-ai-bright' : 'text-foreground'}`}>
-                      {entry.title}
-                    </span>
+                    <span className="text-sm text-foreground truncate">{entry.title}</span>
                     {entry.hint && <span className="text-xs text-muted truncate ml-auto shrink-0 max-w-[45%]">{entry.hint}</span>}
                     {i === active && <span className="kbd shrink-0">↵</span>}
                   </button>
@@ -295,9 +289,6 @@ export default function CommandPalette() {
           <div className="flex items-center gap-4 px-4 h-9 border-t border-border text-[10.5px] text-muted">
             <span className="flex items-center gap-1.5"><span className="kbd">↑</span><span className="kbd">↓</span> navigate</span>
             <span className="flex items-center gap-1.5"><span className="kbd">↵</span> select</span>
-            <span className="ml-auto flex items-center gap-1.5 text-ai-bright/70">
-              <iconify-icon icon="solar:magic-stick-3-linear" width="12"></iconify-icon> AI-powered
-            </span>
           </div>
         </div>
       </div>
