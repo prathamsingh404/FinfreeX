@@ -85,7 +85,7 @@ export default function AuthPage() {
       <div className="w-full max-w-md fade-up z-10">
         <div className="glass-panel rounded-2xl p-8 relative overflow-hidden">
           {/* Top accent line */}
-          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-emerald via-coral to-amber"></div>
+          <div className="absolute top-0 left-0 w-full h-[2px] bg-primary"></div>
 
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald shadow-lg shadow-emerald/20 mb-5 transition-all duration-500 hover:scale-110">
