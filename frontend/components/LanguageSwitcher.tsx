@@ -110,10 +110,10 @@ export default function LanguageSwitcher() {
     <div
       data-lang-root
       style={{ position: 'fixed', top: dropPos.top, right: dropPos.right, zIndex: 9999 }}
-      className="w-52 rounded-2xl border border-black/10 bg-white/95 backdrop-blur-xl shadow-2xl overflow-hidden"
+      className="w-52 rounded-xl border border-border bg-surface/95 backdrop-blur-xl shadow-2xl overflow-hidden text-foreground"
     >
-      <div className="px-3 pt-3 pb-2 border-b border-black/5">
-        <span className="text-[10px] text-black/40 uppercase tracking-widest font-mono font-semibold">Language</span>
+      <div className="px-3 pt-3 pb-2 border-b border-border">
+        <span className="text-[10px] text-muted uppercase tracking-widest font-mono font-semibold">Language</span>
       </div>
       <div className="max-h-72 overflow-y-auto py-1 scrollbar-hide">
         {LANGUAGES.map(lang => (
@@ -121,13 +121,13 @@ export default function LanguageSwitcher() {
             key={lang.code}
             onClick={() => selectLang(lang.code)}
             className={`w-full flex items-center gap-3 px-4 py-2.5 text-xs transition-colors text-left font-mono uppercase tracking-wider ${
-              lang.code === current ? 'bg-accent/10 text-accent font-semibold' : 'text-black/60 hover:bg-black/5 hover:text-black'
+              lang.code === current ? 'bg-primary/20 text-primary font-semibold' : 'text-soft hover:bg-white/5 hover:text-foreground'
             }`}
           >
             <span className="text-base leading-none">{lang.flag}</span>
             <span>{lang.label}</span>
             {lang.code === current && (
-              <svg className="w-3.5 h-3.5 text-accent ml-auto flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <svg className="w-3.5 h-3.5 text-primary ml-auto flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             )}
@@ -143,12 +143,12 @@ export default function LanguageSwitcher() {
       <button
         ref={btnRef}
         onClick={toggleOpen}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-black/10 bg-white hover:bg-black/[0.03] transition-all text-xs font-mono uppercase tracking-wider text-black/60"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-transparent hover:bg-white/5 transition-all text-xs font-mono uppercase tracking-wider text-soft hover:text-foreground"
         title="Change language"
       >
         <span className="text-base leading-none">{active.flag}</span>
         <span className="hidden sm:inline">{active.label}</span>
-        <svg className={`w-3 h-3 text-black/30 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className={`w-3 h-3 text-muted transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
       </button>
