@@ -10,7 +10,8 @@ import {
   fetchQuote, fetchIndices, fetchMovers, fetchFundamentals,
   fetchOHLCV, fetchScreener, fetchNews, fetchOptionsChain,
   fetchForex, fetchCrypto, fetchCommodities, fetchTechnicals,
-  fetchPortfolio, fetchPortfolioHoldings, fetchSectors,
+  fetchPortfolio, fetchPortfolioHoldings, fetchSectors, fetchTrades,
+  fetchBrokerLoginUrl, fetchBrokerHoldings,
   type Quote, type IndexData, type Candle, type Fundamental,
   type NewsItem, type OptionsChain, type ForexPair, type CryptoAsset,
   type CommodityAsset, type ScreenerResult, type MacroIndicator, fetchMacro
@@ -158,20 +159,31 @@ export function useCommodities(refreshMs = 30_000) {
 }
 
 /** Portfolio overview */
-export function usePortfolio(userId: string) {
+export function usePortfolio(refreshMs = 0) {
   return useAPI<any>(
-    () => fetchPortfolio(userId),
-    [userId]
+    fetchPortfolio,
+    [],
+    refreshMs
   )
 }
 
 /** Portfolio holdings */
-export function usePortfolioHoldings(userId: string) {
-  return useAPI<any>(
-    () => fetchPortfolioHoldings(userId),
-    [userId]
+export function usePortfolioHoldings() {
+  return useAPI<any[]>(
+    fetchPortfolioHoldings,
+    []
   )
 }
+
+/** Trade history */
+export function useTrades(refreshMs = 0) {
+  return useAPI<any[]>(
+    fetchTrades,
+    [],
+    refreshMs
+  )
+}
+
 
 /** Sectors */
 export function useSectors(refreshMs = 60_000) {
@@ -192,3 +204,14 @@ export function useMacro(refreshMs = 300_000) {
     refreshMs
   )
 }
+
+/** Broker Login URL */
+export function useBrokerLoginUrl() {
+  return useAPI<{ login_url: string }>(fetchBrokerLoginUrl, [])
+}
+
+/** Broker Holdings */
+export function useBrokerHoldings() {
+  return useAPI<any[]>(fetchBrokerHoldings, [])
+}
+
