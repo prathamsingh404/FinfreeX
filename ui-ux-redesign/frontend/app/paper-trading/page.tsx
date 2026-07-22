@@ -1,0 +1,244 @@
+'use client'
+
+import React, { useMemo, useState } from 'react'
+import PageShell from '@/components/PageShell'
+import { Card, SectionTitle, StatCard, Badge, Btn, Change, fmt } from '@/components/ui/kit'
+import { getAllQuotes } from '@/lib/mockData'
+
+interface Position {
+  symbol: string
+  qty: number
+  avgPrice: number
+}
+
+interface Trade {
+  id: string
+  type: 'BUY' | 'SELL'
+  symbol: string
+  qty: number
+  price: number
+  time: string
+}
+
+const START_CASH = 1_000_000
+
+export default function PaperTradingPage() {
+  const quotes = useMemo(() => getAllQuotes(), [])
+  const priceOf = (sym: string) => quotes.find((q) => q.symbol === sym)?.price ?? 0
+
+  const [cash, setCash] = useState(START_CASH)
+  const [positions, setPositions] = useState<Position[]>([
+    { symbol: 'RELIANCE', qty: 40, avgPrice: 2380 },
+    { symbol: 'INFY', qty: 60, avgPrice: 1490 },
+  ])
+  const [history, setHistory] = useState<Trade[]>([
+    { id: 't1', type: 'BUY', symbol: 'RELIANCE', qty: 40, price: 2380, time: '2d ago' },
+    { id: 't2', type: 'BUY', symbol: 'INFY', qty: 60, price: 1490, time: '3d ago' },
+  ])
+
+  const [symbol, setSymbol] = useState('RELIANCE')
+  const [tradeType, setTradeType] = useState<'BUY' | 'SELL'>('BUY')
+  const [quantity, setQuantity] = useState(10)
+  const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null)
+
+  const holdingsValue = positions.reduce((s, p) => s + priceOf(p.symbol) * p.qty, 0)
+  const costBasis = positions.reduce((s, p) => s + p.avgPrice * p.qty, 0)
+  const totalValue = cash + holdingsValue
+  const totalPnl = totalValue - START_CASH
+  const totalPnlPct = (totalPnl / START_CASH) * 100
+  const unrealized = holdingsValue - costBasis
+
+  function placeOrder(e: React.FormEvent) {
+    e.preventDefault()
+    setMsg(null)
+    const sym = symbol.toUpperCase().trim()
+    const price = priceOf(sym)
+    if (!price) {
+      setMsg({ tone: 'err', text: `Unknown symbol "${sym}". Try one from the universe.` })
+      return
+    }
+    if (quantity <= 0) return
+    const cost = price * quantity
+
+    if (tradeType === 'BUY') {
+      if (cost > cash) {
+        setMsg({ tone: 'err', text: 'Insufficient cash balance for this order.' })
+        return
+      }
+      setCash((c) => c - cost)
+      setPositions((prev) => {
+        const ex = prev.find((p) => p.symbol === sym)
+        if (ex) {
+          const newQty = ex.qty + quantity
+          const newAvg = (ex.qty * ex.avgPrice + cost) / newQty
+          return prev.map((p) => (p.symbol === sym ? { ...p, qty: newQty, avgPrice: newAvg } : p))
+        }
+        return [...prev, { symbol: sym, qty: quantity, avgPrice: price }]
+      })
+    } else {
+      const ex = positions.find((p) => p.symbol === sym)
+      if (!ex || ex.qty < quantity) {
+        setMsg({ tone: 'err', text: 'Not enough shares held to sell.' })
+        return
+      }
+      setCash((c) => c + cost)
+      setPositions((prev) =>
+        prev
+          .map((p) => (p.symbol === sym ? { ...p, qty: p.qty - quantity } : p))
+          .filter((p) => p.qty > 0),
+      )
+    }
+
+    setHistory((prev) => [
+      { id: `t-${Date.now()}`, type: tradeType, symbol: sym, qty: quantity, price, time: 'Just now' },
+      ...prev,
+    ])
+    setMsg({ tone: 'ok', text: `${tradeType} ${quantity} ${sym} @ ${fmt(price, { prefix: '₹' })}` })
+  }
+
+  return (
+    <PageShell
+      title="Paper Trading"
+      subtitle="Practice with a simulated ₹10L portfolio and live mock prices"
+      category="Tools"
+      icon="solar:wallet-money-bold-duotone"
+    >
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <StatCard label="Cash Balance" value={fmt(cash, { prefix: '₹', compact: true })} icon="solar:banknote-2-bold-duotone" hint="Settled capital" />
+        <StatCard label="Holdings Value" value={fmt(holdingsValue, { prefix: '₹', compact: true })} icon="solar:pie-chart-2-bold-duotone" hint="Current market value" />
+        <StatCard label="Net Worth" value={fmt(totalValue, { prefix: '₹', compact: true })} icon="solar:wallet-bold-duotone" hint="Cash + holdings" />
+        <StatCard label="Total P&L" value={fmt(totalPnl, { prefix: '₹', compact: true })} change={totalPnlPct} icon="solar:graph-up-bold-duotone" hint="Since inception" />
+      </div>
+
+      <div className="grid lg:grid-cols-12 gap-6">
+        <Card className="lg:col-span-8" pad={false}>
+          <div className="px-5 pt-5">
+            <SectionTitle title="Active Positions" subtitle={`${positions.length} holdings · unrealized ${fmt(unrealized, { prefix: '₹', compact: true })}`} />
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-soft border-b border-white/10">
+                  <th className="px-5 py-3 font-medium">Symbol</th>
+                  <th className="px-3 py-3 font-medium text-right">Qty</th>
+                  <th className="px-3 py-3 font-medium text-right">Avg</th>
+                  <th className="px-3 py-3 font-medium text-right">LTP</th>
+                  <th className="px-3 py-3 font-medium text-right">Value</th>
+                  <th className="px-5 py-3 font-medium text-right">P&L</th>
+                </tr>
+              </thead>
+              <tbody>
+                {positions.map((p) => {
+                  const ltp = priceOf(p.symbol)
+                  const val = ltp * p.qty
+                  const pnl = (ltp - p.avgPrice) * p.qty
+                  const pnlPct = ((ltp - p.avgPrice) / p.avgPrice) * 100
+                  return (
+                    <tr key={p.symbol} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                      <td className="px-5 py-3 font-semibold text-foreground">{p.symbol}</td>
+                      <td className="px-3 py-3 text-right tabular-nums">{p.qty}</td>
+                      <td className="px-3 py-3 text-right tabular-nums text-soft">{fmt(p.avgPrice, { prefix: '₹' })}</td>
+                      <td className="px-3 py-3 text-right tabular-nums">{fmt(ltp, { prefix: '₹' })}</td>
+                      <td className="px-3 py-3 text-right tabular-nums">{fmt(val, { prefix: '₹', compact: true })}</td>
+                      <td className="px-5 py-3 text-right"><Change value={pnlPct} /></td>
+                    </tr>
+                  )
+                })}
+                {positions.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-5 py-10 text-center text-soft">No open positions. Place an order to get started.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        <Card className="lg:col-span-4 h-fit">
+          <SectionTitle title="Order Ticket" subtitle="Simulated execution at mock LTP" />
+          {msg && (
+            <div className={`mb-4 rounded-lg px-3 py-2 text-xs border ${msg.tone === 'ok' ? 'bg-emerald/10 border-emerald/25 text-emerald-bright' : 'bg-coral/10 border-coral/25 text-coral'}`}>
+              {msg.text}
+            </div>
+          )}
+          <form onSubmit={placeOrder} className="space-y-4">
+            <label className="block">
+              <span className="block text-xs text-soft mb-1.5">Symbol</span>
+              <input
+                value={symbol}
+                onChange={(e) => setSymbol(e.target.value)}
+                className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-foreground uppercase outline-none focus:border-emerald-bright"
+              />
+            </label>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setTradeType('BUY')}
+                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${tradeType === 'BUY' ? 'border-emerald-bright text-emerald-bright bg-emerald/10' : 'border-white/10 text-soft'}`}>
+                Buy
+              </button>
+              <button type="button" onClick={() => setTradeType('SELL')}
+                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${tradeType === 'SELL' ? 'border-coral text-coral bg-coral/10' : 'border-white/10 text-soft'}`}>
+                Sell
+              </button>
+            </div>
+            <label className="block">
+              <span className="block text-xs text-soft mb-1.5">Quantity</span>
+              <input
+                type="number"
+                min={1}
+                value={quantity}
+                onChange={(e) => setQuantity(Number(e.target.value))}
+                className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-foreground outline-none focus:border-emerald-bright"
+              />
+            </label>
+            <div className="flex items-center justify-between text-xs text-soft">
+              <span>Est. value</span>
+              <span className="tabular-nums text-foreground">{fmt(priceOf(symbol.toUpperCase().trim()) * quantity, { prefix: '₹', compact: true })}</span>
+            </div>
+            <Btn type="submit" variant={tradeType === 'BUY' ? 'primary' : 'coral'} className="w-full justify-center">
+              Place {tradeType === 'BUY' ? 'Buy' : 'Sell'} Order
+            </Btn>
+          </form>
+        </Card>
+      </div>
+
+      <Card className="mt-6" pad={false}>
+        <div className="px-5 pt-5">
+          <SectionTitle title="Transaction History" subtitle={`${history.length} orders`} />
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-soft border-b border-white/10">
+                <th className="px-5 py-3 font-medium">Time</th>
+                <th className="px-3 py-3 font-medium">Type</th>
+                <th className="px-3 py-3 font-medium">Symbol</th>
+                <th className="px-3 py-3 font-medium text-right">Qty</th>
+                <th className="px-3 py-3 font-medium text-right">Price</th>
+                <th className="px-5 py-3 font-medium text-right">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((t) => (
+                <tr key={t.id} className="border-b border-white/5">
+                  <td className="px-5 py-3 text-soft">{t.time}</td>
+                  <td className="px-3 py-3">
+                    <Badge tone={t.type === 'BUY' ? 'emerald' : 'coral'}>{t.type}</Badge>
+                  </td>
+                  <td className="px-3 py-3 font-semibold text-foreground">{t.symbol}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{t.qty}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-soft">{fmt(t.price, { prefix: '₹' })}</td>
+                  <td className="px-5 py-3 text-right tabular-nums">{fmt(t.price * t.qty, { prefix: '₹', compact: true })}</td>
+                </tr>
+              ))}
+              {history.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-5 py-10 text-center text-soft">No transactions yet.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </PageShell>
+  )
+}
