@@ -19,23 +19,25 @@ export default function Header() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  const isPublicPage = pathname === '/' || pathname === '/about' || pathname === '/contact' || pathname === '/pricing' || pathname === '/auth'
+
+  if (!isPublicPage) return null
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 flex justify-center px-3 py-3">
       <div
-        className={`w-full max-w-6xl flex items-center justify-between px-4 sm:px-5 h-14 rounded-md transition-all duration-200 ${
-          scrolled ? 'bg-surface border border-border' : 'bg-surface/80 border border-transparent'
+        className={`w-full max-w-6xl flex items-center justify-between px-4 sm:px-5 h-14 rounded-md transition-colors duration-200 ${
+          scrolled ? 'bg-surface border border-border' : 'bg-surface/90 border border-transparent'
         }`}
       >
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group shrink-0 pl-10 lg:pl-0">
-          <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center transition-transform group-hover:scale-105">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+        <Link href="/" className="flex items-center gap-2.5 shrink-0 pl-10 lg:pl-0">
+          <div className="w-7 h-7 rounded bg-primary flex items-center justify-center">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 3v18h18" /><path d="m19 9-5 5-4-4-3 3" />
             </svg>
           </div>
-          <span className="text-sm font-extrabold tracking-tight text-foreground">
-            Finfree<span className="text-primary">X</span>
-          </span>
+          <span className="text-sm font-semibold tracking-tight text-foreground">FinfreeX</span>
         </Link>
 
         {/* Nav links */}
@@ -46,8 +48,8 @@ export default function Header() {
               <Link
                 key={link.route}
                 href={link.route}
-                className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors ${
-                  active ? 'text-primary bg-primary/10' : 'text-soft hover:text-foreground hover:bg-white/[0.05]'
+                className={`px-3 py-1.5 rounded text-[13px] transition-colors ${
+                  active ? 'text-foreground bg-white/[0.06]' : 'text-soft hover:text-foreground hover:bg-white/[0.04]'
                 }`}
               >
                 {link.title}
