@@ -42,7 +42,7 @@ const PricingPage = () => {
 
         {/* Pro Plan */}
         <div className="glass-panel p-8 rounded-3xl relative flex flex-col border-emerald/30 transform md:-translate-y-4">
-          <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-emerald to-coral rounded-t-3xl"></div>
+          <div className="absolute top-0 right-0 left-0 h-1 bg-primary rounded-t-3xl"></div>
           <div className="absolute -top-3 right-8 px-3 py-1 bg-emerald rounded-full text-[10px] font-bold tracking-widest uppercase text-[#04120C] shadow-lg">
             Most Popular
           </div>
