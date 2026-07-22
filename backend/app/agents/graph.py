@@ -6,6 +6,7 @@ from app.agents.specialist.technical import analyze_technicals
 from app.agents.specialist.sentiment import analyze_sentiment_agent
 from app.agents.specialist.valuation import analyze_valuation
 from app.agents.specialist.macro import analyze_macro
+from app.agents.specialist.risk import analyze_risk
 
 from app.agents.personas.buffett import evaluate_buffett
 from app.agents.personas.jhunjhunwala import evaluate_jhunjhunwala
@@ -74,7 +75,8 @@ async def run_analysis_stream(
         "Technical Momentum Specialist": analyze_technicals(state),
         "Sentiment & Flow Specialist": analyze_sentiment_agent(state),
         "Valuation Model Specialist": analyze_valuation(state),
-        "Macro Regime Specialist": analyze_macro(state)
+        "Macro Regime Specialist": analyze_macro(state),
+        "Risk Specialist": analyze_risk(state)
     }
     
     # Resolve specialist tasks
