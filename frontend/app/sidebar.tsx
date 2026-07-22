@@ -8,34 +8,19 @@ import { openCommandPalette } from '@/components/CommandPalette'
 
 export { NAV as features } from '@/lib/nav'
 
-function NavLink({ item, accent, onNavigate }: { item: NavItem; accent?: 'ai'; onNavigate: () => void }) {
+function NavLink({ item, onNavigate }: { item: NavItem; onNavigate: () => void }) {
   const pathname = usePathname()
   const isActive = pathname === item.route
-  const activeCls =
-    accent === 'ai'
-      ? 'bg-ai/12 text-ai-bright'
-      : 'bg-primary/12 text-primary'
   return (
     <li>
       <Link
         href={item.route}
         onClick={onNavigate}
-        className={`flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-[13px] font-medium transition-colors relative ${
-          isActive ? activeCls : 'text-soft hover:text-foreground hover:bg-white/[0.04]'
+        className={`flex items-center gap-2.5 px-2.5 py-[7px] rounded text-[13px] transition-colors ${
+          isActive ? 'bg-white/[0.06] text-foreground font-medium' : 'text-soft hover:text-foreground hover:bg-white/[0.03]'
         }`}
       >
-        {isActive && (
-          <span
-            className={`absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full ${
-              accent === 'ai' ? 'bg-ai' : 'bg-primary'
-            }`}
-          ></span>
-        )}
-        <iconify-icon
-          icon={item.icon}
-          width="16"
-          class={isActive ? (accent === 'ai' ? 'text-ai-bright' : 'text-primary') : 'text-muted'}
-        ></iconify-icon>
+        <iconify-icon icon={item.icon} width="16" class={isActive ? 'text-foreground' : 'text-muted'}></iconify-icon>
         {item.title}
       </Link>
     </li>
@@ -51,23 +36,17 @@ function Group({ group, onNavigate }: { group: NavGroup; onNavigate: () => void 
 
   return (
     <div>
-      <h4 className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase mb-1.5 px-2 text-muted">
-        {group.accent === 'ai' && <span className="w-1.5 h-1.5 rounded-full bg-ai agent-pulse"></span>}
-        {group.category}
-      </h4>
+      <h4 className="text-[10px] font-semibold tracking-wider uppercase mb-1.5 px-2 text-muted">{group.category}</h4>
       <ul className="space-y-px">
         {core.map((item) => (
-          <NavLink key={item.route} item={item} accent={group.accent} onNavigate={onNavigate} />
+          <NavLink key={item.route} item={item} onNavigate={onNavigate} />
         ))}
-        {showPro &&
-          pro.map((item) => (
-            <NavLink key={item.route} item={item} accent={group.accent} onNavigate={onNavigate} />
-          ))}
+        {showPro && pro.map((item) => <NavLink key={item.route} item={item} onNavigate={onNavigate} />)}
         {pro.length > 0 && (
           <li>
             <button
               onClick={() => setShowPro((v) => !v)}
-              className="w-full flex items-center gap-2.5 px-2.5 py-[6px] rounded-md text-xs font-medium text-muted hover:text-soft hover:bg-white/[0.03] transition-colors cursor-pointer"
+              className="w-full flex items-center gap-2.5 px-2.5 py-[6px] rounded text-xs text-muted hover:text-soft hover:bg-white/[0.03] transition-colors cursor-pointer"
             >
               <iconify-icon
                 icon={showPro ? 'solar:alt-arrow-up-linear' : 'solar:alt-arrow-down-linear'}
@@ -107,16 +86,14 @@ export default function Sidebar() {
         }`}
       >
         {/* Brand */}
-        <Link href="/" className="h-16 flex items-center px-5 shrink-0 border-b border-border group">
+        <Link href="/" className="h-16 flex items-center px-5 shrink-0 border-b border-border">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+            <div className="w-7 h-7 rounded bg-primary flex items-center justify-center">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 3v18h18" /><path d="m19 9-5 5-4-4-3 3" />
               </svg>
             </div>
-            <span className="text-sm font-extrabold tracking-tight text-foreground">
-              Finfree<span className="text-primary">X</span>
-            </span>
+            <span className="text-sm font-semibold tracking-tight text-foreground">FinfreeX</span>
           </div>
         </Link>
 
@@ -127,10 +104,10 @@ export default function Sidebar() {
               close()
               openCommandPalette()
             }}
-            className="w-full flex items-center gap-2 px-3 h-9 rounded-md bg-white/[0.04] border border-border hover:border-border-strong text-left transition-colors cursor-pointer group"
+            className="w-full flex items-center gap-2 px-2.5 h-8 rounded bg-white/[0.03] border border-border hover:border-border-strong text-left transition-colors cursor-pointer group"
           >
-            <iconify-icon icon="solar:magnifer-linear" width="15" class="text-muted"></iconify-icon>
-            <span className="text-xs text-muted group-hover:text-soft flex-1">Search anything…</span>
+            <iconify-icon icon="solar:magnifer-linear" width="14" class="text-muted"></iconify-icon>
+            <span className="text-xs text-muted group-hover:text-soft flex-1">Search</span>
             <span className="kbd">Ctrl</span>
             <span className="kbd">K</span>
           </button>
@@ -143,17 +120,14 @@ export default function Sidebar() {
           ))}
         </nav>
 
-        {/* Status */}
         <div className="p-3 border-t border-border shrink-0">
-          <div className="flex items-center gap-3 bg-white/[0.03] p-3 rounded-md border border-border">
-            <div className="w-8 h-8 rounded-md bg-emerald/15 flex items-center justify-center text-emerald shrink-0">
-              <span className="w-2 h-2 rounded-full bg-emerald ticker-live"></span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[10px] text-muted">Market Data</div>
-              <div className="text-xs font-semibold text-emerald truncate">Live · Streaming</div>
-            </div>
-          </div>
+          <Link
+            href="/docs"
+            className="flex items-center gap-2 px-2 py-1.5 rounded text-xs text-muted hover:text-soft hover:bg-white/[0.03] transition-colors"
+          >
+            <iconify-icon icon="solar:book-2-linear" width="14"></iconify-icon>
+            Documentation
+          </Link>
         </div>
       </aside>
     </>
