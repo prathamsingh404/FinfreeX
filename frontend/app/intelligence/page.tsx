@@ -173,7 +173,7 @@ export default function IntelligencePage() {
             {loading && (
               <Card className="border-border">
                 <div className="flex items-center gap-3 text-soft text-sm">
-                  <span className="w-2 h-2 rounded-full bg-primary ticker-live" />
+                  <span className="w-2 h-2 rounded-full bg-primary" />
                   Aggregating market data and sentiment signals…
                 </div>
               </Card>
