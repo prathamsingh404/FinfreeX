@@ -6,11 +6,8 @@ import { usePortfolio, usePortfolioHoldings } from '@/lib/hooks/useMarketData'
 import { useAuth } from '@/context/AuthContext'
 
 export default function PortfolioAnalyzerPage() {
-  const { user } = useAuth()
-  const userId = user?.id || 'demo-user-123'
-
-  const { data: portfolioData, loading: pfLoading } = usePortfolio(userId)
-  const { data: holdingsData, loading: holdingsLoading } = usePortfolioHoldings(userId)
+  const { data: portfolioData, loading: pfLoading } = usePortfolio()
+  const { data: holdingsData, loading: holdingsLoading } = usePortfolioHoldings()
 
   const p = portfolioData || { totalValue: 0, totalPnl: 0, totalPnlPct: 0, dayChange: 0 }
   const holdings = holdingsData || []

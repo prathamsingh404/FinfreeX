@@ -3,112 +3,63 @@
 import React, { useState } from 'react'
 import PageShell from '@/components/PageShell'
 import { Card, SectionTitle, StatCard, Badge, Btn, Change, fmt } from '@/components/ui/kit'
-import { useScreener, useQuote } from '@/lib/hooks/useMarketData'
-
-interface Position {
-  symbol: string
-  qty: number
-  avgPrice: number
-}
-
-interface Trade {
-  id: string
-  type: 'BUY' | 'SELL'
-  symbol: string
-  qty: number
-  price: number
-  time: string
-}
-
-const START_CASH = 1_000_000
+import { usePortfolio, usePortfolioHoldings, useTrades, useQuote } from '@/lib/hooks/useMarketData'
+import { executeTrade } from '@/lib/api'
 
 export default function PaperTradingPage() {
-  const { data: screenerData } = useScreener({ universe: 'ALL' })
-  
-  const [cash, setCash] = useState(START_CASH)
-  const [positions, setPositions] = useState<Position[]>([
-    { symbol: 'RELIANCE', qty: 40, avgPrice: 2380 },
-    { symbol: 'INFY', qty: 60, avgPrice: 1490 },
-  ])
-  const [history, setHistory] = useState<Trade[]>([
-    { id: 't1', type: 'BUY', symbol: 'RELIANCE', qty: 40, price: 2380, time: '2d ago' },
-    { id: 't2', type: 'BUY', symbol: 'INFY', qty: 60, price: 1490, time: '3d ago' },
-  ])
+  const { data: portfolioData, refetch: refetchPortfolio } = usePortfolio(15_000) // auto-refresh portfolio summary every 15s
+  const { data: holdingsData, refetch: refetchHoldings } = usePortfolioHoldings()
+  const { data: tradesData, refetch: refetchTrades } = useTrades()
 
   const [symbol, setSymbol] = useState('RELIANCE')
   const [tradeType, setTradeType] = useState<'BUY' | 'SELL'>('BUY')
   const [quantity, setQuantity] = useState(10)
   const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null)
+  const [loadingOrder, setLoadingOrder] = useState(false)
 
   // Fetch live quote for the symbol currently being traded
   const { data: activeQuote } = useQuote(symbol.toUpperCase().trim())
 
-  // Helper to get price from active quote or screener data
-  const priceOf = (sym: string) => {
-    if (sym === symbol.toUpperCase().trim() && activeQuote) {
-      return activeQuote.current_price
-    }
-    const fromScreener = screenerData?.find((q: any) => q.symbol === sym)
-    if (fromScreener) return fromScreener.current_price
-    
-    // Fallback to average price if we can't find live data, so PnL doesn't break
-    const pos = positions.find(p => p.symbol === sym)
-    return pos ? pos.avgPrice : 0
-  }
+  const pf = portfolioData || { totalValue: 1000000.0, totalPnl: 0.0, totalPnlPct: 0.0, cash: 1000000.0, investedValue: 0.0 }
+  const positions = holdingsData || []
+  const history = tradesData || []
 
-  const holdingsValue = positions.reduce((s, p) => s + priceOf(p.symbol) * p.qty, 0)
-  const costBasis = positions.reduce((s, p) => s + p.avgPrice * p.qty, 0)
-  const totalValue = cash + holdingsValue
-  const totalPnl = totalValue - START_CASH
-  const totalPnlPct = (totalPnl / START_CASH) * 100
-  const unrealized = holdingsValue - costBasis
+  const activePrice = activeQuote?.current_price || 0
+  const unrealized = positions.reduce((s, p) => s + (p.pnl || 0), 0)
 
-  function placeOrder(e: React.FormEvent) {
+  async function placeOrder(e: React.FormEvent) {
     e.preventDefault()
     setMsg(null)
     const sym = symbol.toUpperCase().trim()
-    const price = priceOf(sym)
-    if (!price) {
-      setMsg({ tone: 'err', text: `Live price for "${sym}" not found. Try an NSE symbol (e.g. RELIANCE, TCS).` })
+    if (!sym) {
+      setMsg({ tone: 'err', text: 'Please enter a valid stock symbol.' })
       return
     }
-    if (quantity <= 0) return
-    const cost = price * quantity
-
-    if (tradeType === 'BUY') {
-      if (cost > cash) {
-        setMsg({ tone: 'err', text: 'Insufficient cash balance for this order.' })
-        return
-      }
-      setCash((c) => c - cost)
-      setPositions((prev) => {
-        const ex = prev.find((p) => p.symbol === sym)
-        if (ex) {
-          const newQty = ex.qty + quantity
-          const newAvg = (ex.qty * ex.avgPrice + cost) / newQty
-          return prev.map((p) => (p.symbol === sym ? { ...p, qty: newQty, avgPrice: newAvg } : p))
-        }
-        return [...prev, { symbol: sym, qty: quantity, avgPrice: price }]
-      })
-    } else {
-      const ex = positions.find((p) => p.symbol === sym)
-      if (!ex || ex.qty < quantity) {
-        setMsg({ tone: 'err', text: 'Not enough shares held to sell.' })
-        return
-      }
-      setCash((c) => c + cost)
-      setPositions((prev) =>
-        prev
-          .map((p) => (p.symbol === sym ? { ...p, qty: p.qty - quantity } : p))
-          .filter((p) => p.qty > 0),
-      )
+    if (quantity <= 0) {
+      setMsg({ tone: 'err', text: 'Quantity must be greater than zero.' })
+      return
     }
 
-    setHistory((prev) => [
-      { id: `t-${Date.now()}`, type: tradeType, symbol: sym, qty: quantity, price, time: new Date().toLocaleTimeString() },
-      ...prev,
-    ])
-    setMsg({ tone: 'ok', text: `${tradeType} ${quantity} ${sym} @ ${fmt(price, { prefix: '₹' })}` })
+    setLoadingOrder(true)
+    try {
+      const res = await executeTrade(sym, 'NSE', tradeType, quantity)
+      if (res.error) {
+        setMsg({ tone: 'err', text: res.error })
+      } else {
+        setMsg({
+          tone: 'ok',
+          text: `Success! ${tradeType === 'BUY' ? 'Bought' : 'Sold'} ${quantity} ${sym} @ ₹${fmt(res.price)}`,
+        })
+        // Trigger refreshes
+        refetchPortfolio()
+        refetchHoldings()
+        refetchTrades()
+      }
+    } catch (err: any) {
+      setMsg({ tone: 'err', text: err.message || 'Failed to execute trade.' })
+    } finally {
+      setLoadingOrder(false)
+    }
   }
 
   return (
@@ -119,10 +70,10 @@ export default function PaperTradingPage() {
       icon="solar:wallet-money-bold-duotone"
     >
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Cash Balance" value={fmt(cash, { prefix: '₹', compact: true })} icon="solar:banknote-2-bold-duotone" hint="Settled capital" />
-        <StatCard label="Holdings Value" value={fmt(holdingsValue, { prefix: '₹', compact: true })} icon="solar:pie-chart-2-bold-duotone" hint="Current market value" />
-        <StatCard label="Net Worth" value={fmt(totalValue, { prefix: '₹', compact: true })} icon="solar:wallet-bold-duotone" hint="Cash + holdings" />
-        <StatCard label="Total P&L" value={fmt(totalPnl, { prefix: '₹', compact: true })} change={totalPnlPct} icon="solar:graph-up-bold-duotone" hint="Since inception" />
+        <StatCard label="Cash Balance" value={fmt(pf.cash, { prefix: '₹', compact: true })} icon="solar:banknote-2-bold-duotone" hint="Settled capital" />
+        <StatCard label="Holdings Value" value={fmt(pf.investedValue, { prefix: '₹', compact: true })} icon="solar:pie-chart-2-bold-duotone" hint="Current market value" />
+        <StatCard label="Net Worth" value={fmt(pf.totalValue, { prefix: '₹', compact: true })} icon="solar:wallet-bold-duotone" hint="Cash + holdings" />
+        <StatCard label="Total P&L" value={fmt(pf.totalPnl, { prefix: '₹', compact: true })} change={pf.totalPnlPct} icon="solar:graph-up-bold-duotone" hint="Since inception" />
       </div>
 
       <div className="grid lg:grid-cols-12 gap-6">
@@ -143,22 +94,24 @@ export default function PaperTradingPage() {
                 </tr>
               </thead>
               <tbody>
-                {positions.map((p) => {
-                  const ltp = priceOf(p.symbol)
-                  const val = ltp * p.qty
-                  const pnl = (ltp - p.avgPrice) * p.qty
-                  const pnlPct = ((ltp - p.avgPrice) / p.avgPrice) * 100
-                  return (
-                    <tr key={p.symbol} className="border-b border-border hover:bg-surface-2 transition-colors">
-                      <td className="px-5 py-3 font-semibold text-foreground">{p.symbol}</td>
-                      <td className="px-3 py-3 text-right tabular-nums">{p.qty}</td>
-                      <td className="px-3 py-3 text-right tabular-nums text-soft">{fmt(p.avgPrice, { prefix: '₹' })}</td>
-                      <td className="px-3 py-3 text-right tabular-nums">{ltp ? fmt(ltp, { prefix: '₹' }) : '...'}</td>
-                      <td className="px-3 py-3 text-right tabular-nums">{fmt(val, { prefix: '₹', compact: true })}</td>
-                      <td className="px-5 py-3 text-right"><Change value={pnlPct} /></td>
-                    </tr>
-                  )
-                })}
+                {positions.map((p) => (
+                  <tr key={p.symbol} className="border-b border-border hover:bg-surface-2 transition-colors">
+                    <td className="px-5 py-3 font-semibold text-foreground">
+                      <div>{p.symbol}</div>
+                      <div className="text-[10px] text-muted font-normal">{p.name || 'Stock'}</div>
+                    </td>
+                    <td className="px-3 py-3 text-right tabular-nums">{p.qty}</td>
+                    <td className="px-3 py-3 text-right tabular-nums text-soft">{fmt(p.avgPrice, { prefix: '₹' })}</td>
+                    <td className="px-3 py-3 text-right tabular-nums">{p.price ? fmt(p.price, { prefix: '₹' }) : '...'}</td>
+                    <td className="px-3 py-3 text-right tabular-nums">{fmt(p.value, { prefix: '₹', compact: true })}</td>
+                    <td className="px-5 py-3 text-right">
+                      <div className={(p.pnl || 0) >= 0 ? 'text-emerald-bright' : 'text-coral'}>
+                        {(p.pnl || 0) >= 0 ? '+' : ''}₹{fmt(Math.abs(p.pnl || 0), { compact: true })}
+                      </div>
+                      <Change value={p.pnlPct} showArrow={false} className="text-[11px]" />
+                    </td>
+                  </tr>
+                ))}
                 {positions.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-5 py-10 text-center text-soft">No open positions. Place an order to get started.</td>
@@ -208,14 +161,14 @@ export default function PaperTradingPage() {
             </label>
             <div className="flex items-center justify-between text-xs text-soft">
               <span>Live Price</span>
-              <span className="tabular-nums text-foreground">{priceOf(symbol.toUpperCase().trim()) ? fmt(priceOf(symbol.toUpperCase().trim()), { prefix: '₹' }) : 'Fetching...'}</span>
+              <span className="tabular-nums text-foreground">{activePrice ? fmt(activePrice, { prefix: '₹' }) : 'Fetching...'}</span>
             </div>
             <div className="flex items-center justify-between text-xs text-soft">
               <span>Est. order value</span>
-              <span className="tabular-nums text-foreground">{fmt(priceOf(symbol.toUpperCase().trim()) * quantity, { prefix: '₹', compact: true })}</span>
+              <span className="tabular-nums text-foreground">{fmt(activePrice * quantity, { prefix: '₹', compact: true })}</span>
             </div>
-            <Btn type="submit" variant={tradeType === 'BUY' ? 'primary' : 'coral'} className="w-full justify-center mt-2">
-              Place {tradeType === 'BUY' ? 'Buy' : 'Sell'} Order
+            <Btn type="submit" variant={tradeType === 'BUY' ? 'primary' : 'coral'} disabled={loadingOrder} className="w-full justify-center mt-2">
+              {loadingOrder ? 'Executing...' : `Place ${tradeType === 'BUY' ? 'Buy' : 'Sell'} Order`}
             </Btn>
           </form>
         </Card>
@@ -239,15 +192,17 @@ export default function PaperTradingPage() {
             </thead>
             <tbody>
               {history.map((t) => (
-                <tr key={t.id} className="border-b border-border hover:bg-surface-2 transition-colors">
-                  <td className="px-5 py-3 text-soft">{t.time}</td>
+                <tr key={t.id || t.executed_at} className="border-b border-border hover:bg-surface-2 transition-colors">
+                  <td className="px-5 py-3 text-soft">
+                    {t.executed_at ? new Date(t.executed_at).toLocaleString() : 'Just now'}
+                  </td>
                   <td className="px-3 py-3">
-                    <Badge tone={t.type === 'BUY' ? 'primary' : 'coral'}>{t.type}</Badge>
+                    <Badge tone={t.trade_type === 'BUY' ? 'primary' : 'coral'}>{t.trade_type}</Badge>
                   </td>
                   <td className="px-3 py-3 font-semibold text-foreground">{t.symbol}</td>
-                  <td className="px-3 py-3 text-right tabular-nums">{t.qty}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{t.quantity}</td>
                   <td className="px-3 py-3 text-right tabular-nums text-soft">{fmt(t.price, { prefix: '₹' })}</td>
-                  <td className="px-5 py-3 text-right tabular-nums">{fmt(t.price * t.qty, { prefix: '₹', compact: true })}</td>
+                  <td className="px-5 py-3 text-right tabular-nums">{fmt(t.total_value, { prefix: '₹', compact: true })}</td>
                 </tr>
               ))}
               {history.length === 0 && (
