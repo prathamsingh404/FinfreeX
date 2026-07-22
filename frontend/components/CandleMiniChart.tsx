@@ -33,7 +33,7 @@ export default function CandleMiniChart({
     setLoading(true);
 
     const chart = createChart(containerRef.current, {
-      layout: { background: { type: ColorType.Solid, color: 'transparent' }, textColor: 'rgba(255,255,255,0.4)', fontSize: 9, fontFamily: 'Inter, system-ui' },
+      layout: { background: { type: ColorType.Solid, color: 'transparent' }, textColor: 'rgba(255,255,255,0.4)', fontSize: 9, fontFamily: "'IBM Plex Mono', ui-monospace, monospace" },
       grid: { vertLines: { visible: false }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
       rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.08, bottom: 0.22 } },
       timeScale: { borderVisible: false, timeVisible: false, fixLeftEdge: true, fixRightEdge: true },
