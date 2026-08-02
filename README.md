@@ -10,7 +10,7 @@ PortAI is a full-stack AI-powered financial intelligence platform that brings th
 
 ---
 
-## Table of Contents
+## Table of Contents 
 
 - [Vision](#vision)
 - [Tech Stack](#tech-stack)
