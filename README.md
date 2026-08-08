@@ -12,10 +12,10 @@ PortAI is a full-stack AI-powered financial intelligence platform that brings th
 
 ## Table of Contents 
 
-- [Vision](#vision)
-- [Tech Stack](#tech-stack)
+- [Vision](#vision) 
+- [Tech Stack](#tech-stack) 
 - [Features](#features)
-  - [Markets & Live Data](#markets--live-data)
+  - [Markets & Live Data](#m arkets--live-data) 
   - [AI Intelligence Engine](#ai-intelligence-engine)
   - [Hedge Fund Dashboard — Stratton Engine](#hedge-fund-dashboard--stratton-engine)
   - [Technical Charts](#technical-charts)
