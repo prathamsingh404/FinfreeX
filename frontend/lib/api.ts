@@ -1,7 +1,6 @@
 import { supabase } from '@/lib/supabase'
 
-const IS_VERCEL = process.env.NEXT_PUBLIC_VERCEL_ENV !== undefined || process.env.VERCEL !== undefined;
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || (IS_VERCEL ? '' : 'http://localhost:8000')
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://backend-jet-mu-37.vercel.app'
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   let token: string | undefined
@@ -314,10 +313,115 @@ export async function fetchWatchlists(userId: string) {
   return apiFetch(`/api/watchlist?user_id=${userId}`)
 }
 
-/* ---------- Alerts ---------- */
+/* ---------- Alerts ----------
+   The backend scopes every alert to the caller's token, so none of these
+   take a user id. `fetchAlerts` keeps its old signature for callers that
+   still pass one; the argument is ignored. */
 
-export async function fetchAlerts(userId: string) {
-  return apiFetch(`/api/alerts?user_id=${userId}`)
+export interface PriceAlert {
+  id: string
+  symbol: string
+  exchange: string
+  condition: 'ABOVE' | 'BELOW'
+  target_value: number
+  status?: string
+  triggered_at?: string | null
+  created_at?: string
+}
+
+export async function fetchAlerts(_userId?: string): Promise<PriceAlert[]> {
+  return apiFetch(`/api/alerts`)
+}
+
+export async function createAlert(input: {
+  symbol: string
+  exchange?: string
+  condition: 'ABOVE' | 'BELOW'
+  target_value: number
+}): Promise<PriceAlert> {
+  return apiFetch(`/api/alerts`, {
+    method: 'POST',
+    body: JSON.stringify({ exchange: 'NSE', ...input }),
+  })
+}
+
+export async function deleteAlert(alertId: string): Promise<{ success: boolean }> {
+  return apiFetch(`/api/alerts/${alertId}`, { method: 'DELETE' })
+}
+
+/* ---------- Derived analytics ----------
+   Computed server-side from live prices and filings. These replace the
+   generated figures the feature pages used to read from lib/featureData. */
+
+export async function fetchCorrelation(period = '1y'): Promise<{
+  assets: string[]
+  matrix: (number | null)[][]
+  period: string
+  observations: number
+}> {
+  return apiFetch(`/api/analytics/correlation?period=${period}`)
+}
+
+export interface RotationRow {
+  sector: string
+  price: number
+  change_pct: number
+  week_change_pct: number
+  rs: number
+  momentum: number
+  phase: 'Leading' | 'Weakening' | 'Improving' | 'Lagging'
+  stale?: boolean
+}
+
+export async function fetchSectorRotation(): Promise<{
+  sectors: RotationRow[]
+  benchmark_day: number
+  benchmark_week: number
+}> {
+  return apiFetch(`/api/analytics/sector-rotation`)
+}
+
+export async function fetchRiskMetrics(symbol: string, exchange = 'NSE', period = '1y'): Promise<any> {
+  return apiFetch(`/api/analytics/risk?symbol=${encodeURIComponent(symbol)}&exchange=${exchange}&period=${period}`)
+}
+
+export async function fetchRatios(symbols: string[], exchange = 'NSE'): Promise<{ ratios: any[]; unavailable: string[] }> {
+  return apiFetch(`/api/analytics/ratios?symbols=${symbols.join(',')}&exchange=${exchange}`)
+}
+
+export async function fetchDividendBoard(symbols: string[], exchange = 'NSE'): Promise<{ dividends: any[]; unavailable: string[] }> {
+  return apiFetch(`/api/analytics/dividends?symbols=${symbols.join(',')}&exchange=${exchange}`)
+}
+
+export async function fetchInstruments(symbols: string[], exchange = 'US'): Promise<{ instruments: any[]; unavailable: string[] }> {
+  return apiFetch(`/api/analytics/instruments?symbols=${symbols.join(',')}&exchange=${exchange}`)
+}
+
+/* ---------- Telegram notifications ---------- */
+
+export interface NotificationSettings {
+  telegram_bot_token: string
+  telegram_chat_id: string
+  digest_frequency: 'hourly' | 'daily' | 'weekly' | 'off'
+  alert_on_price_trigger: boolean
+}
+
+export async function fetchNotificationSettings(): Promise<NotificationSettings> {
+  return apiFetch(`/api/notifications/settings`)
+}
+
+export async function saveNotificationSettings(
+  settings: NotificationSettings,
+): Promise<NotificationSettings> {
+  return apiFetch(`/api/notifications/settings`, {
+    method: 'PUT',
+    body: JSON.stringify(settings),
+  })
+}
+
+/** Sends a real message through the saved bot so the user can confirm it works. */
+export async function sendTelegramTest(): Promise<{ success: boolean }> {
+  return apiFetch(`/api/notifications/test`, { method: 'POST' })
 }
 
 /* ---------- Sectors ---------- */
