@@ -256,20 +256,20 @@ export default function AdvancedChart({ symbol, exchange = 'NSE', height = 480 }
   const stats = getLatestStats();
 
   return (
-    <div className="flex flex-col w-full bg-zinc-950 rounded-2xl border border-zinc-900 p-4 shadow-xl space-y-4">
+    <div className="flex flex-col w-full bg-surface rounded-2xl border border-border p-4 shadow-xl space-y-4">
       {/* Top Header Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-900 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-3">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-xl">
-            <span className="text-xs font-bold text-zinc-100 uppercase tracking-tight">{symbol}</span>
-            <span className="text-[9px] text-indigo-400 font-mono font-bold ml-1">{exchange}</span>
+          <div className="flex items-center gap-1 bg-surface border border-border px-3 py-1.5 rounded-xl">
+            <span className="text-xs font-bold text-foreground uppercase tracking-tight">{symbol}</span>
+            <span className="text-[9px] text-primary font-mono font-bold ml-1">{exchange}</span>
           </div>
           {latestVal && (
             <div className="flex flex-wrap items-center gap-3 text-[10px] font-mono select-none">
-              <span className="text-zinc-600">O: <span className={latestVal.close >= latestVal.open ? "text-emerald-400 font-medium" : "text-red-400 font-medium"}>{latestVal.open?.toFixed(2)}</span></span>
-              <span className="text-zinc-600">H: <span className="text-zinc-300">{latestVal.high?.toFixed(2)}</span></span>
-              <span className="text-zinc-600">L: <span className="text-zinc-300">{latestVal.low?.toFixed(2)}</span></span>
-              <span className="text-zinc-600">C: <span className={latestVal.close >= latestVal.open ? "text-emerald-400 font-bold" : "text-red-400 font-bold"}>{latestVal.close?.toFixed(2)}</span></span>
+              <span className="text-muted">O: <span className={latestVal.close >= latestVal.open ? "text-up font-medium" : "text-down font-medium"}>{latestVal.open?.toFixed(2)}</span></span>
+              <span className="text-muted">H: <span className="text-soft">{latestVal.high?.toFixed(2)}</span></span>
+              <span className="text-muted">L: <span className="text-soft">{latestVal.low?.toFixed(2)}</span></span>
+              <span className="text-muted">C: <span className={latestVal.close >= latestVal.open ? "text-up font-bold" : "text-down font-bold"}>{latestVal.close?.toFixed(2)}</span></span>
             </div>
           )}
         </div>
@@ -277,27 +277,27 @@ export default function AdvancedChart({ symbol, exchange = 'NSE', height = 480 }
         {/* Indicators and Timeframe Selectors */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Timeframes */}
-          <div className="flex bg-zinc-900/55 rounded-xl p-0.5 border border-zinc-900">
+          <div className="flex bg-surface/55 rounded-xl p-0.5 border border-border">
             {Object.keys(TIMEFRAME_MAP).map(tf => (
               <button key={tf} onClick={() => setTimeframe(tf)}
-                className={`px-2.5 py-1 text-[9px] font-mono rounded-lg font-bold uppercase transition-all ${timeframe === tf ? 'bg-zinc-800 text-indigo-400 border border-zinc-700/50 shadow-inner' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                className={`px-2.5 py-1 text-[9px] font-mono rounded-lg font-bold uppercase transition-all ${timeframe === tf ? 'bg-surface-2 text-primary border border-border/50 shadow-inner' : 'text-muted hover:text-soft'}`}>
                 {tf}
               </button>
             ))}
           </div>
 
           {/* Indicators */}
-          <div className="flex bg-zinc-900/55 rounded-xl p-0.5 border border-zinc-900">
+          <div className="flex bg-surface/55 rounded-xl p-0.5 border border-border">
             <button onClick={() => setShowBB(!showBB)}
-              className={`px-2.5 py-1 text-[9px] font-mono rounded-lg font-bold transition-all ${showBB ? 'bg-zinc-800 text-indigo-400 border border-zinc-700/50' : 'text-zinc-500 hover:text-zinc-300'}`}>
+              className={`px-2.5 py-1 text-[9px] font-mono rounded-lg font-bold transition-all ${showBB ? 'bg-surface-2 text-primary border border-border/50' : 'text-muted hover:text-soft'}`}>
               BB
             </button>
             <button onClick={() => setShowEMA20(!showEMA20)}
-              className={`px-2.5 py-1 text-[9px] font-mono rounded-lg font-bold transition-all ${showEMA20 ? 'bg-zinc-800 text-indigo-400 border border-zinc-700/50' : 'text-zinc-500 hover:text-zinc-300'}`}>
+              className={`px-2.5 py-1 text-[9px] font-mono rounded-lg font-bold transition-all ${showEMA20 ? 'bg-surface-2 text-primary border border-border/50' : 'text-muted hover:text-soft'}`}>
               EMA
             </button>
             <button onClick={() => setShowVolume(!showVolume)}
-              className={`px-2.5 py-1 text-[9px] font-mono rounded-lg font-bold transition-all ${showVolume ? 'bg-zinc-800 text-indigo-400 border border-zinc-700/50' : 'text-zinc-500 hover:text-zinc-300'}`}>
+              className={`px-2.5 py-1 text-[9px] font-mono rounded-lg font-bold transition-all ${showVolume ? 'bg-surface-2 text-primary border border-border/50' : 'text-muted hover:text-soft'}`}>
               Vol
             </button>
           </div>
@@ -305,10 +305,10 @@ export default function AdvancedChart({ symbol, exchange = 'NSE', height = 480 }
       </div>
 
       {/* Main Chart Canvas wrapper with relative layout */}
-      <div className="relative w-full overflow-hidden rounded-xl border border-zinc-900/80 bg-[#050508]" style={{ height: height }}>
+      <div className="relative w-full overflow-hidden rounded-xl border border-border/80 bg-[#050508]" style={{ height: height }}>
         {isLoading && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#050508]/85 backdrop-blur-md text-zinc-500 text-xs font-mono tracking-widest gap-2">
-            <span className="w-4 h-4 rounded-full border border-indigo-500 border-t-transparent animate-spin"></span>
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#050508]/85 backdrop-blur-md text-muted text-xs font-mono tracking-widest gap-2">
+            <span className="w-4 h-4 rounded-full border border-primary border-t-transparent animate-spin"></span>
             SYNCING BROKER PRICING LOGS...
           </div>
         )}
@@ -317,25 +317,25 @@ export default function AdvancedChart({ symbol, exchange = 'NSE', height = 480 }
 
       {/* Real-time Indicators Analysis HUD (SME Operational OS style) */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-zinc-900/20 border border-zinc-900 p-3 rounded-xl font-mono text-[10px] select-none text-zinc-500 leading-normal">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-surface/20 border border-border p-3 rounded-xl font-mono text-[10px] select-none text-muted leading-normal">
           <div className="space-y-0.5">
-            <span className="block text-zinc-600 font-bold uppercase tracking-wider">RSI (14)</span>
+            <span className="block text-muted font-bold uppercase tracking-wider">RSI (14)</span>
             <div className="flex items-center gap-1.5">
-              <span className={`font-bold text-xs ${stats.rsi > 70 ? 'text-red-400' : stats.rsi < 30 ? 'text-emerald-400' : 'text-zinc-200'}`}>{stats.rsi}</span>
-              <span className="text-[9px] text-zinc-600">({stats.rsi > 70 ? 'OVERBOUGHT' : stats.rsi < 30 ? 'OVERSOLD' : 'NEUTRAL'})</span>
+              <span className={`font-bold text-xs ${stats.rsi > 70 ? 'text-down' : stats.rsi < 30 ? 'text-up' : 'text-foreground'}`}>{stats.rsi}</span>
+              <span className="text-[9px] text-muted">({stats.rsi > 70 ? 'OVERBOUGHT' : stats.rsi < 30 ? 'OVERSOLD' : 'NEUTRAL'})</span>
             </div>
           </div>
           <div className="space-y-0.5">
-            <span className="block text-zinc-600 font-bold uppercase tracking-wider">EMA (20)</span>
-            <span className="font-bold text-xs text-zinc-200">₹{stats.ema.toFixed(2)}</span>
+            <span className="block text-muted font-bold uppercase tracking-wider">EMA (20)</span>
+            <span className="font-bold text-xs text-foreground">₹{stats.ema.toFixed(2)}</span>
           </div>
           <div className="space-y-0.5">
-            <span className="block text-zinc-600 font-bold uppercase tracking-wider">BB UPPER</span>
-            <span className="font-semibold text-xs text-zinc-400">₹{stats.upperBB.toFixed(2)}</span>
+            <span className="block text-muted font-bold uppercase tracking-wider">BB UPPER</span>
+            <span className="font-semibold text-xs text-soft">₹{stats.upperBB.toFixed(2)}</span>
           </div>
           <div className="space-y-0.5">
-            <span className="block text-zinc-600 font-bold uppercase tracking-wider">BB LOWER</span>
-            <span className="font-semibold text-xs text-zinc-400">₹{stats.lowerBB.toFixed(2)}</span>
+            <span className="block text-muted font-bold uppercase tracking-wider">BB LOWER</span>
+            <span className="font-semibold text-xs text-soft">₹{stats.lowerBB.toFixed(2)}</span>
           </div>
         </div>
       )}
