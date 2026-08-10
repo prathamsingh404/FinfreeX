@@ -1,144 +1,324 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ============================================================
-   FinfreeX Design System
-   Flat, institutional, restrained. Reference points: Koyfin,
-   Stripe Dashboard, Linear.
+   FinfreeX Design System v2
+   A quotation terminal, not a landing page.
 
-   Rules:
-   - No gradients. Anywhere.
-   - One accent (blue). Green/red are reserved for market values
-     and must never be used as decoration.
-   - No glows, beams, or decorative pulses.
-   - Depth comes from borders and surface steps, not shadow.
+   Reference points: Koyfin, Bloomberg Anywhere, Zerodha Kite.
+
+   House rules
+   - No gradients as color. Hairline rules and surface steps only.
+   - One accent (blue). Green/red belong to market values and are
+     never decoration.
+   - Prose is set in Inter Tight. Every number is IBM Plex Mono,
+     tabular, so columns align down the page.
+   - Instrument Serif appears only in marketing heroes. Never in
+     the terminal.
+   - Both themes are first-class. Nothing may hardcode a hex.
    ============================================================ */
 
-:root {
-  /* Canvas / neutrals */
-  --bg: #0b0d11;
-  --surface: #12151b;
-  --surface-2: #171b23;
-  --elevated: #1c212b;
-  --border: #232935;
-  --border-strong: #333c4d;
+/* ─────────────────────────────────────────────
+   Dark — the default working surface
+   ───────────────────────────────────────────── */
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* Canvas and surface steps */
+  --bg: #0a0d12;
+  --bg-deep: #070a0e;
+  --surface: #10141b;
+  --surface-2: #151a23;
+  --elevated: #1a202b;
+  --sunken: #0c1016;
+
+  /* Rules. Depth lives here, not in shadow. */
+  --border: #1e2531;
+  --border-strong: #2c3543;
+  --border-accent: #3a4657;
+
+  /* Interaction fills — theme-safe replacements for bg-white/x */
+  --hover: rgba(255, 255, 255, 0.035);
+  --hover-strong: rgba(255, 255, 255, 0.06);
+  --active: rgba(255, 255, 255, 0.08);
+  --overlay: rgba(4, 6, 10, 0.72);
+
+  /* Channel forms. Tailwind needs bare RGB channels to apply an opacity
+     modifier (bg-up/10), which a plain hex variable cannot support. */
+  --primary-rgb: 76 141 255;
+  --up-rgb: 38 169 107;
+  --down-rgb: 226 80 79;
+  --warn-rgb: 207 148 54;
 
   /* Accent — the only decorative color */
-  --primary: #3b7dfc;
-  --primary-dim: #1e4fb0;
+  --primary: #4c8dff;
+  --primary-hover: #6ba0ff;
+  --primary-dim: #1d4ed8;
+  --primary-wash: rgba(76, 141, 255, 0.12);
+  --primary-line: rgba(76, 141, 255, 0.32);
+  --on-primary: #060a12;
 
   /* Market values only */
-  --up: #22a06b;
-  --down: #e14b4b;
-  --warn: #c98a1e;
+  --up: #26a96b;
+  --up-bright: #34c281;
+  --up-wash: rgba(38, 169, 107, 0.12);
+  --down: #e2504f;
+  --down-bright: #f06b6a;
+  --down-wash: rgba(226, 80, 79, 0.12);
+  --warn: #cf9436;
+  --warn-wash: rgba(207, 148, 54, 0.12);
 
-  /* Aliases kept for existing components */
-  --emerald: #22a06b;
-  --emerald-bright: #2bbd80;
+  /* Legacy aliases kept so older components keep rendering */
+  --emerald: var(--up);
+  --emerald-bright: var(--up-bright);
   --emerald-dim: #17714b;
-  --coral: #e14b4b;
-  --coral-bright: #ef5f5f;
-  --amber: #c98a1e;
+  --coral: var(--down);
+  --coral-bright: var(--down-bright);
+  --amber: var(--warn);
 
   /* Text */
-  --text: #e8ecf2;
-  --text-soft: #98a2b3;
-  --text-muted: #667085;
+  --text: #e6eaf0;
+  --text-soft: #939cac;
+  --text-muted: #6b7484;
+  --text-faint: #4c5462;
 
+  /* Texture ink — what the background patterns are drawn in */
+  --texture: rgba(147, 156, 172, 0.10);
+  --texture-strong: rgba(147, 156, 172, 0.18);
+
+  --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-pop: 0 8px 28px -8px rgba(0, 0, 0, 0.65);
+}
+
+/* ─────────────────────────────────────────────
+   Light — paper, not glare. Warm-neutral canvas with
+   white panels so data reads as printed on a sheet.
+   ───────────────────────────────────────────── */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #f5f6f8;
+  --bg-deep: #eceef2;
+  --surface: #ffffff;
+  --surface-2: #f7f8fa;
+  --elevated: #ffffff;
+  --sunken: #f0f2f5;
+
+  --border: #e3e6ec;
+  --border-strong: #cdd3dd;
+  --border-accent: #b3bbc9;
+
+  --hover: rgba(15, 23, 42, 0.028);
+  --hover-strong: rgba(15, 23, 42, 0.05);
+  --active: rgba(15, 23, 42, 0.07);
+  --overlay: rgba(24, 30, 40, 0.34);
+
+  --primary-rgb: 31 95 216;
+  --up-rgb: 16 121 79;
+  --down-rgb: 194 47 46;
+  --warn-rgb: 154 106 18;
+
+  --primary: #1f5fd8;
+  --primary-hover: #1a51bb;
+  --primary-dim: #143f96;
+  --primary-wash: rgba(31, 95, 216, 0.08);
+  --primary-line: rgba(31, 95, 216, 0.26);
+  --on-primary: #ffffff;
+
+  /* Darkened so gains and losses stay legible on white */
+  --up: #10794f;
+  --up-bright: #0d6844;
+  --up-wash: rgba(16, 121, 79, 0.09);
+  --down: #c22f2e;
+  --down-bright: #a72422;
+  --down-wash: rgba(194, 47, 46, 0.09);
+  --warn: #9a6a12;
+  --warn-wash: rgba(154, 106, 18, 0.10);
+
+  --emerald: var(--up);
+  --emerald-bright: var(--up-bright);
+  --emerald-dim: #0b5638;
+  --coral: var(--down);
+  --coral-bright: var(--down-bright);
+  --amber: var(--warn);
+
+  --text: #101722;
+  --text-soft: #515c6b;
+  --text-muted: #78828f;
+  --text-faint: #a2aab5;
+
+  --texture: rgba(16, 23, 34, 0.055);
+  --texture-strong: rgba(16, 23, 34, 0.10);
+
+  --shadow-panel: 0 1px 2px rgba(16, 23, 34, 0.05);
+  --shadow-pop: 0 10px 30px -10px rgba(16, 23, 34, 0.22);
+}
+
+/* ─────────────────────────────────────────────
+   Scale — shared by both themes
+   ───────────────────────────────────────────── */
+:root {
+  --radius-sm: 4px;
   --radius: 6px;
-  --radius-lg: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
 
-  /* Type scale */
+  /* Type scale. Terminal density: the working range is 11–14px. */
+  --fs-micro: 10px;
   --fs-xs: 11px;
-  --fs-sm: 12.5px;
-  --fs-base: 14px;
-  --fs-md: 16px;
-  --fs-lg: 20px;
-  --fs-xl: 26px;
-  --fs-2xl: 32px;
-  --fs-3xl: 42px;
+  --fs-sm: 12px;
+  --fs-base: 13px;
+  --fs-md: 15px;
+  --fs-lg: 19px;
+  --fs-xl: 25px;
+  --fs-2xl: 33px;
+  --fs-3xl: 44px;
+  --fs-hero: 60px;
 
-  /* Motion — short and functional */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --dur-fast: 120ms;
-  --dur-base: 180ms;
+  --dur-base: 200ms;
+  --dur-slow: 420ms;
+
+  /* Height of the fixed global header — panels offset from it */
+  --header-h: 56px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { background: var(--bg); }
+html {
+  background: var(--bg);
+  -webkit-text-size-adjust: 100%;
+}
 
 body {
-  font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv05' 1, 'ss03' 1;
   line-height: 1.5;
   font-size: var(--fs-base);
+  letter-spacing: -0.005em;
+  transition: background-color var(--dur-base) ease, color var(--dur-base) ease;
 }
 
-/* The house rule: prose is set in sans, every number is tabular mono.
-   Quotes, changes, tickers and metrics all read like a quotation page. */
+/* Theme switch should not animate every rule on the page */
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition: none !important;
+}
+
+/* ─────────────────────────────────────────────
+   Typography
+   ───────────────────────────────────────────── */
+
+/* The house rule: prose in sans, every number in tabular mono, so
+   quotes, changes, tickers and ratios line up as a quotation page. */
 .tabular-nums,
 .font-mono,
+.num,
 table td.num,
 [data-num] {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
-/* ─── Scrollbar ─── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+/* Marketing only. Never inside the terminal. */
+.font-display {
+  font-family: 'Instrument Serif', 'Times New Roman', serif;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.04;
+}
+
+h1, h2, h3, h4 {
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+/* The structural device of this system: a micro-label that names
+   what a rail, panel or column contains. Used everywhere a human
+   needs to know what they are looking at without a heading. */
+.eyebrow {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+.label-sm {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+/* ─────────────────────────────────────────────
+   Scrollbars
+   ───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(152, 162, 179, 0.18); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(152, 162, 179, 0.34); }
-.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-.scrollbar-hide::-webkit-scrollbar { display: none; }
-.custom-scrollbar::-webkit-scrollbar { width: 5px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--border-accent); background-clip: padding-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+.scrollbar-hide, .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar, .no-scrollbar::-webkit-scrollbar { display: none; }
+.custom-scrollbar::-webkit-scrollbar, .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+.custom-scrollbar::-webkit-scrollbar-thumb, .scrollbar-thin::-webkit-scrollbar-thumb { background: var(--border-strong); border: none; }
 
-/* ─── Surfaces ─── */
-.surface {
+/* ─────────────────────────────────────────────
+   Surfaces
+   ───────────────────────────────────────────── */
+.surface   { background: var(--surface);   border: 1px solid var(--border); border-radius: var(--radius); }
+.surface-2 { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); }
+.sunken    { background: var(--sunken);    border: 1px solid var(--border); border-radius: var(--radius); }
+
+/* Panel — the primary container. Depth from a rule and a hairline
+   shadow, never from a glow. */
+.panel {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-panel);
 }
-.surface-2 {
+
+/* The signature: an instrument rail across the top of every panel.
+   Micro-label left, live meta right, hairline underneath. */
+.panel-rail {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 34px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
   background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-.glass-panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  transition: border-color var(--dur-base) ease;
-}
-.glass-panel:hover { border-color: var(--border-strong); }
-
-.glass-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  transition: border-color var(--dur-base) ease;
-}
-.glass-card-elevated {
-  background: var(--elevated);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-}
-.premium-glass {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
-/* Panel used for analysis/assistant output — a surface step, not a glow */
+.panel-rail-flat {
+  border-radius: 0;
+  background: transparent;
+}
+
+/* Panel used for assistant/analysis output — a surface step and a
+   tick of accent on the leading edge, not a glow. */
 .panel-accent {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -146,43 +326,253 @@ table td.num,
   border-radius: var(--radius);
 }
 
-/* ─── Hover ─── */
-.card-hover { transition: border-color var(--dur-base) ease, background-color var(--dur-base) ease; }
-.card-hover:hover { border-color: var(--border-strong); }
-.card-lift { transition: border-color var(--dur-base) ease, background-color var(--dur-base) ease; }
-.card-lift:hover { border-color: var(--border-strong); background: var(--surface-2); }
-
-/* ─── Focus ─── */
-.focus-ring:focus-within {
-  border-color: var(--primary);
+/* Legacy class names kept so unmigrated pages still render correctly */
+.glass-panel, .glass-card, .premium-glass {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: border-color var(--dur-base) ease, background-color var(--dur-base) ease;
+}
+.glass-panel:hover { border-color: var(--border-strong); }
+.glass-card-elevated {
+  background: var(--elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
 }
 
-/* ─── Text ─── */
-.accent-text { color: var(--primary); }
-.gradient-text { color: var(--text); }
+/* ─────────────────────────────────────────────
+   Interaction
+   ───────────────────────────────────────────── */
+.card-hover { transition: border-color var(--dur-base) ease, background-color var(--dur-base) ease; }
+.card-hover:hover { border-color: var(--border-strong); }
+.card-lift { transition: border-color var(--dur-base) ease, background-color var(--dur-base) ease, transform var(--dur-base) var(--ease-out); }
+.card-lift:hover { border-color: var(--border-strong); background: var(--surface-2); }
 
-/* ─── Animations — entrance only ─── */
-@keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-.fade-up { animation: fadeUp 0.3s ease-out forwards; }
+/* Theme-safe interaction fills. Use these instead of bg-white/x,
+   which disappears on a white canvas. */
+.bg-hover { background: var(--hover); }
+.hover-fill { transition: background-color var(--dur-fast) ease; }
+.hover-fill:hover { background: var(--hover); }
+.hover-fill-strong:hover { background: var(--hover-strong); }
+
+/* Table rows carry a leading tick on hover so the eye can track
+   across a wide grid without a full-row wash. */
+.row {
+  border-bottom: 1px solid var(--border);
+  transition: background-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+}
+.row:hover { background: var(--hover); box-shadow: inset 2px 0 0 var(--border-accent); }
+.row[data-selected='true'] { background: var(--primary-wash); box-shadow: inset 2px 0 0 var(--primary); }
+.row:last-child { border-bottom: none; }
+
+/* ─────────────────────────────────────────────
+   Focus — visible, never suppressed
+   ───────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+.focus-ring:focus-within { border-color: var(--primary); }
+
+/* ─────────────────────────────────────────────
+   Form controls
+   ───────────────────────────────────────────── */
+.input, .select {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  outline: none;
+  transition: border-color var(--dur-fast) ease, background-color var(--dur-fast) ease;
+}
+.input::placeholder { color: var(--text-faint); }
+.input:hover, .select:hover { border-color: var(--border-strong); }
+.input:focus, .select:focus { border-color: var(--primary); background: var(--surface); }
+.select {
+  appearance: none;
+  padding-right: 26px;
+  cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+                    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+  background-position: calc(100% - 14px) 14px, calc(100% - 9px) 14px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+/* Segmented control — the density-appropriate replacement for
+   a row of loose buttons. */
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  background: var(--sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.segmented > button {
+  padding: 0 10px;
+  height: 24px;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  transition: color var(--dur-fast) ease, background-color var(--dur-fast) ease;
+  white-space: nowrap;
+}
+.segmented > button:hover { color: var(--text); }
+.segmented > button[aria-selected='true'] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-panel);
+}
+
+/* Underline tabs for page-level sections */
+.tab {
+  position: relative;
+  padding: 8px 2px;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text-muted);
+  transition: color var(--dur-fast) ease;
+  white-space: nowrap;
+}
+.tab:hover { color: var(--text); }
+.tab[aria-selected='true'] { color: var(--text); }
+.tab[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 2px;
+  background: var(--primary);
+}
+
+/* ─────────────────────────────────────────────
+   Text roles
+   ───────────────────────────────────────────── */
+.accent-text { color: var(--primary); }
+.gradient-text { color: var(--text); } /* deliberately flat — the name is legacy */
+.val-up { color: var(--up); }
+.val-down { color: var(--down); }
+.val-flat { color: var(--text-muted); }
+
+/* ─────────────────────────────────────────────
+   Backgrounds — drawn, not photographed. Every pattern
+   inks in var(--texture) so it re-tints with the theme.
+   ───────────────────────────────────────────── */
+
+/* Hairline graph paper. The workspace default. */
+.grid-texture {
+  background-image:
+    linear-gradient(var(--texture) 1px, transparent 1px),
+    linear-gradient(90deg, var(--texture) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+/* Fine plotting grid for chart backdrops */
+.grid-fine {
+  background-image:
+    linear-gradient(var(--texture) 1px, transparent 1px),
+    linear-gradient(90deg, var(--texture) 1px, transparent 1px);
+  background-size: 12px 12px;
+}
+
+/* Dot matrix — quieter than a grid, good behind dense tables */
+.dot-texture {
+  background-image: radial-gradient(var(--texture-strong) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Ledger rules — horizontal only, echoes an accounts sheet */
+.ledger-texture {
+  background-image: linear-gradient(var(--texture) 1px, transparent 1px);
+  background-size: 100% 28px;
+}
+
+/* Diagonal hatch for disabled, locked or no-data regions */
+.hatch-texture {
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--texture) 0, var(--texture) 1px,
+    transparent 1px, transparent 7px
+  );
+}
+
+/* Section backdrops fade the texture out at the edges so it reads
+   as an area, not a tiled wallpaper. */
+.texture-fade {
+  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 30%, transparent 100%);
+}
+.texture-fade-top {
+  -webkit-mask-image: linear-gradient(#000 0%, #000 45%, transparent 100%);
+  mask-image: linear-gradient(#000 0%, #000 45%, transparent 100%);
+}
+
+/* ─────────────────────────────────────────────
+   Motion — entrance, state, and scroll reveal.
+   All of it short and functional.
+   ───────────────────────────────────────────── */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-.fade-in { animation: fadeIn 0.2s ease-out forwards; }
-.slide-up { animation: fadeUp 0.3s ease-out forwards; }
+.fade-up  { animation: fadeUp var(--dur-slow) var(--ease-out) forwards; }
+.slide-up { animation: fadeUp var(--dur-slow) var(--ease-out) forwards; }
+.fade-in  { animation: fadeIn var(--dur-base) ease-out forwards; }
+
+/* Scroll reveal. `.reveal` starts hidden; the observer sets
+   data-visible and the element settles into place. Staggering is
+   done with --reveal-delay so a row of panels arrives in sequence. */
+.reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity var(--dur-slow) var(--ease-out) var(--reveal-delay, 0ms),
+    transform var(--dur-slow) var(--ease-out) var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+.reveal[data-visible='true'] { opacity: 1; transform: none; }
+
+.reveal-left  { transform: translateX(-16px); }
+.reveal-right { transform: translateX(16px); }
+.reveal-scale { transform: scale(0.985); }
+.reveal-left[data-visible='true'],
+.reveal-right[data-visible='true'],
+.reveal-scale[data-visible='true'] { transform: none; }
+
+/* A rule that draws itself in as a section scrolls into view */
+.reveal-rule {
+  transform-origin: left center;
+  transform: scaleX(0);
+  transition: transform 700ms var(--ease-out) var(--reveal-delay, 0ms);
+}
+.reveal-rule[data-visible='true'] { transform: scaleX(1); }
+
+.stagger-1 { --reveal-delay: 40ms;  animation-delay: 40ms;  }
+.stagger-2 { --reveal-delay: 80ms;  animation-delay: 80ms;  }
+.stagger-3 { --reveal-delay: 120ms; animation-delay: 120ms; }
+.stagger-4 { --reveal-delay: 160ms; animation-delay: 160ms; }
+.stagger-5 { --reveal-delay: 200ms; animation-delay: 200ms; }
+.stagger-6 { --reveal-delay: 240ms; animation-delay: 240ms; }
 
 @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-.marquee-track { display: flex; white-space: nowrap; width: max-content; will-change: transform; animation: marquee 60s linear infinite; }
+.marquee-track {
+  display: flex;
+  white-space: nowrap;
+  width: max-content;
+  will-change: transform;
+  animation: marquee 60s linear infinite;
+}
 .marquee-track:hover { animation-play-state: paused; }
 
-.stagger-1 { animation-delay: 0.02s; opacity: 0; }
-.stagger-2 { animation-delay: 0.04s; opacity: 0; }
-.stagger-3 { animation-delay: 0.06s; opacity: 0; }
-.stagger-4 { animation-delay: 0.08s; opacity: 0; }
-.stagger-5 { animation-delay: 0.10s; opacity: 0; }
-.stagger-6 { animation-delay: 0.12s; opacity: 0; }
-
-/* Price tick flash — the only motion tied to live values */
-@keyframes tick-up { 0% { background-color: rgba(34, 160, 107, 0.16); } 100% { background-color: transparent; } }
-@keyframes tick-down { 0% { background-color: rgba(225, 75, 75, 0.16); } 100% { background-color: transparent; } }
-.tick-up { animation: tick-up 0.6s ease-out; }
+/* Price tick flash — the only motion tied to a live value */
+@keyframes tick-up   { 0% { background-color: var(--up-wash); }   100% { background-color: transparent; } }
+@keyframes tick-down { 0% { background-color: var(--down-wash); } 100% { background-color: transparent; } }
+.tick-up   { animation: tick-up 0.6s ease-out; }
 .tick-down { animation: tick-down 0.6s ease-out; }
 
 /* Indeterminate progress for in-flight work */
@@ -196,62 +586,107 @@ table td.num,
   animation: bar-slide 1.1s ease-in-out infinite;
 }
 
-/* Skeleton — solid step, no shimmer sweep */
-@keyframes skeleton-fade { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+/* Live dot — marks a stream that is actually connected */
+@keyframes live-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.live-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--up);
+  animation: live-pulse 2s ease-in-out infinite;
+}
+
+/* Skeleton — a solid step that breathes, no shimmer sweep */
+@keyframes skeleton-fade { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 .skeleton {
   background: var(--surface-2);
   animation: skeleton-fade 1.4s ease-in-out infinite;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
 }
 
-::selection { background-color: var(--primary); color: #ffffff; }
+::selection { background-color: var(--primary); color: var(--on-primary); }
 
-/* ─── Grid texture ─── */
-.grid-texture {
-  background-image:
-    linear-gradient(var(--border) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border) 1px, transparent 1px);
-  background-size: 44px 44px;
-}
+/* ─────────────────────────────────────────────
+   Status tokens
+   ───────────────────────────────────────────── */
+.severity-HIGH   { color: var(--down); background: var(--down-wash); border-color: var(--down); }
+.severity-MEDIUM { color: var(--warn); background: var(--warn-wash); border-color: var(--warn); }
+.severity-LOW    { color: var(--up);   background: var(--up-wash);   border-color: var(--up); }
 
-/* ─── Market value colors ─── */
-.val-up { color: var(--up); }
-.val-down { color: var(--down); }
+.action-BUY      { color: var(--up);   background: var(--up-wash); }
+.action-SELL     { color: var(--down); background: var(--down-wash); }
+.action-HOLD     { color: var(--warn); background: var(--warn-wash); }
+.action-REDUCE   { color: var(--down); background: var(--down-wash); }
+.action-INCREASE { color: var(--up);   background: var(--up-wash); }
 
-/* ─── Severity ─── */
-.severity-HIGH { color: var(--down); background: rgba(225, 75, 75, 0.10); border-color: rgba(225, 75, 75, 0.22); }
-.severity-MEDIUM { color: var(--warn); background: rgba(201, 138, 30, 0.10); border-color: rgba(201, 138, 30, 0.22); }
-.severity-LOW { color: var(--up); background: rgba(34, 160, 107, 0.10); border-color: rgba(34, 160, 107, 0.22); }
-
-/* ─── Action tags ─── */
-.action-BUY { color: var(--up); background: rgba(34, 160, 107, 0.10); }
-.action-SELL { color: var(--down); background: rgba(225, 75, 75, 0.10); }
-.action-HOLD { color: var(--warn); background: rgba(201, 138, 30, 0.10); }
-.action-REDUCE { color: var(--down); background: rgba(225, 75, 75, 0.10); }
-.action-INCREASE { color: var(--up); background: rgba(34, 160, 107, 0.10); }
-
-/* ─── Chip ─── */
 .chip {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 4px 9px; border-radius: var(--radius); font-size: 11px; font-weight: 500;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+  font-weight: 500;
   border: 1px solid var(--border);
+  color: var(--text-soft);
+  background: var(--surface-2);
 }
 
-/* ─── Kbd ─── */
 .kbd {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 19px; height: 19px; padding: 0 5px;
-  border-radius: 4px; border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
   background: var(--surface-2);
-  font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: var(--fs-micro); font-weight: 500;
   color: var(--text-muted);
 }
 
-/* ─── Reduced motion ─── */
+/* ─────────────────────────────────────────────
+   Data tables — the workhorse of this product
+   ───────────────────────────────────────────── */
+.data-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.data-table thead th {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 12px;
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: left;
+  white-space: nowrap;
+}
+.data-table tbody td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+.data-table tbody tr:last-child td { border-bottom: none; }
+.data-table tbody tr { transition: background-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease; }
+.data-table tbody tr:hover { background: var(--hover); box-shadow: inset 2px 0 0 var(--border-accent); }
+.data-table td.num, .data-table th.num { text-align: right; }
+
+/* A pinned first column keeps the row's identity in view on a wide
+   grid. It carries its own background, so it has to repaint the row
+   states itself. */
+.data-table td.sticky-cell {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+.data-table tbody tr:hover td.sticky-cell { background: var(--surface-2); }
+.data-table tbody tr[data-selected='true'] td.sticky-cell { background: var(--primary-wash); }
+
+/* ─────────────────────────────────────────────
+   Reduced motion
+   ───────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+  .reveal { opacity: 1 !important; transform: none !important; }
+  .reveal-rule { transform: scaleX(1) !important; }
 }
