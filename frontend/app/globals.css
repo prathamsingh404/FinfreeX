@@ -690,3 +690,16 @@ h1, h2, h3, h4 {
   .reveal { opacity: 1 !important; transform: none !important; }
   .reveal-rule { transform: scaleX(1) !important; }
 }
+
+/* Hero background image contrast preservation across light & dark themes */
+.hero-bg-img {
+  opacity: 0.65;
+  filter: contrast(1.1) brightness(1);
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+[data-theme='light'] .hero-bg-img {
+  opacity: 0.82;
+  filter: contrast(1.35) brightness(0.90);
+  mix-blend-mode: multiply;
+}
