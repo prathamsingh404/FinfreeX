@@ -9,7 +9,10 @@ export const metadata: Metadata = {
 }
 
 export const viewport = {
-  themeColor: '#0b0d11',
+  themeColor: [
+    { media: '(prefers-color-scheme: dark)', color: '#0a0d12' },
+    { media: '(prefers-color-scheme: light)', color: '#f5f6f8' },
+  ],
   width: 'device-width',
   initialScale: 1,
 }
@@ -17,6 +20,7 @@ export const viewport = {
 import Header from '@/components/Header'
 import CommandPalette from '@/components/CommandPalette'
 import { AuthProvider } from '@/context/AuthContext'
+import { ThemeProvider, THEME_INIT_SCRIPT } from '@/context/ThemeContext'
 import AuthLanyardBadge from '@/components/AuthLanyardBadge'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 import GoogleTranslateRoot from '@/components/GoogleTranslateRoot'
@@ -26,22 +30,26 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
+        {/* Stamps data-theme before first paint so there is no flash */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="antialiased bg-background text-foreground overflow-x-hidden w-full min-h-screen">
-        {/* Clean background with subtle grid */}
+        {/* Workspace backdrop: graph paper, faded out below the fold */}
         <div className="fixed inset-0 -z-10 pointer-events-none bg-background">
-          <div className="absolute inset-0 grid-texture opacity-20"></div>
+          <div className="absolute inset-0 grid-texture texture-fade-top"></div>
         </div>
 
-        <AuthProvider>
-          <Header />
-          <CommandPalette />
-          {children}
-          <AuthLanyardBadge />
-          <div className="fixed bottom-14 right-4 z-[70] lg:hidden">
-            <LanguageSwitcher />
-          </div>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <Header />
+            <CommandPalette />
+            {children}
+            <AuthLanyardBadge />
+            <div className="fixed bottom-14 right-4 z-[70] lg:hidden">
+              <LanguageSwitcher />
+            </div>
+          </AuthProvider>
+        </ThemeProvider>
 
         {/* Google Translate root — client-only to avoid hydration mismatch */}
         <GoogleTranslateRoot />
