@@ -48,7 +48,7 @@ export default function UpstoxCallback() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6 text-center">
-      <div className="glass-panel p-10 rounded-2xl max-w-md w-full border border-white/10">
+      <div className="glass-panel p-10 rounded-2xl max-w-md w-full border border-border">
         <div className="w-16 h-16 mx-auto bg-emerald/[0.1] rounded-2xl flex items-center justify-center text-emerald-bright mb-6">
           <iconify-icon icon="solar:link-circle-linear" style={{ fontSize: '32px' }}></iconify-icon>
         </div>
