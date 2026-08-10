@@ -123,10 +123,30 @@ def _prefetch_all(tickers: list[str], start_date: str, end_date: str) -> dict[st
     """this is a super sneaky data prefetcher! it grabs everything in one go before the agents run so they can just read from the local backpack without calling the API! this keeps us safe from getting rate limited because we respect the polygon 5 requests per minute limit by adding a sleep timer sleep sleep sleep!"""
     import time
 
-    import src.data.polygon_client as polygon
     import src.data.yfinance_client as yf
     from src.agents.macro_regime import SECTOR_ETFS
     from src.config.settings import DATA_PROVIDER
+
+    # Polygon is optional. When the provider is yfinance it is only ever used
+    # as a fallback, and requiring its SDK to be installed would break every
+    # run on a deployment that has no Polygon key. A stub keeps the existing
+    # try/except fallbacks working: each call raises and the other provider
+    # takes over.
+    try:
+        import src.data.polygon_client as polygon  # noqa: PLC0415
+    except ImportError as exc:  # pragma: no cover - depends on install
+        logger.info(f"Polygon client unavailable, using {DATA_PROVIDER} only: {exc}")
+
+        class _PolygonUnavailable:
+            def __getattr__(self, name: str):
+                def _raise(*_args: Any, **_kwargs: Any):
+                    raise RuntimeError(
+                        "Polygon is not installed. Install polygon-api-client or set DATA_PROVIDER=yfinance."
+                    )
+
+                return _raise
+
+        polygon = _PolygonUnavailable()  # type: ignore[assignment]
 
     result: dict[str, Any] = {
         "prices": {},       # ticker -> list[Price]
