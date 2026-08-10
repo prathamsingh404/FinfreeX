@@ -37,7 +37,7 @@ export default function PeerComparisonPage() {
     >
       <div className="flex flex-wrap gap-2 mb-6">
         {SECTORS.map((s) => (
-          <Btn key={s} variant={s === sector ? 'primary' : 'ghost'} onClick={() => setSector(s)} className={`text-xs px-3 py-1.5 ${s === sector ? 'bg-primary text-black' : ''}`}>{s}</Btn>
+          <Btn key={s} variant={s === sector ? 'primary' : 'ghost'} onClick={() => setSector(s)} className={`text-xs px-3 py-1.5 ${s === sector ? 'bg-primary text-[var(--on-primary)]' : ''}`}>{s}</Btn>
         ))}
       </div>
       <Card pad={false} className="p-2 border-border">
