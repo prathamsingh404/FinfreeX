@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-const STRATTON_API_URL = process.env.STRATTON_API_URL || 'http://localhost:8000';
+const STRATTON_API_URL = process.env.STRATTON_API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://backend-jet-mu-37.vercel.app';
 
 
 export async function GET() {
