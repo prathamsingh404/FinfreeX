@@ -254,7 +254,7 @@ export default function PortfoliosPage() {
         <div className="flex gap-1">
           <button
             onClick={() => setBookType('paper')}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${bookType === 'paper' ? 'bg-primary text-[#04120C]' : 'text-soft hover:text-foreground'}`}
+            className={`px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${bookType === 'paper' ? 'bg-primary text-[var(--on-primary)]' : 'text-soft hover:text-foreground'}`}
           >
             Simulated Paper Book
           </button>
@@ -263,7 +263,7 @@ export default function PortfoliosPage() {
               if (isBrokerConnected) setBookType('broker')
             }}
             disabled={!isBrokerConnected}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${!isBrokerConnected ? 'text-muted cursor-not-allowed opacity-50' : bookType === 'broker' ? 'bg-primary text-[#04120C]' : 'text-soft hover:text-foreground'}`}
+            className={`px-4 py-2 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${!isBrokerConnected ? 'text-muted cursor-not-allowed opacity-50' : bookType === 'broker' ? 'bg-primary text-[var(--on-primary)]' : 'text-soft hover:text-foreground'}`}
           >
             Broker holdings
             {isBrokerConnected && <Badge tone="primary" className="ml-1">Upstox</Badge>}
@@ -346,7 +346,7 @@ export default function PortfoliosPage() {
                     <button
                       key={v}
                       onClick={() => setView(v)}
-                      className={`px-3 py-1.5 rounded-md text-xs font-semibold capitalize transition-colors cursor-pointer ${view === v ? 'bg-primary text-[#04120C]' : 'text-soft hover:text-foreground'}`}
+                      className={`px-3 py-1.5 rounded-md text-xs font-semibold capitalize transition-colors cursor-pointer ${view === v ? 'bg-primary text-[var(--on-primary)]' : 'text-soft hover:text-foreground'}`}
                     >
                       {v}
                     </button>
