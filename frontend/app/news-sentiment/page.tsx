@@ -49,7 +49,7 @@ export default function NewsSentimentPage() {
             const tone = n.sentiment > 0.25 ? 'emerald' : n.sentiment < -0.25 ? 'coral' : 'neutral'
             return (
               <a key={i} href={n.url} target="_blank" rel="noopener noreferrer" className="flex items-start gap-4 px-5 py-4 border-t border-border hover:bg-surface-2 transition-colors block">
-                <div className={`mt-1 w-1 self-stretch rounded-full ${tone === 'emerald' ? 'bg-primary' : tone === 'coral' ? 'bg-coral' : 'bg-white/20'}`} />
+                <div className={`mt-1 w-1 self-stretch rounded-full ${tone === 'emerald' ? 'bg-primary' : tone === 'coral' ? 'bg-coral' : 'bg-hover-strong'}`} />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-pretty hover:text-primary transition-colors">{n.title}</div>
                   {n.description && <div className="text-[11px] text-soft mt-1 line-clamp-2">{n.description}</div>}
