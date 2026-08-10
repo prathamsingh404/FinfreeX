@@ -443,7 +443,7 @@ function AnalystWorkspace() {
                             <div
                               className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10.5px] whitespace-nowrap border transition-colors ${
                                 state === 'done'
-                                  ? 'bg-white/[0.04] border-border text-soft'
+                                  ? 'bg-hover border-border text-soft'
                                   : state === 'active'
                                   ? 'bg-primary/10 border-primary/30 text-primary'
                                   : 'bg-transparent border-border text-muted'
