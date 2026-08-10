@@ -103,7 +103,7 @@ const VisualizationPage = () => {
                <span className="text-[10px] text-soft">Energy / Industrial</span>
              </div>
           </div>
-          <div className="mt-8 pt-6 border-t border-white/10">
+          <div className="mt-8 pt-6 border-t border-border">
             <div className="text-[10px] text-muted mb-1">Active Nodes</div>
             <div className="text-xl font-medium text-foreground">4,281</div>
           </div>
