@@ -231,7 +231,7 @@ export default function CommandPalette() {
 
   return (
     <div className="fixed inset-0 z-[200] flex items-start justify-center pt-[14vh] px-4" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-black/60 fade-in" onClick={() => setOpen(false)}></div>
+      <div className="absolute inset-0 bg-[var(--overlay)] fade-in" onClick={() => setOpen(false)}></div>
 
       <div className="relative w-full max-w-xl fade-up">
         <div className="rounded-lg bg-elevated border border-border-strong overflow-hidden">
@@ -267,7 +267,7 @@ export default function CommandPalette() {
                     onClick={() => select(entry)}
                     onMouseMove={() => setActive(i)}
                     className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors cursor-pointer ${
-                      i === active ? 'bg-white/[0.05]' : ''
+                      i === active ? 'bg-hover' : ''
                     }`}
                   >
                     <div className="w-6 h-6 rounded flex items-center justify-center shrink-0 text-muted">
