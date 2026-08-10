@@ -1,359 +1,435 @@
 'use client'
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import PageShell from '@/components/PageShell'
-import { Card, Badge, cx } from '@/components/ui/kit'
-import { getAlerts } from '@/lib/featureData'
+import { Panel, Badge, Btn, StatTile, KpiRow, EmptyState, Note, DefRow, cx } from '@/components/ui/kit'
+import { Segmented, SearchInput, Switch, Reveal } from '@/components/ui/controls'
+import { useAuth } from '@/context/AuthContext'
+import {
+  fetchAlerts, createAlert, deleteAlert, type PriceAlert,
+  fetchNotificationSettings, saveNotificationSettings, sendTelegramTest,
+  type NotificationSettings,
+} from '@/lib/api'
 
-/* ============================================================
-   Alerts & Automations — Notion-automation-style rules.
-   Write a sentence → it becomes a WHEN/THEN automation card.
-   ============================================================ */
+/* Alerts and their delivery channel belong on one screen: an alert nobody
+   receives is not an alert. The Telegram panel sits beside the list and says
+   plainly whether it is connected. */
 
-type Channel = 'telegram' | 'email' | 'push'
-type RuleKind = 'price-above' | 'price-below' | 'drop-pct' | 'rise-pct' | 'rsi-below' | 'rsi-above'
+const DIGESTS = [
+  { value: 'off', label: 'Off' },
+  { value: 'hourly', label: 'Hourly' },
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+] as const
 
-interface Automation {
-  id: string
-  text: string
-  symbol: string
-  kind: RuleKind
-  value: number
-  channels: Channel[]
-  status: 'active' | 'paused' | 'triggered'
-  created: string
-}
-
-const STORAGE_KEY = 'finfreex-automations-v1'
-
-const TEMPLATES = [
-  'TSLA RSI below 30',
-  'RELIANCE above 3200',
-  'NIFTY drops 2%',
-  'HDFCBANK below 1500',
-  'NVDA rises 5%',
-  'INFY RSI above 70',
-]
-
-const KIND_LABEL: Record<RuleKind, (v: number) => string> = {
-  'price-above': (v) => `price crosses above ₹${v.toLocaleString('en-IN')}`,
-  'price-below': (v) => `price falls below ₹${v.toLocaleString('en-IN')}`,
-  'drop-pct': (v) => `drops ${v}% in a day`,
-  'rise-pct': (v) => `rises ${v}% in a day`,
-  'rsi-below': (v) => `RSI falls below ${v}`,
-  'rsi-above': (v) => `RSI rises above ${v}`,
-}
-
-const CHANNELS: { id: Channel; label: string; icon: string }[] = [
-  { id: 'telegram', label: 'Telegram', icon: 'solar:plain-linear' },
-  { id: 'email', label: 'Email', icon: 'solar:letter-linear' },
-  { id: 'push', label: 'Push', icon: 'solar:bell-linear' },
-]
-
-/** Parse a natural-language sentence into a structured rule. */
-function parseRule(input: string): { symbol: string; kind: RuleKind; value: number } | null {
-  const text = input.trim()
-  const sym = text.match(/\b[A-Z]{2,15}\b/)?.[0]
-  if (!sym) return null
-
-  const num = (re: RegExp) => {
-    const m = text.match(re)
-    return m ? parseFloat(m[1]) : null
-  }
-
-  const rsiBelow = num(/rsi\s+(?:below|under|<)\s*(\d+(?:\.\d+)?)/i)
-  if (rsiBelow !== null) return { symbol: sym, kind: 'rsi-below', value: rsiBelow }
-  const rsiAbove = num(/rsi\s+(?:above|over|>)\s*(\d+(?:\.\d+)?)/i)
-  if (rsiAbove !== null) return { symbol: sym, kind: 'rsi-above', value: rsiAbove }
-  const drop = num(/(?:drops?|falls?|loses?)\s*(\d+(?:\.\d+)?)\s*%/i)
-  if (drop !== null) return { symbol: sym, kind: 'drop-pct', value: drop }
-  const rise = num(/(?:rises?|gains?|jumps?|up)\s*(\d+(?:\.\d+)?)\s*%/i)
-  if (rise !== null) return { symbol: sym, kind: 'rise-pct', value: rise }
-  const above = num(/(?:above|crosses|over|>)\s*₹?\s*(\d+(?:[\d,]*\.?\d*)?)/i)
-  if (above !== null) return { symbol: sym, kind: 'price-above', value: above }
-  const below = num(/(?:below|under|<)\s*₹?\s*(\d+(?:[\d,]*\.?\d*)?)/i)
-  if (below !== null) return { symbol: sym, kind: 'price-below', value: below }
-  return null
-}
-
-function seedFromLegacy(): Automation[] {
-  try {
-    return getAlerts().map((a) => ({
-      id: a.id,
-      text: `${a.symbol} ${a.condition} ₹${a.target}`,
-      symbol: a.symbol,
-      kind: a.condition === 'above' ? 'price-above' : 'price-below',
-      value: a.target,
-      channels: ['push'] as Channel[],
-      status: a.status === 'triggered' ? 'triggered' : 'active',
-      created: a.created,
-    }))
-  } catch {
-    return []
-  }
+const EMPTY_SETTINGS: NotificationSettings = {
+  telegram_bot_token: '',
+  telegram_chat_id: '',
+  digest_frequency: 'daily',
+  alert_on_price_trigger: true,
 }
 
 export default function AlertsPage() {
-  const [rules, setRules] = useState<Automation[]>([])
-  const [input, setInput] = useState('')
-  const [parseError, setParseError] = useState(false)
-  const [digestDaily, setDigestDaily] = useState(true)
-  const [digestWeekly, setDigestWeekly] = useState(false)
+  const { user } = useAuth()
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      setRules(raw ? JSON.parse(raw) : seedFromLegacy())
-    } catch {
-      setRules(seedFromLegacy())
-    }
-  }, [])
+  const [alerts, setAlerts] = useState<PriceAlert[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
 
-  const persist = (next: Automation[]) => {
-    setRules(next)
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-    } catch {}
-  }
+  // New alert form
+  const [symbol, setSymbol] = useState('')
+  const [condition, setCondition] = useState<'ABOVE' | 'BELOW'>('ABOVE')
+  const [target, setTarget] = useState('')
+  const [exchange, setExchange] = useState('NSE')
+  const [creating, setCreating] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
 
-  const preview = useMemo(() => parseRule(input), [input])
+  // Telegram
+  const [settings, setSettings] = useState<NotificationSettings>(EMPTY_SETTINGS)
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
+  const [savingSettings, setSavingSettings] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [telegramMessage, setTelegramMessage] = useState<{ tone: 'up' | 'down'; text: string } | null>(null)
+  const [showToken, setShowToken] = useState(false)
 
-  const create = (text: string) => {
-    const parsed = parseRule(text)
-    if (!parsed) {
-      setParseError(true)
+  const loadAlerts = useCallback(async () => {
+    if (!user) {
+      setLoading(false)
       return
     }
-    setParseError(false)
-    persist([
-      {
-        id: `auto-${Date.now()}`,
-        text,
-        ...parsed,
-        channels: ['push'],
-        status: 'active',
-        created: 'Just now',
-      },
-      ...rules,
-    ])
-    setInput('')
+    setLoading(true)
+    setLoadError(null)
+    try {
+      const data = await fetchAlerts()
+      setAlerts(Array.isArray(data) ? data : [])
+    } catch (err: any) {
+      setLoadError(err.message || 'Could not load your alerts.')
+    } finally {
+      setLoading(false)
+    }
+  }, [user])
+
+  useEffect(() => {
+    loadAlerts()
+  }, [loadAlerts])
+
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const s = await fetchNotificationSettings()
+        if (!cancelled) setSettings({ ...EMPTY_SETTINGS, ...s })
+      } catch {
+        /* Falls back to blanks — the panel then reads as "not connected" */
+      } finally {
+        if (!cancelled) setSettingsLoaded(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [user])
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setFormError(null)
+
+    const value = Number(target)
+    if (!symbol.trim()) return setFormError('Enter a symbol to watch.')
+    if (!Number.isFinite(value) || value <= 0) return setFormError('Enter a target price above zero.')
+
+    setCreating(true)
+    try {
+      const created = await createAlert({
+        symbol: symbol.trim().toUpperCase(),
+        exchange,
+        condition,
+        target_value: value,
+      })
+      setAlerts((prev) => [created, ...prev])
+      setSymbol('')
+      setTarget('')
+    } catch (err: any) {
+      setFormError(err.message || 'The alert could not be created.')
+    } finally {
+      setCreating(false)
+    }
   }
 
-  const toggleChannel = (id: string, ch: Channel) =>
-    persist(
-      rules.map((r) =>
-        r.id === id
-          ? { ...r, channels: r.channels.includes(ch) ? r.channels.filter((c) => c !== ch) : [...r.channels, ch] }
-          : r
-      )
+  const remove = async (id: string) => {
+    const previous = alerts
+    setAlerts((prev) => prev.filter((a) => a.id !== id))
+    try {
+      await deleteAlert(id)
+    } catch (err: any) {
+      setAlerts(previous)
+      setLoadError(err.message || 'The alert could not be deleted.')
+    }
+  }
+
+  const saveSettings = async () => {
+    setSavingSettings(true)
+    setTelegramMessage(null)
+    try {
+      const saved = await saveNotificationSettings(settings)
+      setSettings({ ...EMPTY_SETTINGS, ...saved })
+      setTelegramMessage({ tone: 'up', text: 'Telegram settings saved.' })
+    } catch (err: any) {
+      setTelegramMessage({ tone: 'down', text: err.message || 'The settings could not be saved.' })
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
+  const test = async () => {
+    setTesting(true)
+    setTelegramMessage(null)
+    try {
+      await sendTelegramTest()
+      setTelegramMessage({ tone: 'up', text: 'Test message sent. Check your Telegram chat.' })
+    } catch (err: any) {
+      setTelegramMessage({
+        tone: 'down',
+        text: err.message?.includes('400')
+          ? 'Telegram rejected the message. Check the bot token and chat ID, then save again.'
+          : err.message || 'The test message could not be delivered.',
+      })
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  const connected = Boolean(settings.telegram_bot_token && settings.telegram_chat_id)
+
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return q ? alerts.filter((a) => a.symbol.toLowerCase().includes(q)) : alerts
+  }, [alerts, query])
+
+  const above = alerts.filter((a) => a.condition === 'ABOVE').length
+  const triggered = alerts.filter((a) => a.triggered_at).length
+
+  if (!user) {
+    return (
+      <PageShell category="Analysis" title="Alerts" subtitle="Get told when a price crosses a level you care about." icon="solar:bell-linear" backdrop="tape">
+        <Panel label="Alerts">
+          <EmptyState
+            icon="solar:lock-keyhole-linear"
+            title="Sign in to set alerts"
+            body="Alerts are tied to your account so they keep running while the page is closed."
+            action={<Link href="/auth"><Btn icon="solar:login-3-linear">Sign in</Btn></Link>}
+          />
+        </Panel>
+      </PageShell>
     )
-
-  const togglePause = (id: string) =>
-    persist(rules.map((r) => (r.id === id ? { ...r, status: r.status === 'paused' ? 'active' : 'paused' } : r)))
-
-  const remove = (id: string) => persist(rules.filter((r) => r.id !== id))
-
-  const active = rules.filter((r) => r.status === 'active').length
+  }
 
   return (
     <PageShell
-      title="Alerts"
-      subtitle="Describe a condition in plain English. We watch the market and notify you."
       category="Analysis"
-      icon="solar:bell-bold-duotone"
+      title="Alerts"
+      subtitle="Price levels the server watches for you, delivered to Telegram."
+      icon="solar:bell-linear"
+      backdrop="tape"
+      actions={
+        <Badge tone={connected ? 'up' : 'warn'}>
+          {connected ? 'Telegram connected' : 'Telegram not connected'}
+        </Badge>
+      }
     >
-      {/* ─── Natural-language builder ─── */}
-      <div className="mb-3 max-w-3xl">
-        <div className="rounded-md bg-surface border border-border focus-ring transition-colors flex items-center gap-3 pl-4 pr-2 h-12">
-          <span className="text-sm text-muted shrink-0 hidden sm:inline">Notify me if</span>
-          <iconify-icon icon="solar:bell-linear" width="15" class="text-muted sm:hidden"></iconify-icon>
-          <input
-            value={input}
-            onChange={(e) => {
-              setInput(e.target.value)
-              setParseError(false)
-            }}
-            onKeyDown={(e) => e.key === 'Enter' && create(input)}
-            placeholder="TSLA RSI below 30 · RELIANCE above 3200 · NIFTY drops 2%"
-            className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-muted min-w-0"
-            aria-label="Describe your alert"
-          />
-          <button
-            onClick={() => create(input)}
-            disabled={!input.trim()}
-            className="px-4 h-8 rounded bg-primary hover:bg-primary/90 text-white text-xs font-semibold transition-colors cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed shrink-0"
+      <KpiRow cols={4} className="mb-3">
+        <StatTile label="Active alerts" value={alerts.length} hint="Watched by the server" />
+        <StatTile label="Above target" value={above} tone="up" hint="Fire on a rise" />
+        <StatTile label="Below target" value={alerts.length - above} tone="down" hint="Fire on a fall" />
+        <StatTile label="Already triggered" value={triggered} hint="Fired at least once" />
+      </KpiRow>
+
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-3 items-start">
+        <div className="flex flex-col gap-3 min-w-0">
+          <Reveal>
+            <Panel label="New alert" pad>
+              <form onSubmit={submit} className="grid grid-cols-1 sm:grid-cols-[1.4fr_auto_1fr_auto_auto] gap-2 items-end">
+                <label className="min-w-0">
+                  <span className="eyebrow">Symbol</span>
+                  <input
+                    value={symbol}
+                    onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                    placeholder="RELIANCE"
+                    className="input mt-1.5"
+                  />
+                </label>
+                <label className="min-w-0">
+                  <span className="eyebrow">Exchange</span>
+                  <select value={exchange} onChange={(e) => setExchange(e.target.value)} className="select mt-1.5 w-auto">
+                    <option value="NSE">NSE</option>
+                    <option value="BSE">BSE</option>
+                    <option value="NASDAQ">NASDAQ</option>
+                    <option value="NYSE">NYSE</option>
+                  </select>
+                </label>
+                <label className="min-w-0">
+                  <span className="eyebrow">Target price</span>
+                  <input
+                    value={target}
+                    onChange={(e) => setTarget(e.target.value)}
+                    inputMode="decimal"
+                    placeholder="2500"
+                    className="input mt-1.5 tabular-nums"
+                  />
+                </label>
+                <div>
+                  <span className="eyebrow block mb-1.5">Fires when</span>
+                  <Segmented<'ABOVE' | 'BELOW'>
+                    options={[{ value: 'ABOVE', label: 'Rises above' }, { value: 'BELOW', label: 'Falls below' }]}
+                    value={condition}
+                    onChange={setCondition}
+                  />
+                </div>
+                <Btn type="submit" disabled={creating} icon={creating ? undefined : 'solar:add-circle-linear'}>
+                  {creating ? 'Creating…' : 'Create alert'}
+                </Btn>
+              </form>
+              {formError && (
+                <p className="text-xs val-down mt-2">{formError}</p>
+              )}
+              {!connected && (
+                <p className="text-xs text-muted mt-2">
+                  Alerts will still trigger, but nothing will be delivered until Telegram is connected.
+                </p>
+              )}
+            </Panel>
+          </Reveal>
+
+          <Panel
+            label="Watching"
+            meta={`${shown.length} of ${alerts.length}`}
+            actions={<SearchInput value={query} onChange={setQuery} placeholder="Filter by symbol" className="w-40" />}
           >
-            Create
-          </button>
-        </div>
-      </div>
-
-      {/* Live parse preview / error */}
-      <div className="mb-6 max-w-3xl min-h-[20px]">
-        {input.trim() && preview && (
-          <p className="text-xs text-soft fade-in">
-            <span className="text-emerald-bright font-semibold">✓ Understood:</span> when{' '}
-            <span className="font-bold text-foreground">{preview.symbol}</span> {KIND_LABEL[preview.kind](preview.value)}
-          </p>
-        )}
-        {parseError && (
-          <p className="text-xs text-coral fade-in">
-            Couldn’t parse that — use a ticker in CAPS plus a condition, e.g. “INFY RSI above 70”.
-          </p>
-        )}
-        {!input.trim() && (
-          <div className="flex flex-wrap gap-2">
-            {TEMPLATES.map((t) => (
-              <button
-                key={t}
-                onClick={() => create(t)}
-                className="px-2.5 py-1 rounded text-[11px] text-soft bg-transparent border border-border hover:border-border-strong hover:text-foreground transition-colors cursor-pointer"
-              >
-                + {t}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* ─── Automation cards ─── */}
-        <div className="lg:col-span-2 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-foreground">Your automations</h2>
-            <span className="text-xs text-muted">{active} active · {rules.length} total</span>
-          </div>
-
-          {rules.length === 0 && (
-            <Card hover={false} className="text-center py-12">
-              <iconify-icon icon="solar:bell-off-linear" width="28" class="text-muted"></iconify-icon>
-              <p className="text-sm text-soft mt-3">No automations yet.</p>
-              <p className="text-xs text-muted mt-1">Try one of the templates above — “TSLA RSI below 30” takes 2 seconds.</p>
-            </Card>
-          )}
-
-          {rules.map((r) => (
-            <div
-              key={r.id}
-              className={cx(
-                'rounded-lg border p-4 transition-colors',
-                r.status === 'triggered'
-                  ? 'bg-coral/[0.06] border-coral/25'
-                  : r.status === 'paused'
-                  ? 'bg-surface border-border opacity-60'
-                  : 'bg-surface border-border hover:border-border-strong'
-              )}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-2 flex-wrap text-[13px]">
-                  <span className="chip bg-white/[0.04] text-muted uppercase text-[10px]">When</span>
-                  <span className="font-bold text-foreground">{r.symbol}</span>
-                  <span className="text-soft">{KIND_LABEL[r.kind](r.value)}</span>
-                  <span className="chip bg-white/[0.04] text-muted uppercase text-[10px]">Then notify via</span>
-                  <div className="flex items-center gap-1">
-                    {CHANNELS.map((c) => {
-                      const on = r.channels.includes(c.id)
-                      return (
-                        <button
-                          key={c.id}
-                          onClick={() => toggleChannel(r.id, c.id)}
-                          title={c.label}
-                          className={cx(
-                            'flex items-center gap-1 px-2 py-1 rounded-md border text-[10.5px] font-semibold transition-colors cursor-pointer',
-                            on ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-transparent border-border text-muted hover:text-soft'
-                          )}
-                        >
-                          <iconify-icon icon={c.icon} width="11"></iconify-icon>
-                          {c.label}
-                        </button>
-                      )
-                    })}
+            {loadError && (
+              <div className="p-3">
+                <Note icon="solar:danger-triangle-linear">{loadError}</Note>
+              </div>
+            )}
+            {loading ? (
+              <div className="p-3 space-y-2">
+                {[0, 1, 2].map((i) => <div key={i} className="skeleton h-10 w-full" />)}
+              </div>
+            ) : shown.length === 0 ? (
+              <EmptyState
+                icon="solar:bell-linear"
+                title={alerts.length ? 'No alert matches that filter' : 'No alerts yet'}
+                body={
+                  alerts.length
+                    ? 'Clear the filter to see the rest.'
+                    : 'Add a symbol and a price above. The server checks it while you are away.'
+                }
+              />
+            ) : (
+              <div className="divide-y divide-[var(--border)]">
+                {shown.map((a) => (
+                  <div key={a.id} className="p-3 flex items-center gap-3 hover-fill group">
+                    <span
+                      className={cx(
+                        'w-8 h-8 rounded flex items-center justify-center shrink-0',
+                        a.condition === 'ABOVE' ? 'bg-up-wash val-up' : 'bg-down-wash val-down',
+                      )}
+                    >
+                      <iconify-icon
+                        icon={a.condition === 'ABOVE' ? 'solar:arrow-up-linear' : 'solar:arrow-down-linear'}
+                        width="15"
+                      ></iconify-icon>
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium text-foreground">{a.symbol}</span>
+                        <span className="chip">{a.exchange}</span>
+                        {a.triggered_at && <Badge tone="warn">Triggered</Badge>}
+                      </div>
+                      <div className="text-xs text-muted mt-0.5">
+                        Fires when the price {a.condition === 'ABOVE' ? 'rises above' : 'falls below'}{' '}
+                        <span className="tabular-nums text-foreground">{a.target_value}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => remove(a.id)}
+                      aria-label={`Delete the ${a.symbol} alert`}
+                      className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-muted hover:text-down transition-opacity cursor-pointer shrink-0"
+                    >
+                      <iconify-icon icon="solar:trash-bin-minimalistic-linear" width="16"></iconify-icon>
+                    </button>
                   </div>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <Badge tone={r.status === 'triggered' ? 'coral' : r.status === 'active' ? 'emerald' : 'neutral'}>
-                    {r.status}
-                  </Badge>
-                  <button
-                    onClick={() => togglePause(r.id)}
-                    className="w-7 h-7 rounded-md flex items-center justify-center text-muted hover:text-foreground hover:bg-white/[0.05] transition-colors cursor-pointer"
-                    aria-label={r.status === 'paused' ? 'Resume' : 'Pause'}
-                  >
-                    <iconify-icon icon={r.status === 'paused' ? 'solar:play-linear' : 'solar:pause-linear'} width="14"></iconify-icon>
-                  </button>
-                  <button
-                    onClick={() => remove(r.id)}
-                    className="w-7 h-7 rounded-md flex items-center justify-center text-muted hover:text-coral hover:bg-coral/10 transition-colors cursor-pointer"
-                    aria-label="Delete automation"
-                  >
-                    <iconify-icon icon="solar:trash-bin-trash-linear" width="14"></iconify-icon>
-                  </button>
-                </div>
+                ))}
               </div>
-              <div className="mt-2 text-[10.5px] text-muted">Created {r.created}</div>
-            </div>
-          ))}
+            )}
+          </Panel>
         </div>
 
-        {/* ─── Digests ─── */}
-        <div className="space-y-3 h-fit">
-          <h2 className="text-sm font-semibold text-foreground">Digests</h2>
-          {[
-            {
-              title: 'Daily Digest',
-              desc: 'Every market close: your watchlist, triggered alerts and tomorrow’s events.',
-              icon: 'solar:sun-linear',
-              on: digestDaily,
-              toggle: () => setDigestDaily((v) => !v),
-            },
-            {
-              title: 'Weekly Report',
-              desc: 'Sunday deep-dive: portfolio review, sector rotation and the week ahead.',
-              icon: 'solar:document-text-linear',
-              on: digestWeekly,
-              toggle: () => setDigestWeekly((v) => !v),
-            },
-          ].map((d) => (
-            <button
-              key={d.title}
-              onClick={d.toggle}
-              className={cx(
-                'w-full text-left rounded-lg border p-4 transition-colors cursor-pointer',
-                d.on ? 'bg-surface border-border-strong' : 'bg-surface border-border hover:border-border-strong'
-              )}
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-2">
-                  <iconify-icon icon={d.icon} width="15" class={d.on ? 'text-soft' : 'text-muted'}></iconify-icon>
-                  <span className="text-[13px] font-semibold text-foreground">{d.title}</span>
-                </div>
-                <span
-                  className={cx(
-                    'w-8 h-[18px] rounded-full relative transition-colors shrink-0',
-                    d.on ? 'bg-primary' : 'bg-white/10'
-                  )}
+        {/* ── Telegram ─────────────────────────────────────── */}
+        <Reveal delay={80} variant="right" className="flex flex-col gap-3">
+          <Panel
+            label="Telegram delivery"
+            meta={connected ? 'Connected' : 'Not connected'}
+            pad
+          >
+            <ol className="space-y-2 mb-4">
+              {[
+                ['Open @BotFather in Telegram', 'Send /newbot and follow the prompts. It replies with a bot token.'],
+                ['Message your new bot', 'Send it any message so it is allowed to reply to you.'],
+                ['Open @userinfobot', 'It replies with your chat ID — a number.'],
+                ['Paste both below and save', 'Then send a test message to confirm it works.'],
+              ].map(([title, detail], i) => (
+                <li key={title} className="flex gap-2.5">
+                  <span className="w-5 h-5 shrink-0 rounded-full border border-border bg-surface-2 flex items-center justify-center text-micro font-semibold tabular-nums text-muted">
+                    {i + 1}
+                  </span>
+                  <div>
+                    <div className="text-sm text-foreground leading-snug">{title}</div>
+                    <div className="text-xs text-muted mt-0.5 leading-relaxed">{detail}</div>
+                  </div>
+                </li>
+              ))}
+            </ol>
+
+            <label className="block mb-2">
+              <span className="eyebrow">Bot token</span>
+              <div className="relative mt-1.5">
+                <input
+                  type={showToken ? 'text' : 'password'}
+                  value={settings.telegram_bot_token}
+                  onChange={(e) => setSettings((s) => ({ ...s, telegram_bot_token: e.target.value }))}
+                  placeholder="123456:ABC-DEF..."
+                  className="input pr-8 font-mono"
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowToken((v) => !v)}
+                  aria-label={showToken ? 'Hide bot token' : 'Show bot token'}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-foreground cursor-pointer"
                 >
-                  <span
-                    className={cx(
-                      'absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-all',
-                      d.on ? 'left-[18px]' : 'left-[2px]'
-                    )}
-                  ></span>
-                </span>
+                  <iconify-icon icon={showToken ? 'solar:eye-closed-linear' : 'solar:eye-linear'} width="14"></iconify-icon>
+                </button>
               </div>
-              <p className="text-xs text-soft leading-relaxed">{d.desc}</p>
-            </button>
-          ))}
+            </label>
 
-          <div className="rounded-lg bg-surface border border-border p-4">
-            <div className="flex items-center gap-2 mb-1.5">
-              <iconify-icon icon="solar:plain-linear" width="15" class="text-muted"></iconify-icon>
-              <span className="text-[13px] font-bold text-foreground">Connect Telegram</span>
+            <label className="block mb-3">
+              <span className="eyebrow">Chat ID</span>
+              <input
+                value={settings.telegram_chat_id}
+                onChange={(e) => setSettings((s) => ({ ...s, telegram_chat_id: e.target.value }))}
+                placeholder="987654321"
+                className="input mt-1.5 font-mono tabular-nums"
+                autoComplete="off"
+              />
+            </label>
+
+            <div className="pt-3 border-t border-border mb-3">
+              <span className="eyebrow block mb-1.5">Digest frequency</span>
+              <Segmented<NotificationSettings['digest_frequency']>
+                options={DIGESTS}
+                value={settings.digest_frequency}
+                onChange={(v) => setSettings((s) => ({ ...s, digest_frequency: v }))}
+                size="sm"
+              />
+              <div className="mt-3">
+                <Switch
+                  checked={settings.alert_on_price_trigger}
+                  onChange={(v) => setSettings((s) => ({ ...s, alert_on_price_trigger: v }))}
+                  label="Message me the moment an alert triggers"
+                />
+              </div>
             </div>
-            <p className="text-xs text-soft leading-relaxed mb-3">Get alerts in Telegram the second they trigger.</p>
-            <span className="chip text-muted">Setup in Settings → Telegram</span>
-          </div>
-        </div>
+
+            <div className="flex items-center gap-2">
+              <Btn onClick={saveSettings} disabled={savingSettings || !settingsLoaded}>
+                {savingSettings ? 'Saving…' : 'Save'}
+              </Btn>
+              <Btn variant="subtle" onClick={test} disabled={testing || !connected} icon="solar:plain-linear">
+                {testing ? 'Sending…' : 'Send test message'}
+              </Btn>
+            </div>
+
+            {telegramMessage && (
+              <p className={cx('text-xs mt-2.5 leading-relaxed', telegramMessage.tone === 'up' ? 'val-up' : 'val-down')}>
+                {telegramMessage.text}
+              </p>
+            )}
+          </Panel>
+
+          <Panel label="Delivery status" pad>
+            <DefRow label="Channel" value={connected ? 'Telegram' : 'None'} tone={connected ? 'up' : 'down'} />
+            <DefRow label="Trigger messages" value={settings.alert_on_price_trigger ? 'On' : 'Off'} />
+            <DefRow label="Digest" value={settings.digest_frequency === 'off' ? 'Off' : settings.digest_frequency} />
+            <DefRow label="Alerts watched" value={String(alerts.length)} />
+          </Panel>
+
+          <Note>
+            The bot token is stored against your account and used only to send you messages. Anyone holding it can post as your bot, so treat it like a password.
+          </Note>
+        </Reveal>
       </div>
     </PageShell>
   )
