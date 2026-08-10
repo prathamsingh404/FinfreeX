@@ -121,7 +121,7 @@ export default function LanguageSwitcher() {
             key={lang.code}
             onClick={() => selectLang(lang.code)}
             className={`w-full flex items-center gap-3 px-4 py-2.5 text-xs transition-colors text-left font-mono uppercase tracking-wider ${
-              lang.code === current ? 'bg-primary/20 text-primary font-semibold' : 'text-soft hover:bg-white/5 hover:text-foreground'
+              lang.code === current ? 'bg-primary/20 text-primary font-semibold' : 'text-soft hover:bg-hover hover:text-foreground'
             }`}
           >
             <span className="text-base leading-none">{lang.flag}</span>
@@ -143,7 +143,7 @@ export default function LanguageSwitcher() {
       <button
         ref={btnRef}
         onClick={toggleOpen}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-transparent hover:bg-white/5 transition-all text-xs font-mono uppercase tracking-wider text-soft hover:text-foreground"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-transparent hover:bg-hover transition-all text-xs font-mono uppercase tracking-wider text-soft hover:text-foreground"
         title="Change language"
       >
         <span className="text-base leading-none">{active.flag}</span>
