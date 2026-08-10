@@ -66,16 +66,16 @@ export default function MonthlyReturnsHeatmap({ data }: MonthlyReturnsHeatmapPro
   const getBgColor = (val: number | null) => {
     if (val === null) return 'bg-transparent';
     if (val > 0) {
-      if (val > 5) return 'bg-emerald-500/40 text-emerald-200';
-      if (val > 2) return 'bg-emerald-500/20 text-emerald-300';
-      return 'bg-emerald-500/10 text-emerald-400';
+      if (val > 5) return 'bg-up/40 text-up';
+      if (val > 2) return 'bg-up/20 text-up';
+      return 'bg-up/10 text-up';
     }
     if (val < 0) {
-      if (val < -5) return 'bg-red-500/40 text-red-200';
-      if (val < -2) return 'bg-red-500/20 text-red-300';
-      return 'bg-red-500/10 text-red-400';
+      if (val < -5) return 'bg-down/40 text-down';
+      if (val < -2) return 'bg-down/20 text-down';
+      return 'bg-down/10 text-down';
     }
-    return 'bg-white/5 text-white/40';
+    return 'bg-hover text-muted';
   };
 
   return (
@@ -83,23 +83,23 @@ export default function MonthlyReturnsHeatmap({ data }: MonthlyReturnsHeatmapPro
       <table className="w-full border-separate border-spacing-1">
         <thead>
           <tr>
-            <th className="p-2 text-[10px] text-white/20 uppercase font-black tracking-widest text-left">Year</th>
+            <th className="p-2 text-[10px] text-faint uppercase font-black tracking-widest text-left">Year</th>
             {MONTH_NAMES.map(m => (
-              <th key={m} className="p-2 text-[10px] text-white/20 uppercase font-black tracking-widest">{m}</th>
+              <th key={m} className="p-2 text-[10px] text-faint uppercase font-black tracking-widest">{m}</th>
             ))}
-            <th className="p-2 text-[10px] text-white/20 uppercase font-black tracking-widest text-right">Total</th>
+            <th className="p-2 text-[10px] text-faint uppercase font-black tracking-widest text-right">Total</th>
           </tr>
         </thead>
         <tbody>
           {tableData.map(row => (
             <tr key={row.year} className="group">
-              <td className="p-2 text-xs font-bold text-white/40 group-hover:text-white transition-colors">{row.year}</td>
+              <td className="p-2 text-xs font-bold text-muted group-hover:text-foreground transition-colors">{row.year}</td>
               {row.months.map((m, i) => (
-                <td key={i} className={`p-2 text-[10px] font-mono font-bold text-center rounded-md border border-white/5 transition-all hover:scale-105 hover:z-10 cursor-default ${getBgColor(m)}`}>
+                <td key={i} className={`p-2 text-[10px] font-mono font-bold text-center rounded-md border border-border transition-all hover:scale-105 hover:z-10 cursor-default ${getBgColor(m)}`}>
                   {m !== null ? `${m > 0 ? '+' : ''}${m.toFixed(1)}%` : '-'}
                 </td>
               ))}
-              <td className={`p-2 text-xs font-bold text-right font-mono ${row.total >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              <td className={`p-2 text-xs font-bold text-right font-mono ${row.total >= 0 ? 'text-up' : 'text-down'}`}>
                 {row.total > 0 ? '+' : ''}{row.total.toFixed(1)}%
               </td>
             </tr>
