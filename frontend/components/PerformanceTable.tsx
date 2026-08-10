@@ -10,10 +10,10 @@ interface MetricRowProps {
 }
 
 function MetricRow({ label, value, highlight, tooltip }: MetricRowProps) {
-  const colorClass = highlight === 'positive' ? 'text-emerald-400' : highlight === 'negative' ? 'text-red-400' : 'text-white/80';
+  const colorClass = highlight === 'positive' ? 'text-up' : highlight === 'negative' ? 'text-down' : 'text-soft';
   return (
-    <div className="flex items-center justify-between py-2 border-b border-white/5 hover:bg-white/[0.02] transition-colors group px-2" title={tooltip}>
-      <span className="text-[10px] text-white/30 uppercase tracking-widest font-bold group-hover:text-white/50">{label}</span>
+    <div className="flex items-center justify-between py-2 border-b border-border hover:bg-hover transition-colors group px-2" title={tooltip}>
+      <span className="text-[10px] text-muted uppercase tracking-widest font-bold group-hover:text-muted">{label}</span>
       <span className={`text-[11px] font-mono font-bold ${colorClass}`}>{value}</span>
     </div>
   );
@@ -114,7 +114,7 @@ export default function PerformanceTable({ data, baseValue }: PerformanceTablePr
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-0.5 mt-4">
       {/* Risk Metrics */}
       <div className="space-y-0.5">
-        <div className="text-[9px] text-white/20 uppercase font-black tracking-widest px-2 py-3 bg-white/[0.02] rounded-t-lg mb-1">Risk Adjusted</div>
+        <div className="text-[9px] text-faint uppercase font-black tracking-widest px-2 py-3 bg-hover rounded-t-lg mb-1">Risk Adjusted</div>
         <MetricRow label="Sharpe Ratio" value={metrics.sharpe.toFixed(2)} />
         <MetricRow label="Sortino Ratio" value={metrics.sortino.toFixed(2)} />
         <MetricRow label="Treynor Ratio" value={metrics.treynor.toFixed(2)} />
@@ -123,7 +123,7 @@ export default function PerformanceTable({ data, baseValue }: PerformanceTablePr
 
       {/* Exposure Metrics */}
       <div className="space-y-0.5">
-        <div className="text-[9px] text-white/20 uppercase font-black tracking-widest px-2 py-3 bg-white/[0.02] rounded-t-lg mb-1">Exposure & Alpha</div>
+        <div className="text-[9px] text-faint uppercase font-black tracking-widest px-2 py-3 bg-hover rounded-t-lg mb-1">Exposure & Alpha</div>
         <MetricRow label="Beta" value={metrics.beta.toFixed(2)} />
         <MetricRow label="Alpha (Ann.)" value={`${metrics.alpha.toFixed(2)}%`} highlight={metrics.alpha >= 0 ? 'positive' : 'negative'} />
         <MetricRow label="Info Ratio" value={metrics.infoRatio.toFixed(2)} />
@@ -132,7 +132,7 @@ export default function PerformanceTable({ data, baseValue }: PerformanceTablePr
 
       {/* Returns Metrics */}
       <div className="space-y-0.5">
-        <div className="text-[9px] text-white/20 uppercase font-black tracking-widest px-2 py-3 bg-white/[0.02] rounded-t-lg mb-1">Performance</div>
+        <div className="text-[9px] text-faint uppercase font-black tracking-widest px-2 py-3 bg-hover rounded-t-lg mb-1">Performance</div>
         <MetricRow label="Total Return" value={`${metrics.cumReturn.toFixed(2)}%`} highlight={metrics.cumReturn >= 0 ? 'positive' : 'negative'} />
         <MetricRow label="CAGR" value={`${metrics.annRet.toFixed(2)}%`} highlight={metrics.annRet >= 0 ? 'positive' : 'negative'} />
         <MetricRow label="Volatility" value={`${metrics.vol.toFixed(2)}%`} />
@@ -141,7 +141,7 @@ export default function PerformanceTable({ data, baseValue }: PerformanceTablePr
 
       {/* Trade Metrics */}
       <div className="space-y-0.5">
-        <div className="text-[9px] text-white/20 uppercase font-black tracking-widest px-2 py-3 bg-white/[0.02] rounded-t-lg mb-1">Execution</div>
+        <div className="text-[9px] text-faint uppercase font-black tracking-widest px-2 py-3 bg-hover rounded-t-lg mb-1">Execution</div>
         <MetricRow label="Win Rate" value={`${metrics.winRate.toFixed(1)}%`} />
         <MetricRow label="Profit Factor" value={metrics.profitFactor.toFixed(2)} />
         <MetricRow label="Avg Win" value={`${metrics.avgWin.toFixed(2)}%`} highlight="positive" />
