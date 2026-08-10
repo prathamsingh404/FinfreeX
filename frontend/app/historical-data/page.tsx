@@ -1,65 +1,146 @@
 'use client'
-import { useState } from 'react'
+
+import React, { useMemo, useState } from 'react'
 import PageShell from '@/components/PageShell'
-import { Card, SectionTitle, Btn, Change, fmt } from '@/components/ui/kit'
-import { AreaChart } from '@/components/ui/AreaChart'
+import { Panel, Change, fmt, StatTile, KpiRow, Btn, EmptyState, SkeletonRows, SkeletonBlock, cx } from '@/components/ui/kit'
 import { DataTable, Column } from '@/components/ui/DataTable'
+import { Segmented, Select } from '@/components/ui/controls'
+import { AreaChart, CandleChart } from '@/components/ui/AreaChart'
 import { useOHLCV } from '@/lib/hooks/useMarketData'
 
 const SYMBOLS = ['RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'ICICIBANK', 'SBIN', 'ITC']
+const PERIODS = [
+  { value: '1mo', label: '1M' },
+  { value: '3mo', label: '3M' },
+  { value: '6mo', label: '6M' },
+  { value: '1y', label: '1Y' },
+] as const
+
+function toCsv(rows: any[]) {
+  const head = 'date,open,high,low,close,volume'
+  const body = rows
+    .map((r) => [new Date(r.time).toISOString().slice(0, 10), r.open, r.high, r.low, r.close, r.volume].join(','))
+    .join('\n')
+  return `${head}\n${body}`
+}
 
 export default function HistoricalDataPage() {
   const [symbol, setSymbol] = useState(SYMBOLS[0])
-  const [period, setPeriod] = useState('3mo')
-  
+  const [period, setPeriod] = useState<string>('3mo')
+  const [view, setView] = useState<'Line' | 'Candles'>('Line')
+
   const { data: candlesData, loading } = useOHLCV(symbol, 'NSE', period, '1d')
   const candles = candlesData || []
 
-  type C = typeof candles[number]
-  const cols: Column<C>[] = [
-    { key: 'time', header: 'Date', render: (r) => <span className="text-soft">{new Date(r.time).toLocaleDateString()}</span> },
+  const stats = useMemo(() => {
+    if (!candles.length) return null
+    const closes = candles.map((c) => c.close)
+    const first = closes[0]
+    const last = closes[closes.length - 1]
+    const high = Math.max(...candles.map((c) => c.high))
+    const low = Math.min(...candles.map((c) => c.low))
+    const avgVol = candles.reduce((s, c) => s + c.volume, 0) / candles.length
+    // Daily standard deviation, annualised over 252 sessions
+    const returns = closes.slice(1).map((c, i) => (c - closes[i]) / closes[i])
+    const mean = returns.reduce((s, r) => s + r, 0) / (returns.length || 1)
+    const variance = returns.reduce((s, r) => s + (r - mean) ** 2, 0) / (returns.length || 1)
+    const vol = Math.sqrt(variance * 252) * 100
+    return { change: ((last - first) / first) * 100, high, low, avgVol, vol, last }
+  }, [candles])
+
+  const download = () => {
+    const blob = new Blob([toCsv(candles)], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${symbol}-${period}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const cols: Column<(typeof candles)[number]>[] = [
+    {
+      key: 'time',
+      header: 'Date',
+      width: '110px',
+      render: (r) => (
+        <span className="tabular-nums text-muted">
+          {new Date(r.time).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
+        </span>
+      ),
+    },
     { key: 'open', header: 'Open', align: 'right', render: (r) => fmt(r.open) },
-    { key: 'high', header: 'High', align: 'right', render: (r) => <span className="text-primary">{fmt(r.high)}</span> },
-    { key: 'low', header: 'Low', align: 'right', render: (r) => <span className="text-coral">{fmt(r.low)}</span> },
-    { key: 'close', header: 'Close', align: 'right', render: (r) => <span className="font-semibold">{fmt(r.close)}</span> },
-    { key: 'volume', header: 'Volume', align: 'right', render: (r) => fmt(r.volume, { compact: true, decimals: 0 }) },
+    { key: 'high', header: 'High', align: 'right', render: (r) => <span className="val-up">{fmt(r.high)}</span> },
+    { key: 'low', header: 'Low', align: 'right', render: (r) => <span className="val-down">{fmt(r.low)}</span> },
+    { key: 'close', header: 'Close', align: 'right', render: (r) => <span className="font-medium">{fmt(r.close)}</span> },
+    {
+      key: 'volume',
+      header: 'Volume',
+      align: 'right',
+      render: (r) => fmt(r.volume, { compact: true, decimals: 0 }),
+    },
   ]
-  
-  const change = candles.length > 0 ? ((candles[candles.length - 1].close - candles[0].close) / candles[0].close) * 100 : 0
 
   return (
     <PageShell
       title="Historical Data"
-      category="Data"
-      subtitle="OHLCV price history and downloadable time series across instruments."
-      icon="solar:server-square-bold-duotone"
-    >
-      <div className="flex flex-wrap gap-2 mb-6">
-        {SYMBOLS.map((s) => (
-          <Btn key={s} variant={s === symbol ? 'primary' : 'ghost'} onClick={() => setSymbol(s)} className={`text-xs px-3 py-1.5 ${s === symbol ? 'bg-primary text-black' : ''}`}>{s}</Btn>
-        ))}
-        <div className="ml-auto flex gap-1 bg-surface-2 p-1 rounded-xl border border-border">
-          {['1mo', '3mo', '1y'].map(p => (
-            <button key={p} onClick={() => setPeriod(p)} className={`px-2 py-1 text-xs rounded-lg ${period === p ? 'bg-surface text-foreground shadow-sm' : 'text-muted hover:text-foreground'}`}>
-              {p.toUpperCase()}
-            </button>
-          ))}
+      category="Professional"
+      subtitle="Daily open, high, low, close and volume — on screen, and out as a file."
+      icon="solar:server-square-linear"
+      backdrop="tape"
+      actions={
+        <div className="flex items-center gap-2">
+          <Segmented options={PERIODS} value={period} onChange={setPeriod} size="sm" />
+          <Btn variant="subtle" icon="solar:download-minimalistic-linear" onClick={download} disabled={!candles.length}>
+            Download CSV
+          </Btn>
         </div>
+      }
+    >
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <Select label="Instrument" value={symbol} onChange={setSymbol} options={SYMBOLS} />
+        <Segmented options={['Line', 'Candles'] as const} value={view} onChange={setView} size="sm" />
+        {stats && <span className="text-xs text-muted ml-auto tabular-nums">{candles.length} sessions</span>}
       </div>
-      
+
       {loading ? (
-        <div className="flex items-center justify-center h-64 text-soft">Loading historical data for {symbol}...</div>
+        <div className="space-y-3">
+          <SkeletonBlock height={280} />
+          <Panel label="Price history"><SkeletonRows rows={8} cols={6} /></Panel>
+        </div>
       ) : candles.length === 0 ? (
-        <div className="flex items-center justify-center h-64 text-soft">No historical data available.</div>
+        <Panel label="Price history">
+          <EmptyState
+            icon="solar:server-square-linear"
+            title={`No history for ${symbol}`}
+            body="Pick another instrument or a shorter window. Data appears as soon as the feed responds."
+          />
+        </Panel>
       ) : (
         <>
-          <Card className="mb-6 border-border">
-            <SectionTitle title={`${symbol} — ${period.toUpperCase()} History`} subtitle="Daily close" icon="solar:chart-2-bold-duotone" action={<Change value={change} suffix="%" />} />
-            <AreaChart data={candles.map((c) => c.close)} height={260} up={change >= 0} />
-          </Card>
-          <Card pad={false} className="p-2 border-border">
-            <DataTable columns={cols} rows={[...candles].reverse()} dense />
-          </Card>
+          {stats && (
+            <KpiRow cols={5} className="mb-3">
+              <StatTile label="Last close" value={fmt(stats.last)} change={stats.change} hint={`Over ${period}`} />
+              <StatTile label="Period high" value={fmt(stats.high)} tone="up" hint="Intraday peak" />
+              <StatTile label="Period low" value={fmt(stats.low)} tone="down" hint="Intraday trough" />
+              <StatTile label="Average volume" value={fmt(stats.avgVol, { compact: true, decimals: 0 })} hint="Shares per session" />
+              <StatTile label="Annualised volatility" value={`${stats.vol.toFixed(1)}%`} hint="From daily returns" />
+            </KpiRow>
+          )}
+
+          <div className="space-y-3">
+            <Panel label={`${symbol} price`} meta={`${period.toUpperCase()} · daily`} pad>
+              {view === 'Line' ? (
+                <AreaChart data={candles.map((c) => c.close)} height={280} up={(stats?.change ?? 0) >= 0} />
+              ) : (
+                <CandleChart candles={candles} height={280} />
+              )}
+            </Panel>
+
+            <Panel label="Session table" meta={`${candles.length} rows · newest first`}>
+              <DataTable columns={cols} rows={[...candles].reverse()} dense maxHeight={460} />
+            </Panel>
+          </div>
         </>
       )}
     </PageShell>
