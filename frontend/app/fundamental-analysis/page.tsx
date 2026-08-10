@@ -223,7 +223,7 @@ function StockResearch() {
                     <span>52W</span>
                     <span>₹{fmt(company['52w_high']!, { decimals: 0 })}</span>
                   </div>
-                  <div className="h-1.5 rounded-full bg-white/8 relative">
+                  <div className="h-1.5 rounded-full bg-hover-strong relative">
                     <span
                       className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-primary border-2 border-background"
                       style={{ left: `calc(${range}% - 5px)` }}
