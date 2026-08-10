@@ -38,16 +38,16 @@ export default function HomePage() {
     <main className="relative">
       {/* ─── Hero ─── */}
       <section className="relative pt-32 pb-20 px-4 sm:px-6 border-b border-border overflow-hidden min-h-[78vh] flex items-center">
-        {/* Background market visual, low opacity, anchored right */}
+        {/* Background market visual, bright & colourful, high opacity */}
         <img
           src="/hero-bg.webp"
           alt=""
           aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover object-right pointer-events-none select-none opacity-[0.28]"
+          className="absolute inset-0 w-full h-full object-cover object-right pointer-events-none select-none opacity-90 saturate-[1.3] transition-all duration-300"
         />
-        {/* Flat scrim for legibility — solid tint, no gradient */}
-        <div className="absolute inset-0 bg-background/70 pointer-events-none" />
-        <div className="absolute inset-y-0 left-0 w-full lg:w-[58%] bg-background/80 pointer-events-none" />
+        {/* Soft gradient mask for crisp text readability on the left without dulling right side visual */}
+        <div className="absolute inset-y-0 left-0 w-full lg:w-[62%] bg-gradient-to-r from-background via-background/90 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-background/10 pointer-events-none" />
 
         <div className="mx-auto max-w-6xl w-full relative">
           <div className="max-w-2xl">
