@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
 from app.config import get_settings
-from app.routers import market, screener, portfolio, watchlist, alerts, ai, news, options, charts, notifications, broker
+from app.routers import market, screener, portfolio, watchlist, alerts, ai, news, options, charts, notifications, broker, stratton, analytics
 from app.services.alert_service import start_alert_checker
 
 
@@ -38,10 +38,11 @@ app = FastAPI(
 )
 
 # CORS configuration
-origins = settings.cors_origins.split(",")
+origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=origins if origins and "*" not in origins else ["*"],
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -59,6 +60,12 @@ app.include_router(ai.router, prefix="/api/ai", tags=["AI Advisor"])
 app.include_router(news.router, prefix="/api/news", tags=["Business News"])
 app.include_router(options.router, prefix="/api/options", tags=["Options Chain"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["Telegram Settings"])
+app.include_router(analytics.router, prefix="/api/analytics", tags=["Derived Analytics"])
+app.include_router(stratton.router, prefix="/api/stratton", tags=["Multi-Agent Engine"])
+# The frontend reads the agent registry from unprefixed paths, so the same
+# router is mounted again at /api for /api/analysts, /api/personas and
+# /api/providers. Both mounts serve one implementation.
+app.include_router(stratton.router, prefix="/api", tags=["Multi-Agent Engine"], include_in_schema=False)
 
 @app.get("/health")
 async def health():
