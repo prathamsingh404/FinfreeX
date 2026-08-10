@@ -14,7 +14,7 @@ const AboutPage = () => {
         </p>
       </div>
 
-      <div className="glass-panel p-8 md:p-12 rounded-[2rem] mb-16 relative overflow-hidden border border-white/[0.06] bg-white/[0.03] shadow-lg shadow-black/20">
+      <div className="glass-panel p-8 md:p-12 rounded-[2rem] mb-16 relative overflow-hidden border border-border bg-hover shadow-lg shadow-black/20">
         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald/[0.05] blur-[80px] rounded-full pointer-events-none"></div>
         <h2 className="text-xl font-semibold tracking-tight text-foreground mb-6">Our Mission</h2>
         <div className="space-y-6 text-soft leading-relaxed text-xs md:text-sm">
@@ -31,15 +31,15 @@ const AboutPage = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="p-6 rounded-2xl bg-white/[0.03] border border-white/[0.06] text-center shadow-lg shadow-black/20">
+        <div className="p-6 rounded-2xl bg-hover border border-border text-center shadow-lg shadow-black/20">
           <div className="text-3xl font-bold text-emerald-bright font-mono mb-2">150k+</div>
           <div className="text-[10px] text-muted font-semibold">Portfolios Analyzed</div>
         </div>
-        <div className="p-6 rounded-2xl bg-white/[0.03] border border-white/[0.06] text-center shadow-lg shadow-black/20">
+        <div className="p-6 rounded-2xl bg-hover border border-border text-center shadow-lg shadow-black/20">
           <div className="text-3xl font-bold text-emerald-bright font-mono mb-2">$2B+</div>
           <div className="text-[10px] text-muted font-semibold">Assets Tracked</div>
         </div>
-        <div className="p-6 rounded-2xl bg-white/[0.03] border border-white/[0.06] text-center shadow-lg shadow-black/20">
+        <div className="p-6 rounded-2xl bg-hover border border-border text-center shadow-lg shadow-black/20">
           <div className="text-3xl font-bold text-emerald-bright font-mono mb-2">&lt;50ms</div>
           <div className="text-[10px] text-muted font-semibold">Signal Latency</div>
         </div>
