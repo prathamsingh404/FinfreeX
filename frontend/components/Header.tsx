@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext'
 import { TOP_NAV } from '@/lib/nav'
 import LanguageSwitcher from './LanguageSwitcher'
 import { openCommandPalette } from './CommandPalette'
+import ThemeToggle from './ui/ThemeToggle'
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false)
@@ -49,7 +50,7 @@ export default function Header() {
                 key={link.route}
                 href={link.route}
                 className={`px-3 py-1.5 rounded text-[13px] transition-colors ${
-                  active ? 'text-foreground bg-white/[0.06]' : 'text-soft hover:text-foreground hover:bg-white/[0.04]'
+                  active ? 'text-foreground bg-hover-strong' : 'text-soft hover:text-foreground hover-fill'
                 }`}
               >
                 {link.title}
@@ -63,13 +64,14 @@ export default function Header() {
           <button
             onClick={openCommandPalette}
             aria-label="Open command palette"
-            className="hidden sm:flex items-center gap-2 px-3 h-8 rounded-md bg-white/[0.04] border border-border hover:border-border-strong text-muted hover:text-soft transition-colors cursor-pointer"
+            className="hidden sm:flex items-center gap-2 px-3 h-8 rounded-md bg-surface-2 border border-border hover:border-border-strong text-muted hover:text-soft transition-colors cursor-pointer"
           >
             <iconify-icon icon="solar:magnifer-linear" width="14"></iconify-icon>
             <span className="text-xs">Search</span>
             <span className="kbd">Ctrl</span>
             <span className="kbd">K</span>
           </button>
+          <ThemeToggle />
           <div className="hidden lg:block">
             <LanguageSwitcher />
           </div>
@@ -78,7 +80,7 @@ export default function Header() {
               <button onClick={() => signOut()} className="text-xs font-medium text-muted hover:text-coral transition-colors px-2 cursor-pointer">
                 Sign Out
               </button>
-              <div className="w-8 h-8 rounded-md bg-white/[0.06] border border-border flex items-center justify-center text-primary overflow-hidden">
+              <div className="w-8 h-8 rounded-md bg-hover-strong border border-border flex items-center justify-center text-primary overflow-hidden">
                 {user.user_metadata?.avatar_url ? (
                   <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
