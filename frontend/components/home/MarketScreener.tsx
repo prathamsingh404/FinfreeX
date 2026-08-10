@@ -145,7 +145,7 @@ export default function MarketScreener() {
               }}
               className={cx(
                 'px-3 py-1.5 rounded text-[13px] font-medium transition-colors cursor-pointer',
-                tab === t.id ? 'bg-white/[0.06] text-foreground' : 'text-muted hover:text-soft'
+                tab === t.id ? 'bg-hover-strong text-foreground' : 'text-muted hover:text-soft'
               )}
             >
               {t.label}
@@ -153,7 +153,7 @@ export default function MarketScreener() {
           ))}
         </div>
 
-        <div className="ml-auto flex items-center gap-2 px-2.5 h-8 rounded bg-white/[0.03] border border-border focus-ring transition-colors w-full sm:w-48">
+        <div className="ml-auto flex items-center gap-2 px-2.5 h-8 rounded bg-hover border border-border focus-ring transition-colors w-full sm:w-48">
           <iconify-icon icon="solar:magnifer-linear" width="13" class="text-muted shrink-0"></iconify-icon>
           <input
             value={query}
@@ -203,7 +203,7 @@ export default function MarketScreener() {
                     onClick={() => tab !== 'indices' && router.push(`/fundamental-analysis?symbol=${encodeURIComponent(r.symbol)}`)}
                     className={cx(
                       'border-b border-border/60 transition-colors',
-                      tab !== 'indices' && 'cursor-pointer hover:bg-white/[0.02]'
+                      tab !== 'indices' && 'cursor-pointer hover:bg-hover'
                     )}
                   >
                     <td className="pl-4 pr-3 py-2.5">

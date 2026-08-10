@@ -18,7 +18,7 @@ export const SIGNAL_TONE: Record<Signal, string> = {
   SELL: 'text-coral bg-coral/10 border-coral/25',
   BEARISH: 'text-coral bg-coral/10 border-coral/25',
   HOLD: 'text-amber bg-amber/10 border-amber/25',
-  NEUTRAL: 'text-soft bg-white/[0.04] border-border',
+  NEUTRAL: 'text-soft bg-hover border-border',
 }
 
 /* ---------- Signal badge ---------- */
@@ -41,7 +41,7 @@ export function ConfidenceMeter({ value, label = 'Confidence', compact }: { valu
           <span className="text-[11px] font-semibold tabular-nums text-soft">{v}%</span>
         </div>
       )}
-      <div className="h-1 w-full rounded-full bg-white/[0.06] overflow-hidden">
+      <div className="h-1 w-full rounded-full bg-hover-strong overflow-hidden">
         <div className="h-full rounded-full bg-primary transition-[width] duration-500" style={{ width: `${v}%` }} />
       </div>
     </div>
@@ -56,9 +56,9 @@ export function ConsensusBar({ bullish, bearish, neutral = 0 }: { bullish: numbe
   const s = (bearish / total) * 100
   return (
     <div>
-      <div className="flex h-1.5 w-full rounded-full overflow-hidden bg-white/[0.06]">
+      <div className="flex h-1.5 w-full rounded-full overflow-hidden bg-hover-strong">
         <div className="bg-emerald transition-[width] duration-500" style={{ width: `${b}%` }} />
-        <div className="bg-white/15 transition-[width] duration-500" style={{ width: `${n}%` }} />
+        <div className="bg-hover-strong transition-[width] duration-500" style={{ width: `${n}%` }} />
         <div className="bg-coral transition-[width] duration-500" style={{ width: `${s}%` }} />
       </div>
       <div className="flex items-center justify-between mt-1.5 text-[10.5px]">
@@ -137,7 +137,7 @@ export function AgentCard({ agent, compact }: { agent: AgentInfo; compact?: bool
   return (
     <div className={cx('rounded-md border bg-surface transition-colors', working ? 'border-border-strong' : 'border-border', compact ? 'p-3' : 'p-4')}>
       <div className="flex items-center gap-2.5">
-        <div className="w-7 h-7 rounded bg-white/[0.04] border border-border flex items-center justify-center shrink-0 text-soft">
+        <div className="w-7 h-7 rounded bg-hover border border-border flex items-center justify-center shrink-0 text-soft">
           <iconify-icon icon={agent.icon} width="15"></iconify-icon>
         </div>
         <div className="flex-1 min-w-0">

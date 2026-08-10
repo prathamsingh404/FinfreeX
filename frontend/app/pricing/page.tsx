@@ -35,7 +35,7 @@ const PricingPage = () => {
              ))}
           </div>
 
-          <button className="w-full py-3 rounded-xl border border-white/10 text-foreground text-sm font-medium hover:bg-white/5 transition-colors">
+          <button className="w-full py-3 rounded-xl border border-border text-foreground text-sm font-medium hover:bg-hover transition-colors">
             Get Started
           </button>
         </div>
@@ -43,7 +43,7 @@ const PricingPage = () => {
         {/* Pro Plan */}
         <div className="glass-panel p-8 rounded-3xl relative flex flex-col border-emerald/30 transform md:-translate-y-4">
           <div className="absolute top-0 right-0 left-0 h-1 bg-primary rounded-t-3xl"></div>
-          <div className="absolute -top-3 right-8 px-3 py-1 bg-emerald rounded-full text-[10px] font-bold tracking-widest uppercase text-[#04120C] shadow-lg">
+          <div className="absolute -top-3 right-8 px-3 py-1 bg-emerald rounded-full text-[10px] font-bold tracking-widest uppercase text-[var(--on-primary)] shadow-lg">
             Most Popular
           </div>
 
@@ -65,7 +65,7 @@ const PricingPage = () => {
              ))}
           </div>
 
-          <button className="w-full py-3 rounded-xl bg-emerald text-[#04120C] text-sm font-medium hover:bg-emerald-bright transition-colors shadow-[0_0_20px_rgba(16,185,129,0.15)]">
+          <button className="w-full py-3 rounded-xl bg-emerald text-[var(--on-primary)] text-sm font-medium hover:bg-emerald-bright transition-colors">
             Start 14-Day Trial
           </button>
         </div>
@@ -90,7 +90,7 @@ const PricingPage = () => {
              ))}
           </div>
 
-          <button className="w-full py-3 rounded-xl border border-white/10 text-foreground text-sm font-medium hover:bg-white/5 transition-colors">
+          <button className="w-full py-3 rounded-xl border border-border text-foreground text-sm font-medium hover:bg-hover transition-colors">
             Contact Sales
           </button>
         </div>

@@ -47,7 +47,7 @@ export default function MarketPage() {
   }
 
   const Th = ({ k, label, align = 'left' }: { k: SortKey; label: string; align?: 'left' | 'right' }) => (
-    <th className={`px-3 py-2 font-medium text-${align} whitespace-nowrap cursor-pointer hover:bg-white/5 transition-colors`} onClick={() => toggleSort(k)}>
+    <th className={`px-3 py-2 font-medium text-${align} whitespace-nowrap cursor-pointer hover:bg-hover transition-colors`} onClick={() => toggleSort(k)}>
       <div className={`inline-flex items-center gap-1 ${sort === k ? 'text-primary' : ''}`}>
         {label}
         {sort === k && (
@@ -136,7 +136,7 @@ export default function MarketPage() {
   function renderRow(q: any) {
     const symbolCell = (
       <td className="px-4 py-2 flex items-center gap-2">
-        <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[9px] font-bold overflow-hidden shrink-0">
+        <div className="w-5 h-5 rounded-full bg-hover-strong flex items-center justify-center text-[9px] font-bold overflow-hidden shrink-0">
           {q.symbol.charAt(0)}
         </div>
         <div className="flex flex-col min-w-0">
@@ -233,7 +233,7 @@ export default function MarketPage() {
       <div className="flex h-full w-full overflow-hidden text-sm">
         
         {/* Main Terminal Area */}
-        <div className="flex-1 flex flex-col min-w-0 border-r border-border bg-[#131722]">
+        <div className="flex-1 flex flex-col min-w-0 border-r border-border bg-surface">
           
           {/* AI market brief */}
           {!loading && results.length > 0 && (() => {
@@ -270,7 +270,7 @@ export default function MarketPage() {
                 className={`flex items-center gap-1 px-2 py-1 rounded border transition-colors ${
                   sectorFilter !== 'All'
                     ? 'bg-primary/10 border-primary/30 text-primary'
-                    : 'bg-transparent border-transparent hover:bg-white/5 text-soft'
+                    : 'bg-transparent border-transparent hover:bg-hover text-soft'
                 }`}
               >
                 Sector{sectorFilter !== 'All' ? `: ${sectorFilter}` : ''}
@@ -282,7 +282,7 @@ export default function MarketPage() {
                     <button
                       key={s}
                       onClick={() => { setSectorFilter(s); setShowSectorDropdown(false) }}
-                      className={`w-full text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${sectorFilter === s ? 'text-primary font-medium' : 'text-foreground'}`}
+                      className={`w-full text-left px-3 py-1.5 text-xs hover:bg-hover transition-colors ${sectorFilter === s ? 'text-primary font-medium' : 'text-foreground'}`}
                     >
                       {s}
                     </button>
@@ -311,9 +311,9 @@ export default function MarketPage() {
           </div>
 
           {/* Data Table */}
-          <div className="flex-1 overflow-auto bg-[#131722]">
+          <div className="flex-1 overflow-auto bg-surface">
             <table className="w-full text-left border-collapse">
-              <thead className="sticky top-0 bg-[#131722] z-10 shadow-sm border-b border-border text-[11px] text-soft uppercase tracking-wider">
+              <thead className="sticky top-0 bg-surface z-10 shadow-sm border-b border-border text-[11px] text-soft uppercase tracking-wider">
                 {renderHeaders()}
               </thead>
               <tbody className="text-[13px]">
@@ -329,7 +329,7 @@ export default function MarketPage() {
                   <tr 
                     key={q.symbol} 
                     onClick={() => setSelectedSymbol(q)}
-                    className={`border-b border-white/[0.03] hover:bg-white/[0.02] cursor-pointer transition-colors ${activeQuote?.symbol === q.symbol ? 'bg-white/[0.04]' : ''}`}
+                    className={`border-b border-border hover:bg-hover cursor-pointer transition-colors ${activeQuote?.symbol === q.symbol ? 'bg-hover' : ''}`}
                   >
                     {renderRow(q)}
                   </tr>
@@ -340,7 +340,7 @@ export default function MarketPage() {
         </div>
 
         {/* Right Sidebar */}
-        <div className="w-[320px] bg-[#1e222d] shrink-0 flex flex-col border-l border-border hidden lg:flex">
+        <div className="w-[320px] bg-surface-2 shrink-0 flex flex-col border-l border-border hidden lg:flex">
           <div className="p-3 border-b border-border flex items-center justify-between">
             <h3 className="font-semibold text-sm">Watchlist</h3>
             <div className="flex gap-2 text-soft">
@@ -350,12 +350,12 @@ export default function MarketPage() {
           </div>
           
           <div className="flex-1 overflow-auto flex flex-col">
-            <div className="p-3 bg-white/[0.02] text-xs font-bold text-soft uppercase tracking-wider flex items-center justify-between">
+            <div className="p-3 bg-hover text-xs font-bold text-soft uppercase tracking-wider flex items-center justify-between">
               <span>Indices</span>
               <iconify-icon icon="solar:alt-arrow-down-linear"></iconify-icon>
             </div>
             {indices.map(idx => (
-              <div key={idx.name} className="px-3 py-2 flex items-center justify-between hover:bg-white/5 cursor-pointer border-b border-white/[0.02]">
+              <div key={idx.name} className="px-3 py-2 flex items-center justify-between hover:bg-hover cursor-pointer border-b border-border">
                 <div className="flex items-center gap-2">
                   <span className={`w-1.5 h-1.5 rounded-full ${idx.change_pct >= 0 ? 'bg-primary' : 'bg-coral'}`}></span>
                   <span className="font-semibold">{idx.name}</span>
@@ -367,14 +367,14 @@ export default function MarketPage() {
               </div>
             ))}
             
-            <div className="p-3 bg-white/[0.02] text-xs font-bold text-soft uppercase tracking-wider flex items-center justify-between mt-2">
+            <div className="p-3 bg-hover text-xs font-bold text-soft uppercase tracking-wider flex items-center justify-between mt-2">
               <span>Stocks</span>
               <iconify-icon icon="solar:alt-arrow-down-linear"></iconify-icon>
             </div>
             {results.slice(0, 10).map((q: any) => (
-              <div key={q.symbol} onClick={() => setSelectedSymbol(q)} className={`px-3 py-2 flex items-center justify-between hover:bg-white/5 cursor-pointer border-b border-white/[0.02] ${activeQuote?.symbol === q.symbol ? 'bg-white/5' : ''}`}>
+              <div key={q.symbol} onClick={() => setSelectedSymbol(q)} className={`px-3 py-2 flex items-center justify-between hover:bg-hover cursor-pointer border-b border-border ${activeQuote?.symbol === q.symbol ? 'bg-hover' : ''}`}>
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded bg-white/10 flex items-center justify-center text-[8px] font-bold overflow-hidden shrink-0">{q.symbol.charAt(0)}</div>
+                  <div className="w-4 h-4 rounded bg-hover-strong flex items-center justify-center text-[8px] font-bold overflow-hidden shrink-0">{q.symbol.charAt(0)}</div>
                   <span className="font-semibold truncate max-w-[80px]">{q.symbol}</span>
                 </div>
                 <div className="flex items-center gap-3 text-right">
@@ -387,7 +387,7 @@ export default function MarketPage() {
           
           {/* Active Symbol Details */}
           {activeQuote && (
-            <div className="p-4 border-t border-border bg-[#131722]">
+            <div className="p-4 border-t border-border bg-surface">
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
@@ -419,7 +419,7 @@ export default function MarketPage() {
 
           {/* Related News */}
           {news.length > 0 && (
-            <div className="p-4 border-t border-border bg-[#1e222d] flex-1 overflow-y-auto min-h-[200px]">
+            <div className="p-4 border-t border-border bg-surface-2 flex-1 overflow-y-auto min-h-[200px]">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-sm">News</h3>
                 <Link href="/news-sentiment" className="text-xs text-soft hover:text-foreground cursor-pointer">More</Link>

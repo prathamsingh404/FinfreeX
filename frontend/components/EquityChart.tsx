@@ -161,22 +161,22 @@ export default function EquityChart({ data, baseValue, height = 350, showBenchma
       {/* Floating Header Metrics */}
       <div className="flex justify-between items-start mb-4 px-2">
         <div>
-          <div className="text-[10px] text-white/30 uppercase tracking-[0.2em] font-semibold mb-1">Portfolio Equity</div>
+          <div className="text-[10px] text-muted uppercase tracking-[0.2em] font-semibold mb-1">Portfolio Equity</div>
           <div className="flex items-baseline gap-3">
-            <span className="text-2xl font-medium tracking-tight text-white">${metrics.current?.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-            <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded ${metrics.isPositive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+            <span className="text-2xl font-medium tracking-tight text-foreground">${metrics.current?.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+            <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded ${metrics.isPositive ? 'bg-up/10 text-up' : 'bg-down/10 text-down'}`}>
               {metrics.isPositive ? '+' : ''}{metrics.pnlPct?.toFixed(2)}%
             </span>
           </div>
         </div>
         <div className="text-right">
-          <div className="text-[10px] text-white/30 uppercase tracking-[0.2em] font-semibold mb-1 text-right">vs Benchmark</div>
-          <div className="text-xs font-medium text-white/60">
-            S&P 500: <span className={metrics.benchmarkPct >= 0 ? 'text-emerald-500/60' : 'text-red-500/60'}>
+          <div className="text-[10px] text-muted uppercase tracking-[0.2em] font-semibold mb-1 text-right">vs Benchmark</div>
+          <div className="text-xs font-medium text-soft">
+            S&P 500: <span className={metrics.benchmarkPct >= 0 ? 'text-up/60' : 'text-down/60'}>
               {metrics.benchmarkPct >= 0 ? '+' : ''}{metrics.benchmarkPct?.toFixed(2)}%
             </span>
           </div>
-          <div className={`text-[10px] font-bold mt-1 ${metrics.pnlPct > metrics.benchmarkPct ? 'text-purple-400' : 'text-white/20'}`}>
+          <div className={`text-[10px] font-bold mt-1 ${metrics.pnlPct > metrics.benchmarkPct ? 'text-primary' : 'text-faint'}`}>
             {metrics.pnlPct > metrics.benchmarkPct ? 'ALPHA: +' + (metrics.pnlPct - metrics.benchmarkPct).toFixed(2) + '%' : 'UNDERPERFORMING'}
           </div>
         </div>
@@ -185,7 +185,7 @@ export default function EquityChart({ data, baseValue, height = 350, showBenchma
       <div ref={chartContainerRef} className="w-full relative flex-1" />
 
       {/* Modern Backdrop Gradients */}
-      <div className="absolute -z-10 top-0 left-0 w-full h-full bg-gradient-to-tr from-purple-500/5 via-transparent to-emerald-500/5 opacity-50 blur-3xl pointer-events-none" />
+      
     </div>
   );
 }

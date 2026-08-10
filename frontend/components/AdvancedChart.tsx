@@ -35,7 +35,7 @@ interface AdvancedChartProps {
   pollIntervalMs?: number;
 }
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://backend-jet-mu-37.vercel.app';
 
 // ── Technical Calcs ──────────────────────────────────────────────────────────
 function calculateSMA(data: any[], period: number) {
@@ -207,12 +207,12 @@ export default function AdvancedChart({ data, volumeData, markers, height = 500,
       const rsi = param.seriesData.get(rsiSeries) as any;
 
       if (!candle) {
-        setLegendData({ close: sortedData[sortedData.length-1].close, color: 'text-emerald-400' });
+        setLegendData({ close: sortedData[sortedData.length-1].close, color: 'text-up' });
         return;
       }
       setLegendData({
         ...candle, volume: vol?.value, rsi: rsi?.value, macd: mHist?.value,
-        color: candle.close >= candle.open ? 'text-emerald-400' : 'text-red-400'
+        color: candle.close >= candle.open ? 'text-up' : 'text-down'
       });
     });
 
@@ -266,7 +266,7 @@ export default function AdvancedChart({ data, volumeData, markers, height = 500,
           ...prev,
           open: d.open, high: d.high, low: d.low, close: d.price,
           volume: d.volume,
-          color: d.price >= d.open ? 'text-emerald-400' : 'text-red-400',
+          color: d.price >= d.open ? 'text-up' : 'text-down',
         }));
       } catch {}
     };
@@ -277,38 +277,38 @@ export default function AdvancedChart({ data, volumeData, markers, height = 500,
   }, [live, ticker, pollIntervalMs]);
 
   return (
-    <div className="flex flex-col w-full h-full relative group bg-[#0a0a0b] rounded-xl overflow-hidden border border-white/5">
+    <div className="flex flex-col w-full h-full relative group bg-[#0a0a0b] rounded-xl overflow-hidden border border-border">
       {/* HUD Legend */}
       <div className="absolute top-4 left-4 z-20 pointer-events-none flex flex-col gap-1">
         <div className="flex items-center gap-3">
           {live ? (
-            <div className={`flex items-center gap-1 bg-emerald-500/20 border border-emerald-500/40 rounded px-1.5 py-0.5 text-[10px] text-emerald-400 font-black uppercase tracking-tighter transition-all ${livePulse ? 'scale-110 bg-emerald-500/30' : ''}`}>
-              <span className={`w-1.5 h-1.5 rounded-full bg-emerald-400 ${livePulse ? 'animate-ping' : 'animate-pulse'}`} />
+            <div className={`flex items-center gap-1 bg-up/20 border border-up/40 rounded px-1.5 py-0.5 text-[10px] text-up font-black uppercase tracking-tighter transition-all ${livePulse ? 'scale-110 bg-up/30' : ''}`}>
+              <span className={`w-1.5 h-1.5 rounded-full bg-up ${livePulse ? 'animate-ping' : 'animate-pulse'}`} />
               LIVE
             </div>
           ) : (
-            <div className="bg-white/10 rounded px-1.5 py-0.5 text-[10px] text-white/40 font-black uppercase tracking-tighter">HIST</div>
+            <div className="bg-hover-strong rounded px-1.5 py-0.5 text-[10px] text-muted font-black uppercase tracking-tighter">HIST</div>
           )}
-          <span className="text-white font-bold text-base tracking-tight">{ticker}</span>
+          <span className="text-foreground font-bold text-base tracking-tight">{ticker}</span>
         </div>
         <div className="flex gap-4 text-[11px] font-mono mt-1">
           {['open', 'high', 'low', 'close'].map(k => (
-            <div key={k} className="flex gap-1.5"><span className="text-white/20 uppercase">{k[0]}</span><span className={legendData.color}>{legendData[k]?.toFixed(2) || '0.00'}</span></div>
+            <div key={k} className="flex gap-1.5"><span className="text-faint uppercase">{k[0]}</span><span className={legendData.color}>{legendData[k]?.toFixed(2) || '0.00'}</span></div>
           ))}
-          <div className="flex gap-1.5 ml-4 border-l border-white/10 pl-4"><span className="text-white/20">VOL</span><span className="text-white/60">{(legendData.volume || 0).toLocaleString()}</span></div>
+          <div className="flex gap-1.5 ml-4 border-l border-border pl-4"><span className="text-faint">VOL</span><span className="text-soft">{(legendData.volume || 0).toLocaleString()}</span></div>
         </div>
         <div className="flex gap-4 text-[9px] font-bold uppercase tracking-widest mt-2">
-            <span className="text-purple-400/60">RSI (14): {legendData.rsi?.toFixed(2) || '--'}</span>
+            <span className="text-primary/60">RSI (14): {legendData.rsi?.toFixed(2) || '--'}</span>
             <span className="text-blue-400/60">MACD: {legendData.macd?.toFixed(2) || '--'}</span>
-            <span className="text-white/10">Bollinger: ACTIVE</span>
+            <span className="text-faint">Bollinger: ACTIVE</span>
         </div>
       </div>
 
       <div ref={chartContainerRef} className="w-full relative flex-1" />
       
       {/* Visual Polish: Side Vignettes */}
-      <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-black to-transparent z-10 pointer-events-none" />
-      <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
+      <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
+      <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
     </div>
   );
 }

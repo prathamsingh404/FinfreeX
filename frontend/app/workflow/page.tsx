@@ -29,7 +29,7 @@ export default function WorkflowPage() {
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 pt-32 pb-20">
         <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-[10px] tracking-wide mb-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-hover text-[10px] tracking-wide mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-bright animate-pulse"></span>
             <ShinyText text="SYSTEM ARCHITECTURE & ROADMAP" speed={3} color="#34D399" shineColor="#ffffff" className="text-[10px] tracking-wide font-medium" />
           </div>
@@ -64,11 +64,11 @@ export default function WorkflowPage() {
                 <div className="space-y-4 text-soft leading-relaxed font-light">
                     <p>Building the first agent that interacts with the real-world financial data. We focus on reliable data extraction and initial reasoning.</p>
                     <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                        <li className="flex items-start gap-3 bg-white/5 p-4 rounded-xl border border-white/5">
+                        <li className="flex items-start gap-3 bg-hover p-4 rounded-xl border border-border">
                             <span className="text-emerald-bright mt-1"><iconify-icon icon="solar:check-circle-linear"></iconify-icon></span>
                             <span className="text-foreground">SEC Filings (EDGAR) Integration</span>
                         </li>
-                        <li className="flex items-start gap-3 bg-white/5 p-4 rounded-xl border border-white/5">
+                        <li className="flex items-start gap-3 bg-hover p-4 rounded-xl border border-border">
                             <span className="text-emerald-bright mt-1"><iconify-icon icon="solar:check-circle-linear"></iconify-icon></span>
                             <span className="text-foreground">Claude 3.5 Sonnet Reasoning</span>
                         </li>
@@ -90,7 +90,7 @@ export default function WorkflowPage() {
                 </div>
                 <div className="space-y-4 text-soft leading-relaxed font-light">
                     <p>Adding specialized agents for distinct financial tasks. Agents now communicate and cross-reference findings.</p>
-                    <div className="p-6 rounded-2xl bg-white/5 border border-white/5 mt-6 border-l-4 border-l-coral/50">
+                    <div className="p-6 rounded-2xl bg-hover border border-border mt-6 border-l-4 border-l-coral/50">
                         <h4 className="text-foreground font-medium mb-3">Workflow Ingestion</h4>
                         <p className="text-sm">"Add a second agent for earnings call transcripts. Make them compare notes. Store outputs in Postgres. Build a basic Streamlit page."</p>
                     </div>
@@ -163,7 +163,7 @@ export default function WorkflowPage() {
                 <div className="space-y-4 text-soft leading-relaxed font-light">
                     <p>The final milestone. Real market execution using the Alpaca API with simulated capital. Monitoring latency and execution slippage.</p>
                     <div className="flex items-center gap-4 mt-6">
-                        <div className="px-5 py-3 rounded-full bg-white/5 border border-white/10 text-foreground font-medium flex items-center gap-2">
+                        <div className="px-5 py-3 rounded-full bg-hover border border-border text-foreground font-medium flex items-center gap-2">
                             <iconify-icon icon="solar:play-circle-linear" className="text-coral"></iconify-icon>
                             Alpaca API Integrated
                         </div>
@@ -179,7 +179,7 @@ export default function WorkflowPage() {
         <section>
           <div className="flex items-center gap-3 mb-12">
             <h2 className="text-2xl font-medium tracking-tight text-foreground">Technical Stack</h2>
-            <div className="h-px flex-1 bg-white/10"></div>
+            <div className="h-px flex-1 bg-hover-strong"></div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -225,7 +225,7 @@ export default function WorkflowPage() {
         </section>
       </div>
 
-      <footer className="border-t border-white/5 bg-background/80 backdrop-blur-md py-12 mt-20">
+      <footer className="border-t border-border bg-background/80 backdrop-blur-md py-12 mt-20">
         <div className="max-w-7xl mx-auto px-6 text-center text-muted text-xs tracking-widest uppercase">
           Build. Validate. Execute. © 2026 FinfreeX Systems.
         </div>

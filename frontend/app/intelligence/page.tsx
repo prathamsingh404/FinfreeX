@@ -119,7 +119,7 @@ export default function IntelligencePage() {
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-5 py-2 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all ${tab === t ? 'bg-primary text-[#04120C]' : 'text-soft hover:text-foreground'}`}
+            className={`px-5 py-2 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all ${tab === t ? 'bg-primary text-[var(--on-primary)]' : 'text-soft hover:text-foreground'}`}
           >
             {t}
           </button>
@@ -231,7 +231,7 @@ export default function IntelligencePage() {
                   <div className="space-y-2">
                     {analysis.recommendations.map((rec, i) => (
                       <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-surface border border-border">
-                        <div className="w-5 h-5 rounded bg-primary text-[#04120C] flex items-center justify-center text-[10px] font-bold shrink-0">{i + 1}</div>
+                        <div className="w-5 h-5 rounded bg-primary text-[var(--on-primary)] flex items-center justify-center text-[10px] font-bold shrink-0">{i + 1}</div>
                         <div className="text-sm text-foreground">{rec}</div>
                       </div>
                     ))}

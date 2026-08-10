@@ -5,6 +5,8 @@ from datetime import datetime
 import asyncio
 import math
 
+from app.services.market_cache import MarketDataUnavailable, recall, remember, with_cache
+
 def safe_float(val):
     if val is None: return None
     try:
@@ -26,17 +28,23 @@ def normalize_symbol(symbol: str, exchange: str = "NSE") -> str:
     return symbol
 
 async def get_quote(symbol: str, exchange: str = "NSE") -> dict:
-    """Get current price quote. Fallback to mock data if yfinance fails."""
+    """
+    Current price quote.
+
+    On upstream failure this serves the last good quote marked stale. It never
+    invents a price — a made-up quote is indistinguishable from a real one on
+    screen, which makes it worse than showing nothing.
+    """
     yf_symbol = normalize_symbol(symbol, exchange)
-    try:
+
+    async def fetch() -> dict:
         ticker = yf.Ticker(yf_symbol)
         ticker._tz = "Asia/Kolkata" if exchange in ("NSE", "BSE") else "America/New_York"
-        info = ticker.fast_info
         hist = await asyncio.to_thread(lambda: ticker.history(period="2d", interval="1d"))
         hist = hist.dropna()
 
         if hist.empty:
-            raise ValueError("Empty history")
+            raise ValueError("the price feed returned no sessions")
 
         current = float(hist["Close"].iloc[-1])
         prev_close = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else current
@@ -58,40 +66,11 @@ async def get_quote(symbol: str, exchange: str = "NSE") -> dict:
             "currency": "INR" if exchange in ("NSE", "BSE") else "USD",
             "timestamp": datetime.utcnow().isoformat()
         }
-    except Exception as e:
-        import random
-        base_prices = {
-            "RELIANCE": 2450.0,
-            "TCS": 3400.0,
-            "HDFCBANK": 1600.0,
-            "INFY": 1450.0,
-            "TATAMOTORS": 620.0,
-            "ICICIBANK": 950.0,
-            "ZOMATO": 120.0,
-            "NIFTY 50": 19800.0,
-            "SENSEX": 66000.0,
-            "BANKNIFTY": 43500.0,
-        }
-        base_price = base_prices.get(symbol.upper(), random.uniform(100.0, 1000.0))
-        change = round(random.uniform(-base_price * 0.02, base_price * 0.02), 2)
-        current = round(base_price + change, 2)
-        prev_close = base_price
-        change_pct = round((change / prev_close) * 100, 2)
-        return {
-            "symbol": symbol,
-            "exchange": exchange,
-            "yf_symbol": yf_symbol,
-            "current_price": current,
-            "previous_close": prev_close,
-            "change": change,
-            "change_pct": change_pct,
-            "open": round(current * random.uniform(0.99, 1.01), 2),
-            "high": round(max(current, prev_close) * random.uniform(1.0, 1.02), 2),
-            "low": round(min(current, prev_close) * random.uniform(0.98, 1.0), 2),
-            "volume": random.randint(100000, 5000000),
-            "currency": "INR" if exchange in ("NSE", "BSE") else "USD",
-            "timestamp": datetime.utcnow().isoformat()
-        }
+
+    try:
+        return await with_cache(f"quote:{yf_symbol}", f"{symbol} on {exchange}", fetch)
+    except MarketDataUnavailable as exc:
+        return {"error": exc.reason, "symbol": symbol, "exchange": exchange}
 
 async def get_ohlcv(
     symbol: str,
@@ -99,59 +78,61 @@ async def get_ohlcv(
     period: str = "3mo",
     interval: str = "1d"
 ) -> list[dict]:
-    """Get OHLCV data for charting. Returns list of candles. Fallback to mock data if empty."""
+    """
+    OHLCV candles for charting.
+
+    Returns an empty list when there is no live and no cached history. Drawing
+    a synthetic price series would make an outage look like a market.
+    """
     yf_symbol = normalize_symbol(symbol, exchange)
-    try:
+
+    async def fetch() -> list[dict]:
         ticker = yf.Ticker(yf_symbol)
         ticker._tz = "Asia/Kolkata" if exchange in ("NSE", "BSE") else "America/New_York"
         hist = await asyncio.to_thread(lambda: ticker.history(period=period, interval=interval))
         hist = hist.dropna()
         if hist.empty:
-            raise ValueError("Empty history")
+            raise ValueError("the price feed returned no candles")
 
         hist.index = pd.to_datetime(hist.index)
-        candles = []
-        for ts, row in hist.iterrows():
-            candles.append({
+        return [
+            {
                 "time": int(ts.timestamp()),
                 "open": round(float(row["Open"]), 4),
                 "high": round(float(row["High"]), 4),
                 "low": round(float(row["Low"]), 4),
                 "close": round(float(row["Close"]), 4),
                 "volume": int(row["Volume"]),
-            })
-        return candles
-    except Exception as e:
-        import random
-        base_price = 500.0
-        current_time = int(datetime.utcnow().timestamp())
-        candles = []
-        for i in range(60):
-            t = current_time - (60 - i) * 86400
-            op = base_price * (1 + random.uniform(-0.015, 0.015))
-            cl = op * (1 + random.uniform(-0.015, 0.015))
-            hi = max(op, cl) * (1 + random.uniform(0, 0.01))
-            lo = min(op, cl) * (1 - random.uniform(0, 0.01))
-            candles.append({
-                "time": t,
-                "open": round(op, 2),
-                "high": round(hi, 2),
-                "low": round(lo, 2),
-                "close": round(cl, 2),
-                "volume": random.randint(50000, 2000000),
-            })
-            base_price = cl
-        return candles
+            }
+            for ts, row in hist.iterrows()
+        ]
+
+    try:
+        return await with_cache(
+            f"ohlcv:{yf_symbol}:{period}:{interval}",
+            f"{symbol} history",
+            fetch,
+            annotate=False,
+        )
+    except MarketDataUnavailable:
+        return []
 
 async def get_fundamentals(symbol: str, exchange: str = "NSE") -> dict:
-    """Get company fundamentals from yfinance. Fallback to mock data if fails."""
+    """
+    Company fundamentals.
+
+    Falls back to the last good figures marked stale. Returns an ``error`` key
+    when nothing is available — invented ratios would be indistinguishable
+    from filed ones.
+    """
     yf_symbol = normalize_symbol(symbol, exchange)
-    try:
+
+    async def fetch() -> dict:
         ticker = yf.Ticker(yf_symbol)
         ticker._tz = "Asia/Kolkata" if exchange in ("NSE", "BSE") else "America/New_York"
         info = await asyncio.to_thread(lambda: ticker.info)
         if not info or not info.get("marketCap") or not info.get("longName"):
-            raise ValueError("Empty info or missing marketCap/longName")
+            raise ValueError("the fundamentals feed returned no filing data")
         return {
             "symbol": symbol,
             "company_name": info.get("longName", ""),
@@ -179,38 +160,11 @@ async def get_fundamentals(symbol: str, exchange: str = "NSE") -> dict:
             "beta": safe_float(info.get("beta")),
             "description": info.get("longBusinessSummary", ""),
         }
-    except Exception as e:
-        import random
-        sectors = ["Technology", "Financial Services", "Automobile", "Energy", "Consumer Goods"]
-        industries = ["IT Services", "Private Banks", "Passenger Cars", "Oil & Gas", "Packaged Foods"]
-        sec_idx = random.randint(0, len(sectors)-1)
-        return {
-            "symbol": symbol,
-            "company_name": f"{symbol} India Ltd" if exchange == "NSE" else f"{symbol} Corp",
-            "sector": sectors[sec_idx],
-            "industry": industries[sec_idx],
-            "market_cap": random.randint(50000000000, 500000000000),
-            "pe_ratio": round(random.uniform(12.0, 35.0), 1),
-            "forward_pe": round(random.uniform(10.0, 30.0), 1),
-            "pb_ratio": round(random.uniform(1.5, 6.0), 2),
-            "eps": round(random.uniform(5.0, 150.0), 2),
-            "revenue": random.randint(10000000000, 100000000000),
-            "revenue_growth": round(random.uniform(-0.05, 0.25), 3),
-            "gross_margins": round(random.uniform(0.2, 0.65), 3),
-            "operating_margins": round(random.uniform(0.08, 0.35), 3),
-            "profit_margins": round(random.uniform(0.05, 0.25), 3),
-            "debt_to_equity": round(random.uniform(0.1, 1.8), 2),
-            "current_ratio": round(random.uniform(1.1, 2.5), 2),
-            "roe": round(random.uniform(0.08, 0.28), 3),
-            "roa": round(random.uniform(0.04, 0.14), 3),
-            "free_cashflow": random.randint(5000000000, 50000000000),
-            "dividend_yield": round(random.uniform(0.0, 0.045), 4),
-            "52w_high": round(random.uniform(500.0, 1500.0), 2),
-            "52w_low": round(random.uniform(300.0, 800.0), 2),
-            "avg_volume": random.randint(500000, 10000000),
-            "beta": round(random.uniform(0.6, 1.5), 2),
-            "description": f"Fundamentals and financial metrics for {symbol} ({exchange}). Data generated via smart fallback cache due to live data rate-limit or IP resolution block.",
-        }
+
+    try:
+        return await with_cache(f"fundamentals:{yf_symbol}", f"{symbol} fundamentals", fetch)
+    except MarketDataUnavailable as exc:
+        return {"error": exc.reason, "symbol": symbol, "exchange": exchange}
 
 async def get_multiple_quotes(symbols_exchanges: list[tuple[str, str]]) -> list[dict]:
     """Batch fetch quotes concurrently."""
@@ -260,31 +214,18 @@ async def get_indices() -> dict:
         if data:
             results[name] = data
 
-    import random
-    default_indices = {
-        "NIFTY 50": (19800.0, 0.45, "NSE"),
-        "SENSEX": (66000.0, 0.38, "BSE"),
-        "BANKNIFTY": (43500.0, -0.12, "NSE"),
-        "NIFTYIT": (31500.0, 1.22, "NSE"),
-        "SP500": (4500.0, 0.25, "US"),
-        "NASDAQ": (14000.0, 0.88, "US"),
-        "DOW": (35000.0, 0.05, "US"),
-        "VIX_INDIA": (12.5, -2.4, "NSE"),
-        "VIX_US": (14.2, 1.5, "US"),
-        "GOLD": (1980.0, 0.15, "COMMODITY"),
-        "CRUDE": (78.5, -1.2, "COMMODITY"),
-        "USDINR": (83.25, 0.02, "FOREX"),
-    }
-    for name, (base, change_pct, cat) in default_indices.items():
-        if name not in results:
-            change = round(base * (change_pct / 100) * random.uniform(0.8, 1.2), 2)
-            price = round(base + change, 2)
-            results[name] = {
-                "price": price,
-                "change": change,
-                "change_pct": round((change / base) * 100, 2),
-                "category": cat
-            }
+    # An index that did not resolve is served from its last good value, marked
+    # stale, or omitted entirely. It is never filled in with a placeholder
+    # level — a fabricated NIFTY print is a lie the UI cannot detect.
+    for name, (yf_sym, cat) in indices.items():
+        if name in results:
+            remember(f"index:{name}", results[name])
+            continue
+        cached = recall(f"index:{name}")
+        if cached is not None:
+            value, age = cached
+            results[name] = {**value, "stale": True, "stale_seconds": age}
+
     return results
 
 async def get_top_movers(exchange: str = "NSE", count: int = 10) -> dict:
@@ -483,21 +424,14 @@ async def get_sectors_data() -> list[dict]:
     live = [r for r in resolved if r]
 
     if live:
+        remember("sectors", live)
         return live
 
-    # Fallback data
-    import random
-    fallback = [
-        ("IT", 31500), ("Bank", 43500), ("Pharma", 14200), ("Auto", 18900),
-        ("FMCG", 56000), ("Metal", 7800), ("Realty", 660), ("Energy", 32000),
-        ("Infrastructure", 6800), ("PSU Bank", 6200), ("Media", 2100), ("Financial Services", 20800),
-    ]
-    return [{
-        "name": name,
-        "price": round(base * (1 + random.uniform(-0.01, 0.01)), 2),
-        "change": round(base * random.uniform(-0.015, 0.015), 2),
-        "change_pct": round(random.uniform(-1.5, 1.5), 2),
-        "week_change_pct": round(random.uniform(-3, 3), 2),
-    } for name, base in fallback]
+    # Last good sector board, marked stale, or nothing at all.
+    cached = recall("sectors")
+    if cached is not None:
+        value, age = cached
+        return [{**row, "stale": True, "stale_seconds": age} for row in value]
+    return []
 
 

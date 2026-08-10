@@ -12,7 +12,7 @@ interface MiniChartProps {
   pollIntervalMs?: number;
 }
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://backend-jet-mu-37.vercel.app';
 
 export default function MiniChart({ ticker, name, data, height = 250, live = false, pollIntervalMs = 8000 }: MiniChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -115,19 +115,19 @@ export default function MiniChart({ ticker, name, data, height = 250, live = fal
   const pct  = livePct ?? (initialValue ? ((displayPrice - initialValue) / initialValue) * 100 : 0);
 
   return (
-    <div className="relative w-full rounded-xl overflow-hidden border border-white/5 bg-[#0a0a0b]">
+    <div className="relative w-full rounded-xl overflow-hidden border border-border bg-[#0a0a0b]">
       {/* Ticker info */}
       <div className="absolute top-4 left-4 z-10 pointer-events-none flex items-center gap-3">
-        <div className="bg-white/10 rounded-full w-6 h-6 flex items-center justify-center">
-          <span className="text-[10px] text-white font-bold">{ticker[0]}</span>
+        <div className="bg-hover-strong rounded-full w-6 h-6 flex items-center justify-center">
+          <span className="text-[10px] text-foreground font-bold">{ticker[0]}</span>
         </div>
-        <div className="flex bg-white/5 border border-white/10 rounded-md overflow-hidden">
-          <span className="px-2 py-1 text-xs font-bold text-white bg-white/10">{ticker}</span>
-          <span className="px-2 py-1 text-[10px] text-white/50">{name}</span>
+        <div className="flex bg-hover border border-border rounded-md overflow-hidden">
+          <span className="px-2 py-1 text-xs font-bold text-foreground bg-hover-strong">{ticker}</span>
+          <span className="px-2 py-1 text-[10px] text-muted">{name}</span>
         </div>
         {live && (
-          <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 transition-opacity ${livePulse ? 'opacity-100' : 'opacity-70'}`}>
-            <span className={`w-1 h-1 rounded-full bg-emerald-400 ${livePulse ? 'animate-ping' : 'animate-pulse'}`} />
+          <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-up/15 text-up border border-up/25 transition-opacity ${livePulse ? 'opacity-100' : 'opacity-70'}`}>
+            <span className={`w-1 h-1 rounded-full bg-up ${livePulse ? 'animate-ping' : 'animate-pulse'}`} />
             LIVE
           </span>
         )}
@@ -135,10 +135,10 @@ export default function MiniChart({ ticker, name, data, height = 250, live = fal
 
       {/* Price badge */}
       <div className="absolute top-4 right-4 z-10 pointer-events-none flex flex-col items-end gap-1">
-        <div className={`px-3 py-1 rounded font-mono text-xs font-bold transition-all ${isUp ? 'bg-emerald-500 text-black' : 'bg-red-500 text-white'} ${livePulse ? 'scale-105' : ''}`}>
+        <div className={`px-3 py-1 rounded font-mono text-xs font-bold transition-all ${isUp ? 'bg-up text-black' : 'bg-down text-white'} ${livePulse ? 'scale-105' : ''}`}>
           ₹{displayPrice.toFixed(2)}
         </div>
-        <div className={`text-[10px] font-mono font-semibold ${pct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+        <div className={`text-[10px] font-mono font-semibold ${pct >= 0 ? 'text-up' : 'text-down'}`}>
           {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
         </div>
       </div>

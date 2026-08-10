@@ -13,7 +13,7 @@ interface CandleMiniChartProps {
   usdToInr?: number;
 }
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://backend-jet-mu-37.vercel.app';
 
 export default function CandleMiniChart({
   ticker, height = 200, live = true, pollIntervalMs = 8000, onSelect, selected = false, usdToInr,
@@ -123,33 +123,33 @@ export default function CandleMiniChart({
     <div
       onClick={() => onSelect?.(ticker)}
       className={`relative rounded-xl overflow-hidden border bg-[#0a0a0b] transition-all cursor-pointer ${
-        selected ? 'border-purple-500/50 shadow-[0_0_12px_rgba(139,92,246,0.2)]' : 'border-white/8 hover:border-white/20'
+        selected ? 'border-primary' : 'border-border hover:border-border-strong'
       }`}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-3 pt-3 pb-1">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-white tracking-tight">{ticker}</span>
+          <span className="text-xs font-bold text-foreground tracking-tight">{ticker}</span>
           {live && (
-            <span className={`flex items-center gap-0.5 px-1 py-0.5 rounded text-[8px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 ${pulse ? 'opacity-100' : 'opacity-60'}`}>
-              <span className={`w-1 h-1 rounded-full bg-emerald-400 ${pulse ? 'animate-ping' : 'animate-pulse'}`} />
+            <span className={`flex items-center gap-0.5 px-1 py-0.5 rounded text-[8px] font-bold bg-up/10 text-up border border-up/20 ${pulse ? 'opacity-100' : 'opacity-60'}`}>
+              <span className={`w-1 h-1 rounded-full bg-up ${pulse ? 'animate-ping' : 'animate-pulse'}`} />
               LIVE
             </span>
           )}
         </div>
         <div className="text-right">
           {price !== null && (
-            <div className={`text-xs font-mono font-semibold transition-all ${up ? 'text-emerald-400' : 'text-red-400'} ${pulse ? 'scale-105' : ''}`}>
+            <div className={`text-xs font-mono font-semibold transition-all ${up ? 'text-up' : 'text-down'} ${pulse ? 'scale-105' : ''}`}>
               {currency === 'INR' ? '₹' : '$'}{price.toLocaleString(currency === 'INR' ? 'en-IN' : 'en-US', { minimumFractionDigits: 2 })}
             </div>
           )}
           {currency === 'USD' && usdToInr && price !== null && (
-            <div className="text-[9px] font-mono text-white/30">
+            <div className="text-[9px] font-mono text-muted">
               ≈ ₹{(price * usdToInr).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
             </div>
           )}
           {changePct !== null && (
-            <div className={`text-[10px] font-mono ${up ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
+            <div className={`text-[10px] font-mono ${up ? 'text-up/70' : 'text-down/70'}`}>
               {up ? '+' : ''}{changePct.toFixed(2)}%
             </div>
           )}
@@ -161,12 +161,12 @@ export default function CandleMiniChart({
         <div ref={containerRef} className="w-full h-full" />
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0b]/80">
-            <div className="w-4 h-4 border border-white/20 border-t-white/60 rounded-full animate-spin" />
+            <div className="w-4 h-4 border border-border border-t-white/60 rounded-full animate-spin" />
           </div>
         )}
       </div>
 
-      {selected && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-purple-500/60" />}
+      {selected && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-primary/60" />}
     </div>
   );
 }

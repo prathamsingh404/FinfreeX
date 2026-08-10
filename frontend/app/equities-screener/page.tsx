@@ -104,7 +104,7 @@ export default function EquitiesScreenerPage() {
 
   const Th = ({ k, label }: { k: SortKey; label: string }) => (
     <th
-      className="px-3 py-2 font-medium text-right whitespace-nowrap cursor-pointer hover:bg-white/5 transition-colors"
+      className="px-3 py-2 font-medium text-right whitespace-nowrap cursor-pointer hover:bg-hover transition-colors"
       onClick={() => toggleSort(k)}
     >
       <div className={`inline-flex items-center gap-1 ${sort === k ? 'text-primary' : ''}`}>
@@ -170,7 +170,7 @@ export default function EquitiesScreenerPage() {
         </select>
 
         {activeChips.map((c) => (
-          <span key={c} className="chip text-soft bg-white/[0.04]">{c}</span>
+          <span key={c} className="chip text-soft bg-hover">{c}</span>
         ))}
         {(preset || activeChips.length > 0) && (
           <button
@@ -209,7 +209,7 @@ export default function EquitiesScreenerPage() {
             <tbody className="text-[13px]">
               {loading ? (
                 [...Array(8)].map((_, i) => (
-                  <tr key={i} className="border-b border-white/[0.03]">
+                  <tr key={i} className="border-b border-border">
                     <td colSpan={9} className="px-4 py-2"><div className="skeleton h-8 w-full" /></td>
                   </tr>
                 ))
@@ -222,7 +222,7 @@ export default function EquitiesScreenerPage() {
                 </tr>
               ) : (
                 results.map((q: any) => (
-                  <tr key={q.symbol} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors group">
+                  <tr key={q.symbol} className="border-b border-border hover:bg-hover transition-colors group">
                     <td className="px-4 py-2.5">
                       <div className="flex flex-col min-w-0">
                         <span className="font-semibold text-foreground truncate">{q.symbol}</span>

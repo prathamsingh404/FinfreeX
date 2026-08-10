@@ -79,30 +79,7 @@ async def get_aggregated_news(symbol: Optional[str] = None, limit: int = 20) -> 
                 seen_titles.add(title_lower)
                 all_articles.append(a)
                 
-    # If RSS feeds failed or are empty, return robust mock data
-    if not all_articles:
-        all_articles = [
-            {
-                "title": "Nifty 50 hovers near 24,000; banking and auto stocks lead gains",
-                "source": "Moneycontrol",
-                "url": "https://www.moneycontrol.com",
-                "published_at": datetime.utcnow().isoformat(),
-                "description": "The Indian benchmark indices opened flat today but witnessed immediate buying action as FII buying support and retail inflows continue to sustain valuations."
-            },
-            {
-                "title": "Government announces PLI expansion for electronics manufacturing sector",
-                "source": "Economic Times",
-                "url": "https://economictimes.indiatimes.com",
-                "published_at": datetime.utcnow().isoformat(),
-                "description": "In a bid to push local manufacturing, the government has extended the production linked incentive scheme by ₹10,000 crores for semiconductors and IoT devices."
-            },
-            {
-                "title": "Tata Motors launches new EV variant; stock targets upgraded by top brokerages",
-                "source": "Livemint",
-                "url": "https://www.livemint.com",
-                "published_at": datetime.utcnow().isoformat(),
-                "description": "Tata Motors announced the rollout of their long-range electric SUV, prompting brokerages to upgrade earnings estimates on expected market share expansion."
-            }
-        ]
-        
+    # No invented headlines. Fabricated stories carry real outlet names and
+    # plausible detail, so a reader has no way to tell them from reporting.
+    # An empty feed is served as empty and the client says the feed is down.
     return all_articles[:limit]

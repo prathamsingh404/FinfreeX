@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { NAV, NavGroup, NavItem } from '@/lib/nav'
 import { openCommandPalette } from '@/components/CommandPalette'
+import ThemeToggle from '@/components/ui/ThemeToggle'
 
 export { NAV as features } from '@/lib/nav'
 
@@ -17,7 +18,9 @@ function NavLink({ item, onNavigate }: { item: NavItem; onNavigate: () => void }
         href={item.route}
         onClick={onNavigate}
         className={`flex items-center gap-2.5 px-2.5 py-[7px] rounded text-[13px] transition-colors ${
-          isActive ? 'bg-white/[0.06] text-foreground font-medium' : 'text-soft hover:text-foreground hover:bg-white/[0.03]'
+          isActive
+            ? 'bg-primary-wash text-foreground font-medium shadow-[inset_2px_0_0_var(--primary)]'
+            : 'text-soft hover:text-foreground hover-fill'
         }`}
       >
         <iconify-icon icon={item.icon} width="16" class={isActive ? 'text-foreground' : 'text-muted'}></iconify-icon>
@@ -36,7 +39,7 @@ function Group({ group, onNavigate }: { group: NavGroup; onNavigate: () => void 
 
   return (
     <div>
-      <h4 className="text-[10px] font-semibold tracking-wider uppercase mb-1.5 px-2 text-muted">{group.category}</h4>
+      <h4 className="eyebrow mb-1.5 px-2">{group.category}</h4>
       <ul className="space-y-px">
         {core.map((item) => (
           <NavLink key={item.route} item={item} onNavigate={onNavigate} />
@@ -46,7 +49,7 @@ function Group({ group, onNavigate }: { group: NavGroup; onNavigate: () => void 
           <li>
             <button
               onClick={() => setShowPro((v) => !v)}
-              className="w-full flex items-center gap-2.5 px-2.5 py-[6px] rounded text-xs text-muted hover:text-soft hover:bg-white/[0.03] transition-colors cursor-pointer"
+              className="w-full flex items-center gap-2.5 px-2.5 py-[6px] rounded text-xs text-muted hover:text-soft hover-fill transition-colors cursor-pointer"
             >
               <iconify-icon
                 icon={showPro ? 'solar:alt-arrow-up-linear' : 'solar:alt-arrow-down-linear'}
@@ -77,7 +80,7 @@ export default function Sidebar() {
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] lg:hidden" onClick={close}></div>
+        <div className="fixed inset-0 bg-[var(--overlay)] backdrop-blur-sm z-[90] lg:hidden" onClick={close}></div>
       )}
 
       <aside
@@ -104,7 +107,7 @@ export default function Sidebar() {
               close()
               openCommandPalette()
             }}
-            className="w-full flex items-center gap-2 px-2.5 h-8 rounded bg-white/[0.03] border border-border hover:border-border-strong text-left transition-colors cursor-pointer group"
+            className="w-full flex items-center gap-2 px-2.5 h-8 rounded bg-surface-2 border border-border hover:border-border-strong text-left transition-colors cursor-pointer group"
           >
             <iconify-icon icon="solar:magnifer-linear" width="14" class="text-muted"></iconify-icon>
             <span className="text-xs text-muted group-hover:text-soft flex-1">Search</span>
@@ -120,14 +123,15 @@ export default function Sidebar() {
           ))}
         </nav>
 
-        <div className="p-3 border-t border-border shrink-0">
+        <div className="p-3 border-t border-border shrink-0 flex items-center justify-between gap-2">
           <Link
             href="/docs"
-            className="flex items-center gap-2 px-2 py-1.5 rounded text-xs text-muted hover:text-soft hover:bg-white/[0.03] transition-colors"
+            className="flex items-center gap-2 px-2 py-1.5 rounded text-xs text-muted hover:text-soft hover-fill transition-colors"
           >
             <iconify-icon icon="solar:book-2-linear" width="14"></iconify-icon>
             Documentation
           </Link>
+          <ThemeToggle />
         </div>
       </aside>
     </>

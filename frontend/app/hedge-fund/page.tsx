@@ -1,323 +1,508 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PageShell from '@/components/PageShell'
-import { Card, SectionTitle, StatCard, Badge, Btn, Change, ProgressBar, Sparkline, fmt } from '@/components/ui/kit'
-import { useScreener, useBacktest } from '@/lib/hooks/useMarketData'
+import {
+  Panel, Badge, Btn, StatTile, KpiRow, EmptyState, Note, ProgressBar, DefRow, cx,
+} from '@/components/ui/kit'
+import { SearchInput, Switch, Reveal } from '@/components/ui/controls'
 
-type Signal = 'bullish' | 'bearish' | 'neutral'
+/* The committee is a live process, not a form submission: agents finish at
+   different times and the page fills in as each verdict lands. Everything on
+   this screen — the agent roster, the persona list, the available models —
+   comes from the engine, so what you see is what the deployment can run. */
 
-interface AnalystSignal {
-  agent: string
-  icon: string
-  signal: Signal
-  confidence: number
-  reasoning: string
+interface AnalystMeta { key: string; node: string; name: string; focus?: string; style?: string; always_on: boolean }
+interface ProviderMeta { key: string; name: string; configured: boolean; models: string[] }
+interface ProvidersResponse {
+  providers: ProviderMeta[]
+  default_provider: string | null
+  default_model: string | null
+  llm_available: boolean
+  data_provider: string
+}
+interface Signal { agent: string; ticker: string; signal: string; confidence: number; reasoning: string }
+interface RiskSignal { ticker: string; signal: string; confidence: number; max_position_size: number; bull_count: number; bear_count: number }
+interface Decision { ticker: string; action: string; quantity: number; confidence: number; reasoning: string }
+
+type AgentStatus = 'waiting' | 'running' | 'done'
+
+const SIGNAL_TONE: Record<string, 'up' | 'down' | 'neutral'> = {
+  bullish: 'up', bearish: 'down', neutral: 'neutral',
 }
 
-interface Decision {
-  ticker: string
-  action: 'BUY' | 'SELL' | 'HOLD'
-  quantity: number
-  confidence: number
-  price: number
+const ACTION_TONE: Record<string, 'up' | 'down' | 'warn' | 'neutral'> = {
+  buy: 'up', sell: 'down', short: 'down', cover: 'up', hold: 'neutral',
 }
 
-const ANALYSTS = [
-  { id: 'fundamentals', label: 'Fundamentals', icon: 'solar:chart-square-bold-duotone' },
-  { id: 'technical', label: 'Technical', icon: 'solar:graph-up-bold-duotone' },
-  { id: 'sentiment', label: 'Sentiment', icon: 'solar:document-text-bold-duotone' },
-  { id: 'valuation', label: 'Valuation', icon: 'solar:calculator-bold-duotone' },
-  { id: 'growth', label: 'Growth', icon: 'solar:rocket-bold-duotone' },
-  { id: 'macro', label: 'Macro Regime', icon: 'solar:global-bold-duotone' },
-]
-
-const PERSONAS = [
-  { id: 'buffett', label: 'Warren Buffett', style: 'Value & moats' },
-  { id: 'graham', label: 'Benjamin Graham', style: 'Deep value' },
-  { id: 'wood', label: 'Cathie Wood', style: 'Disruptive growth' },
-  { id: 'burry', label: 'Michael Burry', style: 'Contrarian' },
-  { id: 'lynch', label: 'Peter Lynch', style: 'GARP' },
-  { id: 'jhunjhunwala', label: 'R. Jhunjhunwala', style: 'India growth' },
-]
-
-function hashSeed(s: string) {
-  let h = 0
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
-  return h
+function prettyAgent(node: string) {
+  return node.replace(/_analyst$/, '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-const REASONS: Record<Signal, string[]> = {
-  bullish: [
-    'Strong free cash flow and expanding margins support upside.',
-    'Price structure is trending with healthy volume confirmation.',
-    'Sentiment and flows have turned constructive recently.',
-    'Reasonable valuation versus peers with a widening moat.',
-  ],
-  bearish: [
-    'Stretched valuation leaves little margin of safety.',
-    'Momentum is fading near overhead resistance.',
-    'Deteriorating margins pressure the earnings outlook.',
-    'Rising macro risk could compress the multiple.',
-  ],
-  neutral: [
-    'Balanced risk-reward; awaiting a clearer catalyst.',
-    'Range-bound technicals with mixed fundamentals.',
-    'Fairly valued; limited near-term edge either way.',
-    'Watch the next earnings print before committing.',
-  ],
-}
+export default function ModelCommitteePage() {
+  // ── Registry, loaded from the engine ──────────────────────────────
+  const [analysts, setAnalysts] = useState<AnalystMeta[]>([])
+  const [personas, setPersonas] = useState<AnalystMeta[]>([])
+  const [providers, setProviders] = useState<ProvidersResponse | null>(null)
+  const [registryError, setRegistryError] = useState<string | null>(null)
+  const [registryLoading, setRegistryLoading] = useState(true)
 
-function buildSignals(ticker: string): AnalystSignal[] {
-  return ANALYSTS.map((a, i) => {
-    const h = hashSeed(ticker + a.id)
-    const signal: Signal = (['bullish', 'neutral', 'bearish'] as Signal[])[h % 3]
-    const confidence = 40 + (h % 55)
-    return {
-      agent: a.label,
-      icon: a.icon,
-      signal,
-      confidence,
-      reasoning: REASONS[signal][(h >> 3) % REASONS[signal].length],
-    }
-  })
-}
+  // ── Run configuration ─────────────────────────────────────────────
+  const [tickers, setTickers] = useState('AAPL, MSFT')
+  const [selectedPersonas, setSelectedPersonas] = useState<string[]>([])
+  const [useLlm, setUseLlm] = useState(false)
+  const [provider, setProvider] = useState('')
+  const [model, setModel] = useState('')
+  const [personaQuery, setPersonaQuery] = useState('')
 
-function consensus(signals: AnalystSignal[]): { signal: Signal; confidence: number } {
-  const score = signals.reduce((s, x) => s + (x.signal === 'bullish' ? x.confidence : x.signal === 'bearish' ? -x.confidence : 0), 0)
-  const avg = Math.round(signals.reduce((s, x) => s + x.confidence, 0) / signals.length)
-  const signal: Signal = score > 40 ? 'bullish' : score < -40 ? 'bearish' : 'neutral'
-  return { signal, confidence: avg }
-}
-
-type Tone = 'primary' | 'coral' | 'amber'
-const signalTone = (s: Signal): Tone => (s === 'bullish' ? 'primary' : s === 'bearish' ? 'coral' : 'amber')
-const actionTone = (a: Decision['action']): Tone => (a === 'BUY' ? 'primary' : a === 'SELL' ? 'coral' : 'amber')
-
-export default function HedgeFundPage() {
-  const { data: screenerData } = useScreener({ universe: 'ALL' })
-  const { data: backtest, loading: backtestLoading } = useBacktest('hedge-fund-v1')
-
-  const quotes = screenerData || []
-  const priceOf = (sym: string) => quotes.find((q: any) => q.symbol === sym)?.current_price ?? 1000
-
-  const [tab, setTab] = useState<'analyze' | 'backtest'>('analyze')
-  const [tickers, setTickers] = useState('RELIANCE, INFY')
-  const [personas, setPersonas] = useState<string[]>(['buffett'])
-  const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<{ ticker: string; signals: AnalystSignal[] }[] | null>(null)
+  // ── Live run state ────────────────────────────────────────────────
+  const [running, setRunning] = useState(false)
+  const [stage, setStage] = useState<string | null>(null)
+  const [plannedAgents, setPlannedAgents] = useState<string[]>([])
+  const [agentStatus, setAgentStatus] = useState<Record<string, AgentStatus>>({})
+  const [signals, setSignals] = useState<Signal[]>([])
+  const [riskSignals, setRiskSignals] = useState<RiskSignal[]>([])
   const [decisions, setDecisions] = useState<Decision[]>([])
+  const [runError, setRunError] = useState<string | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
-  function togglePersona(id: string) {
-    setPersonas((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]))
-  }
-
-  function runAnalysis() {
-    const list = tickers
-      .split(',')
-      .map((t) => t.trim().toUpperCase())
-      .filter(Boolean)
-    if (!list.length) return
-    setLoading(true)
-    setResult(null)
-    setTimeout(() => {
-      const res = list.map((ticker) => ({ ticker, signals: buildSignals(ticker) }))
-      const decs: Decision[] = res.map(({ ticker, signals }) => {
-        const c = consensus(signals)
-        const action = c.signal === 'bullish' ? 'BUY' : c.signal === 'bearish' ? 'SELL' : 'HOLD'
-        const price = priceOf(ticker)
-        return {
-          ticker,
-          action,
-          quantity: action === 'HOLD' ? 0 : Math.max(1, Math.round((c.confidence * 500) / price)),
-          confidence: c.confidence,
-          price,
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const [a, p, pr] = await Promise.all([
+          fetch('/api/hedge-fund/analysts').then((r) => r.json()),
+          fetch('/api/hedge-fund/personas').then((r) => r.json()),
+          fetch('/api/hedge-fund/providers').then((r) => r.json()),
+        ])
+        if (cancelled) return
+        setAnalysts(a.analysts ?? [])
+        setPersonas(p.personas ?? [])
+        setProviders(pr)
+        if (pr?.default_provider) {
+          setProvider(pr.default_provider)
+          setModel(pr.default_model ?? '')
+          setUseLlm(Boolean(pr.llm_available))
         }
+      } catch (err: any) {
+        if (!cancelled) setRegistryError(err.message || 'Could not reach the analysis engine.')
+      } finally {
+        if (!cancelled) setRegistryLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => () => abortRef.current?.abort(), [])
+
+  const providerModels = useMemo(
+    () => providers?.providers.find((p) => p.key === provider)?.models ?? [],
+    [providers, provider],
+  )
+
+  const shownPersonas = useMemo(() => {
+    const q = personaQuery.trim().toLowerCase()
+    return q ? personas.filter((p) => p.name.toLowerCase().includes(q) || (p.style ?? '').toLowerCase().includes(q)) : personas
+  }, [personas, personaQuery])
+
+  const tickerList = useMemo(
+    () => tickers.split(/[\s,]+/).map((t) => t.trim().toUpperCase()).filter(Boolean),
+    [tickers],
+  )
+
+  const togglePersona = (key: string) =>
+    setSelectedPersonas((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]))
+
+  const run = useCallback(async () => {
+    if (!tickerList.length) {
+      setRunError('Enter at least one ticker.')
+      return
+    }
+
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    setRunning(true)
+    setRunError(null)
+    setSignals([])
+    setRiskSignals([])
+    setDecisions([])
+    setAgentStatus({})
+    setPlannedAgents([])
+    setStage('Starting the committee')
+
+    try {
+      const res = await fetch('/api/hedge-fund/analyze/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          tickers: tickerList,
+          use_llm: useLlm,
+          personas: selectedPersonas.length ? selectedPersonas : null,
+          model_provider: provider || undefined,
+          model_name: model || undefined,
+        }),
       })
-      setResult(res)
-      setDecisions(decs)
-      setLoading(false)
-    }, 700)
+
+      if (!res.ok || !res.body) throw new Error(`The engine returned ${res.status}.`)
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+
+        for (const line of lines) {
+          if (!line.startsWith('data:')) continue
+          let event: any
+          try {
+            event = JSON.parse(line.slice(5))
+          } catch {
+            continue
+          }
+
+          if (event.type === 'start') {
+            setPlannedAgents(event.agents ?? [])
+            setAgentStatus(Object.fromEntries((event.agents ?? []).map((a: string) => [a, 'waiting'])))
+          } else if (event.type === 'status') {
+            setStage(event.message)
+          } else if (event.type === 'agent') {
+            setAgentStatus((prev) => ({ ...prev, [event.agent]: 'done' }))
+            setStage(`${prettyAgent(event.agent)} reported`)
+            if (event.signals) {
+              const incoming: Signal[] = []
+              for (const [agent, list] of Object.entries<any>(event.signals)) {
+                for (const s of list ?? []) {
+                  incoming.push({
+                    agent,
+                    ticker: s.ticker,
+                    signal: s.signal,
+                    confidence: s.confidence,
+                    reasoning: s.reasoning,
+                  })
+                }
+              }
+              if (incoming.length) setSignals((prev) => [...prev, ...incoming])
+            }
+            if (event.risk_adjusted_signals) setRiskSignals(event.risk_adjusted_signals)
+            if (event.portfolio_output?.positions) setDecisions(event.portfolio_output.positions)
+          } else if (event.type === 'result') {
+            if (event.signals?.length) setSignals(event.signals)
+            if (event.risk_adjusted_signals) setRiskSignals(event.risk_adjusted_signals)
+            if (event.portfolio_output?.positions) setDecisions(event.portfolio_output.positions)
+            setStage(null)
+          } else if (event.type === 'error') {
+            setRunError(event.message)
+          }
+        }
+      }
+    } catch (err: any) {
+      if (err.name !== 'AbortError') setRunError(err.message || 'The run failed.')
+    } finally {
+      setRunning(false)
+      setStage(null)
+    }
+  }, [tickerList, useLlm, selectedPersonas, provider, model])
+
+  const stop = () => {
+    abortRef.current?.abort()
+    setRunning(false)
+    setStage(null)
   }
+
+  const doneCount = Object.values(agentStatus).filter((s) => s === 'done').length
+  const bullish = signals.filter((s) => s.signal === 'bullish').length
+  const bearish = signals.filter((s) => s.signal === 'bearish').length
+  const totalAgents = analysts.length + selectedPersonas.length
 
   return (
     <PageShell
-      title="AI Hedge Fund"
-      subtitle="Multi-agent analyst committee that debates and sizes positions"
-      category="AI"
-      icon="solar:buildings-3-bold-duotone"
+      category="Analysis"
+      title="Model Committee"
+      subtitle="Every analyst and persona reviews the same names, then risk and portfolio management resolve them into positions."
+      icon="solar:users-group-two-rounded-linear"
+      backdrop="mesh"
+      actions={
+        running ? (
+          <Btn variant="subtle" onClick={stop} icon="solar:stop-linear">Stop run</Btn>
+        ) : (
+          <Btn onClick={run} icon="solar:play-linear" disabled={registryLoading || !!registryError}>
+            Run committee
+          </Btn>
+        )
+      }
     >
-      <div className="flex gap-1 p-1 rounded-xl bg-surface border border-border w-fit mb-6">
-        {(['analyze', 'backtest'] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-5 py-2 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all ${tab === t ? 'bg-primary text-[#04120C]' : 'text-soft hover:text-foreground'}`}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'analyze' && (
-        <div className="grid lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1 space-y-6">
-            <Card className="border-border">
-              <SectionTitle title="Configure Run" subtitle="Tickers and investor personas" icon="solar:settings-bold-duotone" />
-              <label className="block mb-4">
-                <span className="block text-xs text-soft mb-1.5">Tickers (comma separated)</span>
-                <input
-                  value={tickers}
-                  onChange={(e) => setTickers(e.target.value)}
-                  className="w-full rounded-lg bg-surface border border-border px-3 py-2 text-sm text-foreground uppercase outline-none focus:border-primary"
-                />
-              </label>
-              <div className="mb-2 text-xs text-soft">Investor personas</div>
-              <div className="grid grid-cols-2 gap-2 mb-4">
-                {PERSONAS.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => togglePersona(p.id)}
-                    className={`rounded-lg border px-3 py-2 text-left transition-colors ${personas.includes(p.id) ? 'border-primary/40 bg-primary/10' : 'border-border hover:bg-surface-2'}`}
-                  >
-                    <div className="text-xs font-semibold text-foreground">{p.label}</div>
-                    <div className="text-[11px] text-soft">{p.style}</div>
-                  </button>
-                ))}
-              </div>
-              <Btn variant="primary" onClick={runAnalysis} disabled={loading} className="w-full justify-center">
-                {loading ? 'Running committee…' : 'Run Analysis'}
-              </Btn>
-            </Card>
-
-            <Card className="border-border">
-              <SectionTitle title="Analyst Committee" subtitle={`${ANALYSTS.length} agents active`} icon="solar:users-group-rounded-bold-duotone" />
-              <div className="space-y-2">
-                {ANALYSTS.map((a) => (
-                  <div key={a.id} className="flex items-center gap-2 text-sm text-soft">
-                    <iconify-icon icon={a.icon} class="text-primary"></iconify-icon>
-                    {a.label}
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-
-          <div className="lg:col-span-2 space-y-6">
-            {!result && !loading && (
-              <Card className="grid place-items-center py-16 text-center border-border">
-                <iconify-icon icon="solar:buildings-3-bold-duotone" width="40" class="text-primary mb-3"></iconify-icon>
-                <p className="text-soft text-sm max-w-sm">Configure tickers and personas, then run the committee to see analyst signals and portfolio decisions.</p>
-              </Card>
-            )}
-
-            {loading && (
-              <Card className="border-border">
-                <div className="flex items-center gap-3 text-soft text-sm">
-                  <span className="w-2 h-2 rounded-full bg-primary" />
-                  Agents debating signals and reconciling risk…
-                </div>
-              </Card>
-            )}
-
-            {decisions.length > 0 && (
-              <Card pad={false} className="border-border">
-                <div className="px-5 pt-5">
-                  <SectionTitle title="Portfolio Decisions" subtitle="Risk-adjusted committee output" />
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-xs text-soft border-b border-border">
-                        <th className="px-5 py-3 font-medium">Ticker</th>
-                        <th className="px-3 py-3 font-medium">Action</th>
-                        <th className="px-3 py-3 font-medium text-right">Qty</th>
-                        <th className="px-3 py-3 font-medium text-right">Price</th>
-                        <th className="px-5 py-3 font-medium text-right">Confidence</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {decisions.map((d) => (
-                        <tr key={d.ticker} className="border-b border-border hover:bg-surface-2 transition-colors">
-                          <td className="px-5 py-3 font-semibold text-foreground">{d.ticker}</td>
-                          <td className="px-3 py-3"><Badge tone={actionTone(d.action)}>{d.action}</Badge></td>
-                          <td className="px-3 py-3 text-right tabular-nums">{d.quantity || '—'}</td>
-                          <td className="px-3 py-3 text-right tabular-nums text-soft">{fmt(d.price, { prefix: '₹' })}</td>
-                          <td className="px-5 py-3 text-right tabular-nums">{d.confidence}%</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-            )}
-
-            {result?.map(({ ticker, signals }) => {
-              const c = consensus(signals)
-              return (
-                <Card key={ticker} className="border-border">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-base font-bold text-foreground">{ticker}</h3>
-                      <Badge tone={signalTone(c.signal)}>{c.signal} · {c.confidence}%</Badge>
-                    </div>
-                    <span className="text-xs text-soft tabular-nums">{fmt(priceOf(ticker), { prefix: '₹' })}</span>
-                  </div>
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    {signals.map((s) => (
-                      <div key={s.agent} className="rounded-xl bg-surface border border-border p-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                            <iconify-icon icon={s.icon} class="text-primary"></iconify-icon>
-                            {s.agent}
-                          </div>
-                          <Badge tone={signalTone(s.signal)}>{s.signal}</Badge>
-                        </div>
-                        <div className="mb-2"><ProgressBar value={s.confidence} tone={signalTone(s.signal)} /></div>
-                        <p className="text-xs text-soft leading-relaxed">{s.reasoning}</p>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              )
-            })}
-          </div>
+      {registryError && (
+        <div className="mb-3">
+          <Note icon="solar:danger-triangle-linear">
+            Cannot reach the analysis engine. Start the backend with <span className="font-mono">uvicorn app.main:app --port 8000</span>, then reload. Detail: {registryError}
+          </Note>
         </div>
       )}
 
-      {tab === 'backtest' && (
-        <div className="space-y-6">
-          {backtestLoading ? (
-            <div className="flex items-center justify-center h-64 text-soft">Loading backtest engine...</div>
-          ) : !backtest ? (
-            <div className="flex items-center justify-center h-64 text-soft border border-dashed border-border rounded-xl">
-              Backtest API is currently offline. Please provide an API connection.
+      {providers && !providers.llm_available && (
+        <div className="mb-3">
+          <Note>
+            No language model key is configured, so personas fall back to rule-based scoring. Set an OpenAI, Anthropic or Groq key on the backend to enable their written reasoning.
+          </Note>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 xl:grid-cols-[330px_1fr] gap-3 items-start">
+        {/* ── Configuration ────────────────────────────────── */}
+        <div className="flex flex-col gap-3">
+          <Panel label="Run setup" meta={`${totalAgents} agents`} pad>
+            <label className="block mb-3">
+              <span className="eyebrow">Tickers</span>
+              <input
+                value={tickers}
+                onChange={(e) => setTickers(e.target.value)}
+                placeholder="AAPL, MSFT"
+                className="input mt-1.5"
+              />
+              <span className="text-xs text-muted mt-1 block">
+                {tickerList.length ? `${tickerList.length} name${tickerList.length > 1 ? 's' : ''}: ${tickerList.join(', ')}` : 'Comma separated'}
+              </span>
+            </label>
+
+            <div className="pt-3 border-t border-border">
+              <Switch checked={useLlm} onChange={setUseLlm} label="Use language model reasoning" />
+              <p className="text-xs text-muted mt-1.5 leading-relaxed">
+                Off, agents score from the numbers alone. On, each persona writes its own argument — slower, and one model call per name.
+              </p>
             </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <StatCard label="Total Return" value={`${backtest.totalReturn}%`} change={backtest.totalReturn} icon="solar:graph-up-bold-duotone" />
-                <StatCard label="CAGR" value={`${backtest.cagr}%`} icon="solar:chart-2-bold-duotone" />
-                <StatCard label="Sharpe" value={backtest.sharpe.toFixed(2)} icon="solar:medal-ribbon-bold-duotone" />
-                <StatCard label="Max Drawdown" value={`${backtest.maxDD}%`} change={-backtest.maxDD} icon="solar:arrow-down-bold-duotone" />
-              </div>
 
-              <Card className="border-border">
-                <SectionTitle title="Equity Curve" subtitle="Simulated strategy vs starting capital" icon="solar:chart-square-bold-duotone" />
-                <div className="w-full [&>svg]:w-full">
-                  <Sparkline data={backtest.equity} up width={1000} height={220} strokeWidth={2} />
+            {useLlm && providers && (
+              <div className="mt-3 pt-3 border-t border-border grid grid-cols-2 gap-2">
+                <label className="min-w-0">
+                  <span className="eyebrow">Provider</span>
+                  <select
+                    value={provider}
+                    onChange={(e) => {
+                      setProvider(e.target.value)
+                      const next = providers.providers.find((p) => p.key === e.target.value)
+                      setModel(next?.models[0] ?? '')
+                    }}
+                    className="select mt-1.5"
+                  >
+                    {providers.providers.map((p) => (
+                      <option key={p.key} value={p.key} disabled={!p.configured}>
+                        {p.name}{p.configured ? '' : ' — no key'}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="min-w-0">
+                  <span className="eyebrow">Model</span>
+                  <select value={model} onChange={(e) => setModel(e.target.value)} className="select mt-1.5">
+                    {providerModels.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
+          </Panel>
+
+          <Panel label="Core analysts" meta={`${analysts.length} always run`}>
+            <div className="p-2 space-y-1">
+              {registryLoading && <div className="skeleton h-16 w-full" />}
+              {analysts.map((a) => (
+                <div key={a.key} className="p-2 rounded border border-border bg-surface-2">
+                  <div className="text-sm font-medium text-foreground">{a.name}</div>
+                  <div className="text-xs text-muted mt-0.5">{a.focus}</div>
                 </div>
-              </Card>
+              ))}
+            </div>
+          </Panel>
 
-              <div className="grid md:grid-cols-3 gap-4">
-                <StatCard label="Win Rate" value={`${backtest.winRate}%`} icon="solar:cup-star-bold-duotone" />
-                <StatCard label="Trades" value={String(backtest.trades)} icon="solar:list-bold-duotone" />
-                <StatCard label="Profit Factor" value={backtest.profitFactor.toFixed(2)} icon="solar:dollar-minimalistic-bold-duotone" />
-              </div>
-            </>
-          )}
+          <Panel
+            label="Investor personas"
+            meta={`${selectedPersonas.length} of ${personas.length}`}
+            actions={
+              <button
+                onClick={() => setSelectedPersonas(selectedPersonas.length === personas.length ? [] : personas.map((p) => p.key))}
+                className="text-xs text-primary hover:underline cursor-pointer"
+              >
+                {selectedPersonas.length === personas.length ? 'Clear' : 'Select all'}
+              </button>
+            }
+          >
+            <div className="p-2 border-b border-border">
+              <SearchInput value={personaQuery} onChange={setPersonaQuery} placeholder="Search personas" />
+            </div>
+            <div className="p-2 space-y-1 max-h-80 overflow-auto custom-scrollbar">
+              {shownPersonas.map((p) => {
+                const active = selectedPersonas.includes(p.key)
+                return (
+                  <button
+                    key={p.key}
+                    onClick={() => togglePersona(p.key)}
+                    aria-pressed={active}
+                    className={cx(
+                      'w-full text-left p-2 rounded border transition-colors cursor-pointer',
+                      active ? 'border-primary bg-primary-wash' : 'border-border bg-surface-2 hover:border-border-strong',
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-foreground truncate">{p.name}</span>
+                      {active && <iconify-icon icon="solar:check-circle-bold" width="14" class="text-primary shrink-0"></iconify-icon>}
+                    </div>
+                    <div className="text-xs text-muted mt-0.5">{p.style}</div>
+                  </button>
+                )
+              })}
+              {!registryLoading && shownPersonas.length === 0 && (
+                <EmptyState icon="solar:magnifer-linear" title="No persona matches" compact />
+              )}
+            </div>
+          </Panel>
         </div>
-      )}
+
+        {/* ── Results ──────────────────────────────────────── */}
+        <div className="flex flex-col gap-3 min-w-0">
+          {(running || plannedAgents.length > 0) && (
+            <Panel label="Committee progress" meta={`${doneCount} of ${plannedAgents.length} reported`} pad>
+              {running && <div className="working-bar h-0.5 rounded-full mb-3" role="progressbar" aria-label="Run in progress" />}
+              {stage && <div className="text-xs text-muted mb-3">{stage}</div>}
+              <div className="flex flex-wrap gap-1.5">
+                {plannedAgents.map((a) => (
+                  <span
+                    key={a}
+                    className={cx(
+                      'chip transition-colors',
+                      agentStatus[a] === 'done' && 'border-up text-[var(--up)]',
+                    )}
+                  >
+                    {agentStatus[a] === 'done' ? (
+                      <iconify-icon icon="solar:check-circle-bold" width="11"></iconify-icon>
+                    ) : (
+                      <iconify-icon icon="solar:clock-circle-linear" width="11"></iconify-icon>
+                    )}
+                    {prettyAgent(a)}
+                  </span>
+                ))}
+              </div>
+            </Panel>
+          )}
+
+          {runError && <Note icon="solar:danger-triangle-linear">{runError}</Note>}
+
+          {signals.length > 0 && (
+            <KpiRow cols={4}>
+              <StatTile label="Signals in" value={signals.length} hint={`${doneCount} agents reported`} />
+              <StatTile label="Bullish" value={bullish} tone="up" hint="Agents leaning long" />
+              <StatTile label="Bearish" value={bearish} tone="down" hint="Agents leaning short" />
+              <StatTile label="Names reviewed" value={tickerList.length} hint={tickerList.join(', ')} />
+            </KpiRow>
+          )}
+
+          {decisions.length > 0 && (
+            <Reveal>
+              <Panel label="Portfolio decisions" meta="After risk adjustment">
+                <div className="divide-y divide-[var(--border)]">
+                  {decisions.map((d) => (
+                    <div key={d.ticker} className="p-3 flex items-start gap-3">
+                      <Badge tone={ACTION_TONE[String(d.action).toLowerCase()] ?? 'neutral'}>{d.action}</Badge>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-sm font-medium text-foreground">{d.ticker}</span>
+                          {d.quantity > 0 && <span className="text-xs tabular-nums text-muted">{d.quantity} shares</span>}
+                        </div>
+                        <p className="text-xs text-muted mt-0.5 leading-relaxed">{d.reasoning}</p>
+                      </div>
+                      <div className="w-24 shrink-0">
+                        <div className="text-xs tabular-nums text-right mb-1">{d.confidence}%</div>
+                        <ProgressBar value={d.confidence} tone="primary" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Panel>
+            </Reveal>
+          )}
+
+          {riskSignals.length > 0 && (
+            <Panel label="Risk-adjusted consensus" meta={`${riskSignals.length} name${riskSignals.length > 1 ? 's' : ''}`}>
+              <div className="divide-y divide-[var(--border)]">
+                {riskSignals.map((r) => (
+                  <div key={r.ticker} className="p-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div>
+                      <div className="eyebrow mb-1">Ticker</div>
+                      <div className="text-sm font-medium text-foreground">{r.ticker}</div>
+                    </div>
+                    <div>
+                      <div className="eyebrow mb-1">Consensus</div>
+                      <Badge tone={SIGNAL_TONE[r.signal] ?? 'neutral'}>{r.signal}</Badge>
+                    </div>
+                    <div>
+                      <div className="eyebrow mb-1">Confidence</div>
+                      <div className="text-sm tabular-nums">{r.confidence}%</div>
+                    </div>
+                    <div>
+                      <div className="eyebrow mb-1">Split</div>
+                      <div className="text-sm tabular-nums">
+                        <span className="val-up">{r.bull_count} bull</span>
+                        <span className="text-faint"> · </span>
+                        <span className="val-down">{r.bear_count} bear</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+          )}
+
+          <Panel label="Analyst signals" meta={signals.length ? `${signals.length}` : undefined}>
+            {signals.length === 0 ? (
+              <EmptyState
+                icon="solar:users-group-two-rounded-linear"
+                title={running ? 'Agents are working' : 'No run yet'}
+                body={
+                  running
+                    ? 'Verdicts appear here as each agent finishes.'
+                    : 'Enter tickers, pick any personas you want on the committee, then run it.'
+                }
+                action={!running && <Btn onClick={run} icon="solar:play-linear">Run committee</Btn>}
+              />
+            ) : (
+              <div className="overflow-auto custom-scrollbar">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Agent</th>
+                      <th>Ticker</th>
+                      <th>Signal</th>
+                      <th className="num">Confidence</th>
+                      <th>Reasoning</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {signals.map((s, i) => (
+                      <tr key={`${s.agent}-${s.ticker}-${i}`}>
+                        <td className="font-medium text-foreground">{prettyAgent(s.agent)}</td>
+                        <td className="tabular-nums">{s.ticker}</td>
+                        <td><Badge tone={SIGNAL_TONE[s.signal] ?? 'neutral'}>{s.signal}</Badge></td>
+                        <td className="num">{Number(s.confidence).toFixed(0)}%</td>
+                        <td className="text-muted whitespace-normal min-w-[280px] max-w-[520px]">{s.reasoning}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Panel>
+        </div>
+      </div>
     </PageShell>
   )
 }

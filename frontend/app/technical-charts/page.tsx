@@ -31,13 +31,13 @@ export default function TechnicalChartsPage() {
             type="text"
             value={pending}
             onChange={(e) => setPending(e.target.value)}
-            className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground uppercase outline-none focus:border-emerald-bright w-32"
+            className="bg-hover border border-border rounded-lg px-3 py-2 text-sm text-foreground uppercase outline-none focus:border-emerald-bright w-32"
             placeholder="Ticker"
           />
           <select
             value={exchange}
             onChange={(e) => setExchange(e.target.value)}
-            className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-emerald-bright"
+            className="bg-hover border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-emerald-bright"
           >
             <option value="NSE">NSE</option>
             <option value="BSE">BSE</option>
