@@ -89,7 +89,7 @@ export default function AuthPage() {
 
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald shadow-lg shadow-emerald/20 mb-5 transition-all duration-500 hover:scale-110">
-              <iconify-icon icon="solar:user-circle-linear" width="28" className="text-[#04120C]"></iconify-icon>
+              <iconify-icon icon="solar:user-circle-linear" width="28" className="text-[var(--on-primary)]"></iconify-icon>
             </div>
             <h1 className="text-2xl font-bold text-foreground tracking-tight">
               {isSignUp ? 'Create Account' : 'Welcome back'}
@@ -113,7 +113,7 @@ export default function AuthPage() {
                   placeholder="john@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl py-3 pl-11 pr-4 text-foreground placeholder:text-muted focus:outline-none focus:border-emerald/50 focus:ring-1 focus:ring-emerald/20 transition-all text-sm"
+                  className="w-full bg-hover border border-border rounded-xl py-3 pl-11 pr-4 text-foreground placeholder:text-muted focus:outline-none focus:border-emerald/50 focus:ring-1 focus:ring-emerald/20 transition-all text-sm"
                   required
                 />
               </div>
@@ -133,7 +133,7 @@ export default function AuthPage() {
                   placeholder="+91 98765 43210"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl py-3 pl-11 pr-4 text-foreground placeholder:text-muted focus:outline-none focus:border-emerald/50 focus:ring-1 focus:ring-emerald/20 transition-all text-sm"
+                  className="w-full bg-hover border border-border rounded-xl py-3 pl-11 pr-4 text-foreground placeholder:text-muted focus:outline-none focus:border-emerald/50 focus:ring-1 focus:ring-emerald/20 transition-all text-sm"
                 />
               </div>
               <p className="text-xs text-muted mt-1 ml-1">Include country code. AI reports will be delivered here.</p>
@@ -152,7 +152,7 @@ export default function AuthPage() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl py-3 pl-11 pr-12 text-foreground placeholder:text-muted focus:outline-none focus:border-emerald/50 focus:ring-1 focus:ring-emerald/20 transition-all text-sm"
+                  className="w-full bg-hover border border-border rounded-xl py-3 pl-11 pr-12 text-foreground placeholder:text-muted focus:outline-none focus:border-emerald/50 focus:ring-1 focus:ring-emerald/20 transition-all text-sm"
                   required
                 />
                 <button
@@ -168,7 +168,7 @@ export default function AuthPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-emerald hover:bg-emerald-bright text-[#04120C] font-semibold py-3.5 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 group disabled:opacity-50 active:scale-[0.98] shadow-lg shadow-emerald/20 hover:shadow-xl hover:shadow-emerald/30 mt-6"
+              className="w-full bg-emerald hover:bg-emerald-bright text-[var(--on-primary)] font-semibold py-3.5 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 group disabled:opacity-50 active:scale-[0.98] shadow-lg shadow-emerald/20 hover:shadow-xl hover:shadow-emerald/30 mt-6"
             >
               {loading ? (
                 <iconify-icon icon="solar:restart-linear" className="animate-spin" width="18"></iconify-icon>
@@ -192,7 +192,7 @@ export default function AuthPage() {
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/[0.06]"></div>
+              <div className="w-full border-t border-border"></div>
             </div>
             <div className="relative flex justify-center text-xs">
               <span className="bg-surface px-3 text-muted">Or continue with</span>
@@ -202,7 +202,7 @@ export default function AuthPage() {
           <button
             onClick={handleGoogleLogin}
             disabled={loading}
-            className="w-full bg-white/[0.05] border border-white/[0.08] text-foreground font-medium py-3 rounded-xl hover:bg-white/[0.08] hover:border-white/[0.12] transition-all duration-300 flex items-center justify-center gap-3 active:scale-[0.98]"
+            className="w-full bg-hover border border-border text-foreground font-medium py-3 rounded-xl hover:bg-hover-strong hover:border-border-strong transition-all duration-300 flex items-center justify-center gap-3 active:scale-[0.98]"
           >
             <iconify-icon icon="logos:google-icon" width="18"></iconify-icon>
             Sign in with Google
@@ -210,7 +210,7 @@ export default function AuthPage() {
 
           {message && (
             <div className={`mt-6 p-4 rounded-xl text-sm flex items-start gap-3 fade-up ${
-              message.type === 'success' ? 'bg-emerald-500/10 text-emerald-bright border border-emerald-500/20' : 'bg-red-500/10 text-coral border border-red-500/20'
+              message.type === 'success' ? 'bg-up/10 text-emerald-bright border border-up/20' : 'bg-down/10 text-coral border border-down/20'
             }`}>
               <iconify-icon
                 icon={message.type === 'success' ? 'solar:check-circle-linear' : 'solar:danger-triangle-linear'}
