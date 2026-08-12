@@ -1,62 +1,31 @@
+"""Macro analyst agent — LLM-powered macro regime analysis."""
+from __future__ import annotations
+import json, logging
 from app.agents.state import AgentState
-from app.agents.llm import get_llm
+from app.agents.llm import get_llm, invoke_structured_with_retry
+from app.agents.models import AgentReport
 from langchain_core.messages import SystemMessage, HumanMessage
-import json
-import logging
+
+logger = logging.getLogger(__name__)
+
+SYSTEM_PROMPT = """You are a Senior Macroeconomic Strategist. Evaluate sector positioning, interest rate sensitivity, and macro risk."""
 
 async def analyze_macro(state: AgentState) -> dict:
-    """Analyze macroeconomic variables, interest rate exposure, inflation, and Beta volatility."""
-    info = state["market_data"]
-    beta = info.get("beta", 1.0)
-    sector = info.get("sector", "General")
-    
-    # Macro rule fallback
-    signal = "Neutral"
-    confidence = 50
-    reasons = []
-    
-    if beta is not None:
-        if beta > 1.3:
-            reasons.append(f"High systematic volatility (Beta: {beta:.2f}) makes stock highly sensitive to market drawdowns")
-            signal = "Bearish"
-            confidence += 15
-        elif beta < 0.75 and beta > 0:
-            reasons.append(f"Low systemic risk profile (Beta: {beta:.2f}) offers strong portfolio defense in volatile regimes")
-            signal = "Bullish"
-            confidence += 15
-        else:
-            reasons.append(f"Neutral systematic risk (Beta: {beta:.2f}) tracks benchmark index closely")
-            
-    # Sector specific macro rules
-    cyclical_sectors = ["Energy", "Basic Materials", "Financial Services", "Industrials"]
-    defensive_sectors = ["Healthcare", "Utilities", "Consumer Defensive"]
-    
-    if sector in cyclical_sectors:
-        reasons.append(f"Belongs to cyclical sector '{sector}', which depends heavily on macroeconomic growth phases")
-    elif sector in defensive_sectors:
-        reasons.append(f"Belongs to defensive sector '{sector}', which has historically shown resilience during inflation spikes")
-        if signal != "Bearish": signal = "Bullish"
-        
-    reasoning = "; ".join(reasons)
-    fallback_res = {"signal": signal, "confidence": min(confidence, 100), "reasoning": reasoning}
-    
-    # Try LLM
-    llm = get_llm()
-    if llm.__class__.__name__ != "MockChatModel":
-        try:
-            sys_msg = SystemMessage(content="""You are an expert Macroeconomic Analyst. Evaluate systemic risk and return a JSON dictionary.
-Your output must be EXACTLY:
-{"signal": "Bullish" | "Bearish" | "Neutral", "confidence": 0-100, "reasoning": "detailed 2-sentence rationale"}""")
-            user_msg = HumanMessage(content=f"Ticker: {state['ticker']}\nBeta: {beta}, Sector: {sector}")
-            
-            res = await llm.ainvoke([sys_msg, user_msg])
-            data = json.loads(res.content.strip())
-            return {
-                "signal": data.get("signal", fallback_res["signal"]),
-                "confidence": int(data.get("confidence", fallback_res["confidence"])),
-                "reasoning": data.get("reasoning", fallback_res["reasoning"])
-            }
-        except Exception as e:
-            logging.error(f"Macro LLM analysis failed: {e}")
-            
-    return fallback_res
+    market_data = state.get("market_data", {})
+    ticker = state["ticker"]
+    macro_data = {k: v for k, v in {
+        "ticker": ticker, "sector": market_data.get("sector"),
+        "beta": market_data.get("beta"), "exchange": state.get("exchange", "NSE")
+    }.items() if v is not None}
+
+    try:
+        llm = get_llm("fast")
+        report: AgentReport = await invoke_structured_with_retry(
+            llm, AgentReport, [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=f"Macro context for {ticker}:\n{json.dumps(macro_data)}")]
+        )
+        res = report.model_dump()
+        res["agent_id"] = "macro_analyst"
+        return res
+    except Exception as e:
+        logger.error(f"Macro agent failed for {ticker}: {e}")
+        return {"agent_id": "macro_analyst", "signal": "Neutral", "confidence": 50, "reasoning": f"Macro analysis incomplete: {str(e)[:80]}.", "key_factors": ["Incomplete"], "data_points": macro_data}

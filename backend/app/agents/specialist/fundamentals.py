@@ -1,77 +1,79 @@
-from app.agents.state import AgentState
-from app.agents.llm import get_llm
-from langchain_core.messages import SystemMessage, HumanMessage
+"""Fundamentals analyst agent — LLM-powered fundamental analysis."""
+from __future__ import annotations
+
 import json
 import logging
+from app.agents.state import AgentState
+from app.agents.llm import get_llm, invoke_structured_with_retry
+from app.agents.models import AgentReport
+from langchain_core.messages import SystemMessage, HumanMessage
+
+logger = logging.getLogger(__name__)
+
+SYSTEM_PROMPT = """You are a Senior Fundamental Analyst at a top-tier institutional hedge fund.
+
+Your expertise: balance sheet analysis, earnings quality assessment, capital efficiency metrics,
+financial health scoring, and competitive positioning.
+
+CRITICAL RULES:
+- Do NOT just check if P/E > 40 = bearish. REASON about what the metrics mean TOGETHER.
+- A company with high P/E but explosive revenue growth and expanding margins is different from high P/E with stagnant revenue.
+- Consider sector context — a bank's P/B of 1.2 means something different than a tech company's.
+- Look at the TRAJECTORY, not just the snapshot.
+- Factor in debt structure quality, not just the ratio.
+
+Analyze deeply. Provide your structured fundamental analysis."""
+
 
 async def analyze_fundamentals(state: AgentState) -> dict:
-    """Analyze company balance sheet, earnings growth, and financial strength."""
-    m_cap = state["market_data"].get("market_cap", 0)
-    pe = state["market_data"].get("pe_ratio")
-    pb = state["market_data"].get("pb_ratio")
-    roe = state["market_data"].get("roe")
-    debt_eq = state["market_data"].get("debt_to_equity")
-    rev_growth = state["market_data"].get("revenue_growth")
-    
-    # Rules-based fallback calculation
-    signal = "Neutral"
-    confidence = 50
-    reasons = []
-    
-    if pe is not None:
-        if pe < 20 and pe > 0:
-            reasons.append(f"Low P/E ratio ({pe:.2f}) indicates potential value")
-            confidence += 15
-        elif pe > 45:
-            reasons.append(f"High P/E ratio ({pe:.2f}) indicates rich valuations")
-            confidence += 15
-            signal = "Bearish"
-            
-    if roe is not None:
-        if roe > 15:
-            reasons.append(f"Strong ROE of {roe:.2f}% indicates high capital efficiency")
-            confidence += 10
-            if signal != "Bearish": signal = "Bullish"
-        elif roe < 8:
-            reasons.append(f"Weak ROE of {roe:.2f}% indicates poor capital returns")
-            confidence += 10
-            signal = "Bearish"
-            
-    if debt_eq is not None:
-        if debt_eq < 1.0:
-            reasons.append(f"Comfortable debt-to-equity ratio ({debt_eq:.2f})")
-        else:
-            reasons.append(f"Highly leveraged with debt-to-equity of {debt_eq:.2f}")
-            signal = "Bearish"
-            confidence += 10
-            
-    reasoning = "; ".join(reasons) if reasons else "Fundamentals show stable, in-line industry averages."
-    if signal == "Bullish" and confidence > 70:
-        signal = "Bullish"
-    elif signal == "Bearish" and confidence > 70:
-        signal = "Bearish"
-    else:
-        signal = "Neutral"
-        
-    fallback_res = {"signal": signal, "confidence": min(confidence, 100), "reasoning": reasoning}
-    
-    # Try LLM
-    llm = get_llm()
-    if llm.__class__.__name__ != "MockChatModel":
-        try:
-            sys_msg = SystemMessage(content="""You are an expert Fundamental Analyst. Analyze the fundamental metrics and return a JSON dictionary.
-Your output must be EXACTLY:
-{"signal": "Bullish" | "Bearish" | "Neutral", "confidence": 0-100, "reasoning": "detailed 2-sentence rationale"}""")
-            user_msg = HumanMessage(content=f"Ticker: {state['ticker']}\nMetrics: Market Cap={m_cap}, P/E={pe}, P/B={pb}, ROE={roe}%, Debt/Equity={debt_eq}, Revenue Growth={rev_growth}%")
-            
-            res = await llm.ainvoke([sys_msg, user_msg])
-            data = json.loads(res.content.strip())
-            return {
-                "signal": data.get("signal", fallback_res["signal"]),
-                "confidence": int(data.get("confidence", fallback_res["confidence"])),
-                "reasoning": data.get("reasoning", fallback_res["reasoning"])
-            }
-        except Exception as e:
-            logging.error(f"Fundamentals LLM analysis failed: {e}")
-            
-    return fallback_res
+    """Analyze fundamentals using LLM reasoning with retry backoff."""
+    market_data = state.get("market_data", {})
+    ticker = state["ticker"]
+
+    metrics = {
+        "ticker": ticker,
+        "company_name": market_data.get("company_name", ticker),
+        "sector": market_data.get("sector", "Unknown"),
+        "market_cap": market_data.get("market_cap"),
+        "pe_ratio": market_data.get("pe_ratio"),
+        "forward_pe": market_data.get("forward_pe"),
+        "pb_ratio": market_data.get("pb_ratio"),
+        "roe": market_data.get("roe"),
+        "debt_to_equity": market_data.get("debt_to_equity"),
+        "current_ratio": market_data.get("current_ratio"),
+        "revenue_growth": market_data.get("revenue_growth"),
+        "earnings_growth": market_data.get("earnings_growth"),
+        "profit_margins": market_data.get("profit_margins"),
+        "operating_margins": market_data.get("operating_margins"),
+        "free_cashflow": market_data.get("free_cashflow"),
+        "dividend_yield": market_data.get("dividend_yield"),
+        "beta": market_data.get("beta"),
+    }
+
+    available = {k: v for k, v in metrics.items() if v is not None}
+
+    user_prompt = f"""Analyze the fundamental health of {ticker}:
+
+Available Metrics:
+{json.dumps(available, indent=2, default=str)}
+
+Provide your structured fundamental analysis."""
+
+    try:
+        llm = get_llm("fast")
+        report: AgentReport = await invoke_structured_with_retry(
+            llm, AgentReport, [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=user_prompt)]
+        )
+        result = report.model_dump()
+        result["agent_id"] = "fundamentals_analyst"
+        return result
+    except Exception as e:
+        logger.error(f"Fundamentals agent failed for {ticker}: {e}")
+        return {
+            "agent_id": "fundamentals_analyst",
+            "signal": "Neutral",
+            "confidence": 50,
+            "reasoning": f"Fundamentals analysis incomplete: {str(e)[:80]}.",
+            "key_factors": ["Analysis incomplete"],
+            "data_points": available,
+        }

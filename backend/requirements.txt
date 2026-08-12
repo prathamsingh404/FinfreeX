@@ -13,6 +13,8 @@ langchain>=0.2.0
 langgraph>=0.1.0
 langchain-openai
 langchain-anthropic
+langchain-google-genai
+langchain-groq
 python-dateutil
 aioredis
 asyncio-throttle

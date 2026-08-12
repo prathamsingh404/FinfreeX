@@ -61,6 +61,7 @@ export const NAV: NavGroup[] = [
     items: [
       { route: '/ai-analyst', title: 'Research Assistant', icon: 'solar:chat-square-linear', tier: 'core', desc: 'Run a multi-model analysis on any company' },
       { route: '/alerts', title: 'Alerts', icon: 'solar:bell-linear', tier: 'core', desc: 'Conditional market alerts' },
+      { route: '/telegram', title: 'Telegram Bot', icon: 'solar:letter-linear', tier: 'core', desc: 'Connect Telegram bot for alerts' },
       { route: '/analysis', title: 'Saved Reports', icon: 'solar:document-text-linear', tier: 'core', desc: 'Past research output' },
       { route: '/intelligence', title: 'Workspace', icon: 'solar:widget-5-linear', tier: 'pro', desc: 'Saved research workspaces' },
       { route: '/hedge-fund', title: 'Model Committee', icon: 'solar:users-group-two-rounded-linear', tier: 'pro', desc: 'Run the full model committee' },

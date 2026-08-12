@@ -163,7 +163,20 @@ export default function AdvancedChart({ symbol, exchange = 'NSE', height = 480 }
   useEffect(() => {
     if (!chartRef.current || !candleSeriesRef.current || !candles || candles.length === 0) return;
 
-    candleSeriesRef.current.setData(candles as any);
+    // Filter duplicates and sort ascending by time
+    const seenTimes = new Set();
+    const sortedCandles: any[] = [];
+    for (const c of candles) {
+      if (c && c.time != null && !seenTimes.has(c.time)) {
+        seenTimes.add(c.time);
+        sortedCandles.push(c);
+      }
+    }
+    sortedCandles.sort((a, b) => (a.time > b.time ? 1 : a.time < b.time ? -1 : 0));
+
+    if (sortedCandles.length === 0) return;
+
+    candleSeriesRef.current.setData(sortedCandles as any);
 
     // Bollinger Bands Calculation
     if (showBB) {

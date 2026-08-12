@@ -24,7 +24,7 @@ export const SIGNAL_TONE: Record<Signal, string> = {
 /* ---------- Signal badge ---------- */
 export function SignalBadge({ signal, className }: { signal: Signal; className?: string }) {
   return (
-    <span className={cx('inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border', SIGNAL_TONE[signal], className)}>
+    <span className={cx('inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold border', SIGNAL_TONE[signal], className)}>
       {signal}
     </span>
   )
@@ -41,7 +41,7 @@ export function ConfidenceMeter({ value, label = 'Confidence', compact }: { valu
           <span className="text-[11px] font-semibold tabular-nums text-soft">{v}%</span>
         </div>
       )}
-      <div className="h-1 w-full rounded-full bg-hover-strong overflow-hidden">
+      <div className="h-1.5 w-full rounded-full bg-hover-strong overflow-hidden">
         <div className="h-full rounded-full bg-primary transition-[width] duration-500" style={{ width: `${v}%` }} />
       </div>
     </div>
@@ -135,14 +135,14 @@ export interface AgentInfo {
 export function AgentCard({ agent, compact }: { agent: AgentInfo; compact?: boolean }) {
   const working = agent.status === 'thinking'
   return (
-    <div className={cx('rounded-md border bg-surface transition-colors', working ? 'border-border-strong' : 'border-border', compact ? 'p-3' : 'p-4')}>
-      <div className="flex items-center gap-2.5">
-        <div className="w-7 h-7 rounded bg-hover border border-border flex items-center justify-center shrink-0 text-soft">
-          <iconify-icon icon={agent.icon} width="15"></iconify-icon>
+    <div className={cx('rounded-xl border bg-surface transition-colors', working ? 'border-border-strong' : 'border-border', compact ? 'p-3.5' : 'p-5')}>
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-lg bg-hover border border-border flex items-center justify-center shrink-0 text-soft">
+          <iconify-icon icon={agent.icon} width="17"></iconify-icon>
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[13px] font-semibold text-foreground truncate">{agent.name}</div>
-          <div className="text-[10.5px]">
+          <div className="text-sm font-semibold text-foreground truncate">{agent.name}</div>
+          <div className="text-[11px] mt-0.5">
             {agent.status === 'thinking' && <span className="text-muted">Running…</span>}
             {agent.status === 'idle' && <span className="text-muted">Queued</span>}
             {agent.status === 'error' && <span className="text-coral">Failed</span>}
@@ -151,12 +151,12 @@ export function AgentCard({ agent, compact }: { agent: AgentInfo; compact?: bool
         </div>
         {agent.signal && agent.status === 'done' && <SignalBadge signal={agent.signal} />}
       </div>
-      {working && <div className="mt-3 h-0.5 rounded-full working-bar" />}
+      {working && <div className="mt-3.5 h-0.5 rounded-full working-bar" />}
       {!compact && agent.thought && agent.status === 'done' && (
-        <p className="mt-2.5 text-xs leading-relaxed text-soft">{agent.thought}</p>
+        <p className="mt-3 text-[13px] leading-relaxed text-soft">{agent.thought}</p>
       )}
       {!compact && typeof agent.confidence === 'number' && agent.status === 'done' && (
-        <div className="mt-3">
+        <div className="mt-3.5">
           <ConfidenceMeter value={agent.confidence} />
         </div>
       )}
@@ -220,16 +220,16 @@ export function VerdictCard({
   className?: string
 }) {
   return (
-    <div className={cx('panel-accent p-5', className)}>
+    <div className={cx('panel-accent p-6', className)}>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <div className="text-[10.5px] uppercase tracking-wider text-muted mb-1.5">Summary</div>
-          <h3 className="text-base font-semibold text-foreground">{title}</h3>
+          <div className="text-[11px] uppercase tracking-wider text-muted mb-2">Summary</div>
+          <h3 className="text-lg font-semibold text-foreground">{title}</h3>
         </div>
-        <SignalBadge signal={signal} className="text-[12px] px-2.5 py-1" />
+        <SignalBadge signal={signal} className="text-sm px-3 py-1.5" />
       </div>
-      <p className="text-[13px] text-soft leading-relaxed mt-2.5">{summary}</p>
-      <div className="mt-4 max-w-xs">
+      <p className="text-sm text-soft leading-relaxed mt-3">{summary}</p>
+      <div className="mt-5 max-w-sm">
         <ConfidenceMeter value={confidence} />
       </div>
     </div>
@@ -283,24 +283,24 @@ export function AIPromptInput({
     if (q) onSubmit(q)
   }
   return (
-    <div className={cx('flex items-center gap-3 rounded-md bg-surface border border-border focus-ring transition-colors', size === 'lg' ? 'pl-4 pr-2 h-13' : 'pl-3 pr-1.5 h-10')} style={size === 'lg' ? { height: 52 } : undefined}>
-      <iconify-icon icon="solar:magnifer-linear" width={size === 'lg' ? '17' : '15'} class="text-muted shrink-0"></iconify-icon>
+    <div className={cx('flex items-center gap-3 rounded-xl bg-surface border border-border focus-ring transition-colors', size === 'lg' ? 'pl-5 pr-2.5' : 'pl-3.5 pr-2 h-11')} style={size === 'lg' ? { height: 56 } : undefined}>
+      <iconify-icon icon="solar:magnifer-linear" width={size === 'lg' ? '18' : '15'} class="text-muted shrink-0"></iconify-icon>
       <input
         value={value}
         autoFocus={autoFocus}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && submit()}
         placeholder={placeholder}
-        className={cx('flex-1 bg-transparent outline-none text-foreground placeholder:text-muted min-w-0', size === 'lg' ? 'text-[15px]' : 'text-sm')}
+        className={cx('flex-1 bg-transparent outline-none text-foreground placeholder:text-muted min-w-0', size === 'lg' ? 'text-base' : 'text-sm')}
         aria-label="Ask a research question"
       />
       <button
         onClick={submit}
         disabled={!value.trim()}
         className={cx(
-          'rounded font-semibold transition-colors cursor-pointer shrink-0',
+          'rounded-lg font-semibold transition-colors cursor-pointer shrink-0',
           'bg-primary hover:bg-primary/90 text-white disabled:opacity-25 disabled:cursor-not-allowed',
-          size === 'lg' ? 'px-4 h-9 text-[13px]' : 'px-3 h-7 text-xs'
+          size === 'lg' ? 'px-5 h-10 text-sm' : 'px-3.5 h-8 text-xs'
         )}
       >
         Analyze

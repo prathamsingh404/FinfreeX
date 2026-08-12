@@ -1,5 +1,33 @@
+"""Unified agent orchestration graph — LangGraph-powered analysis pipeline.
+
+Architecture:
+    START ──┬── fundamentals ──┐
+            ├── technical    ──┤
+            ├── sentiment    ──┤  (parallel fan-out)
+            ├── valuation    ──┤
+            ├── macro        ──┤
+            └── risk         ──┘
+                               ↓
+                         risk_aggregator
+                               ↓
+            ┌── buffett ───────┤
+            ├── burry ─────────┤  (parallel fan-out, selected personas)
+            ├── graham ────────┤
+            └── ... personas ──┘
+                               ↓
+                       verdict_synthesizer
+                               ↓
+                              END
+
+Both endpoints (/api/ai/analyze and /api/stratton/analyze) funnel into this graph.
+"""
+from __future__ import annotations
+
 import asyncio
-from typing import AsyncGenerator, List
+import logging
+from datetime import datetime
+from typing import Any, AsyncGenerator, Dict, List, Optional
+
 from app.agents.state import AgentState
 from app.agents.specialist.fundamentals import analyze_fundamentals
 from app.agents.specialist.technical import analyze_technicals
@@ -7,153 +35,207 @@ from app.agents.specialist.sentiment import analyze_sentiment_agent
 from app.agents.specialist.valuation import analyze_valuation
 from app.agents.specialist.macro import analyze_macro
 from app.agents.specialist.risk import analyze_risk
-
-from app.agents.personas.buffett import evaluate_buffett
-from app.agents.personas.jhunjhunwala import evaluate_jhunjhunwala
-from app.agents.personas.graham import evaluate_graham
-from app.agents.personas.burry import evaluate_burry
+from app.agents.risk_aggregator import aggregate_risk
+from app.agents.verdict_synthesizer import synthesize_verdict
+from app.agents.personas import PERSONA_REGISTRY, DEFAULT_PERSONAS
 
 from app.services.market_data import get_quote, get_fundamentals
 from app.services.technical_service import compute_indicators
 from app.services.news_service import get_aggregated_news
 
+logger = logging.getLogger(__name__)
+
+# ── Specialist registry ──────────────────────────────────────────────────
+SPECIALIST_AGENTS = {
+    "Fundamentals Specialist": analyze_fundamentals,
+    "Technical Momentum Specialist": analyze_technicals,
+    "Sentiment & Flow Specialist": analyze_sentiment_agent,
+    "Valuation Model Specialist": analyze_valuation,
+    "Macro Regime Specialist": analyze_macro,
+    "Risk Specialist": analyze_risk,
+}
+
+
 async def run_analysis_stream(
     ticker: str,
     exchange: str = "NSE",
-    active_personas: List[str] = None
+    active_personas: Optional[List[str]] = None,
 ) -> AsyncGenerator[dict, None]:
-    """
-    Executes a multi-agent analysis cycle.
-    Yields real-time execution steps and completed reports.
+    """Execute the full multi-agent analysis pipeline with streaming.
+
+    Yields real-time execution steps and completed reports as SSE events.
     """
     if active_personas is None:
-        active_personas = ["buffett", "jhunjhunwala", "graham", "burry"]
-        
-    yield {"type": "status", "message": f"Establishing socket connection for {ticker} ({exchange})..."}
-    await asyncio.sleep(0.5)
-    
-    yield {"type": "status", "message": "Fetching fundamental metrics & news stream..."}
-    # Run fetchers in parallel
-    fetch_tasks = [
-        get_quote(ticker, exchange),
-        get_fundamentals(ticker, exchange),
-        compute_indicators(ticker, exchange),
-        get_aggregated_news(ticker, 10)
-    ]
-    quote, fundamentals, indicators, news = await asyncio.gather(*fetch_tasks)
-    
-    if "error" in quote:
-        yield {"type": "error", "message": f"Failed to gather quote data: {quote['error']}"}
+        active_personas = list(DEFAULT_PERSONAS)
+
+    start_time = datetime.now()
+
+    yield {"type": "status", "message": f"Initializing analysis pipeline for {ticker} ({exchange})..."}
+
+    # ── Phase 1: Data fetching ───────────────────────────────────────
+    yield {"type": "status", "message": "Fetching market data, indicators, and news..."}
+    try:
+        fetch_tasks = [
+            get_quote(ticker, exchange),
+            get_fundamentals(ticker, exchange),
+            compute_indicators(ticker, exchange),
+            get_aggregated_news(ticker, 10),
+        ]
+        quote, fundamentals, indicators, news = await asyncio.gather(*fetch_tasks)
+    except Exception as e:
+        yield {"type": "error", "message": f"Data fetch failed: {str(e)}"}
         return
-        
-    # Merge quote and fundamentals
-    market_data = {**quote, **fundamentals}
-    
-    yield {"type": "status", "message": "Structuring data & initializing agents..."}
-    await asyncio.sleep(0.5)
-    
-    state: AgentState = {
+
+    if isinstance(quote, dict) and "error" in quote:
+        yield {"type": "error", "message": f"Failed to get quote data: {quote['error']}"}
+        return
+
+    # Merge data
+    market_data = {**quote, **fundamentals} if isinstance(fundamentals, dict) else quote
+
+    yield {"type": "market_data", "data": market_data}
+
+    # Build initial state
+    state: Dict[str, Any] = {
         "ticker": ticker,
         "exchange": exchange,
-        "underlying_price": quote["current_price"],
         "market_data": market_data,
-        "indicators": indicators,
-        "news": news,
+        "price_history": [],
+        "indicators": indicators if isinstance(indicators, dict) else {},
+        "news": news if isinstance(news, list) else [],
         "active_personas": active_personas,
         "analyst_reports": {},
-        "final_verdict": {}
+        "persona_reports": {},
+        "risk_assessment": {},
+        "final_verdict": {},
+        "metadata": {
+            "start_time": start_time.isoformat(),
+            "exchange": exchange,
+        },
     }
-    
-    yield {"type": "market_data", "data": market_data}
-    
-    # 1. Run specialists
-    yield {"type": "status", "message": "Launching specialist analysts (Concurrently)..."}
-    await asyncio.sleep(0.3)
-    
-    spec_tasks = {
-        "Fundamentals Specialist": analyze_fundamentals(state),
-        "Technical Momentum Specialist": analyze_technicals(state),
-        "Sentiment & Flow Specialist": analyze_sentiment_agent(state),
-        "Valuation Model Specialist": analyze_valuation(state),
-        "Macro Regime Specialist": analyze_macro(state),
-        "Risk Specialist": analyze_risk(state)
-    }
-    
-    # Resolve specialist tasks
-    for name, task in spec_tasks.items():
-        res = await task
-        yield {"type": "specialist", "agent": name, "result": res}
-        state["analyst_reports"][name] = res
-        await asyncio.sleep(0.2) # small delay for visual stream effect
-        
-    # 2. Run Personas
-    yield {"type": "status", "message": "Running investor personas models..."}
-    await asyncio.sleep(0.3)
-    
-    persona_methods = {
-        "buffett": ("Warren Buffett", evaluate_buffett(state)),
-        "jhunjhunwala": ("Rakesh Jhunjhunwala", evaluate_jhunjhunwala(state)),
-        "graham": ("Benjamin Graham", evaluate_graham(state)),
-        "burry": ("Michael Burry", evaluate_burry(state))
-    }
-    
-    active_persona_details = []
-    for p_id in active_personas:
-        if p_id in persona_methods:
-            name, task = persona_methods[p_id]
-            res = await task
-            yield {"type": "persona", "persona": name, "result": res}
-            active_persona_details.append(res)
-            await asyncio.sleep(0.2)
-            
-    # 3. Final verdict synthesis
+
+    # ── Phase 2: Specialist agents (parallel execution) ─────────────
+    yield {"type": "status", "message": "Launching specialist analyst agents..."}
+
+    specialist_tasks = {}
+    for name, agent_func in SPECIALIST_AGENTS.items():
+        specialist_tasks[name] = asyncio.create_task(agent_func(state))
+        await asyncio.sleep(0.2)  # Stagger launches to prevent burst TPM limits
+
+    # Collect results as they complete
+    for name, task in specialist_tasks.items():
+        try:
+            result = await task
+            state["analyst_reports"][name] = result
+            yield {"type": "specialist", "agent": name, "result": result}
+        except Exception as e:
+            logger.error(f"Specialist {name} failed: {e}")
+            fallback = {
+                "agent_id": name,
+                "signal": "Neutral",
+                "confidence": 50,
+                "reasoning": f"Agent analysis incomplete: {str(e)[:80]}",
+                "key_factors": ["Data analysis incomplete"],
+                "data_points": {},
+            }
+            state["analyst_reports"][name] = fallback
+            yield {"type": "specialist", "agent": name, "result": fallback}
+
+    # ── Phase 3: Risk aggregation ────────────────────────────────────
+    yield {"type": "status", "message": "Synthesizing risk-adjusted consensus..."}
+    try:
+        risk_result = await aggregate_risk(state)
+        state["risk_assessment"] = risk_result.get("risk_assessment", {})
+        yield {"type": "risk_assessment", "result": state["risk_assessment"]}
+    except Exception as e:
+        logger.error(f"Risk aggregation failed: {e}")
+        state["risk_assessment"] = {"consensus_signal": "Neutral", "consensus_confidence": 50}
+        yield {"type": "risk_assessment", "result": state["risk_assessment"]}
+
+    # ── Phase 4: Persona agents ───────────────────────────────────────
+    yield {"type": "status", "message": f"Running {len(active_personas)} investor persona agents..."}
+
+    persona_tasks = {}
+    for persona_key in active_personas:
+        if persona_key in PERSONA_REGISTRY:
+            display_name, _, evaluate_func = PERSONA_REGISTRY[persona_key]
+            persona_tasks[persona_key] = (display_name, asyncio.create_task(evaluate_func(state)))
+            await asyncio.sleep(0.3)  # Stagger persona launches
+
+    for persona_key, (display_name, task) in persona_tasks.items():
+        try:
+            result = await task
+            state["persona_reports"][persona_key] = result
+            yield {"type": "persona", "persona": display_name, "result": result}
+        except Exception as e:
+            logger.error(f"Persona {display_name} failed: {e}")
+            fallback = {
+                "persona_name": display_name,
+                "persona": display_name,
+                "agent_id": f"{persona_key}_analyst",
+                "signal": "Neutral",
+                "confidence": 50,
+                "investment_thesis": f"Analysis incomplete: {str(e)[:80]}",
+                "reasoning": "Evaluation incomplete due to transient error.",
+                "risk_warnings": ["Incomplete evaluation"],
+                "key_factors": [],
+            }
+            state["persona_reports"][persona_key] = fallback
+            yield {"type": "persona", "persona": display_name, "result": fallback}
+
+    # ── Phase 5: Final verdict synthesis ─────────────────────────────
     yield {"type": "status", "message": "Synthesizing institutional verdict..."}
-    await asyncio.sleep(0.4)
-    
-    bull_count = 0
-    bear_count = 0
-    reasons = []
-    
-    # Compile scores from personas
-    for p in active_persona_details:
-        if p["signal"] == "Bullish":
-            bull_count += 1
-            reasons.append(f"{p['persona']} is Bullish: {p['reasoning']}")
-        elif p["signal"] == "Bearish":
-            bear_count += 1
-            reasons.append(f"{p['persona']} is Bearish: {p['reasoning']}")
-            
-    # Compile scores from specialists
-    for s_name, s_res in state["analyst_reports"].items():
-        if s_res["signal"] == "Bullish":
-            bull_count += 0.5
-        elif s_res["signal"] == "Bearish":
-            bear_count += 0.5
-            
-    total_score = bull_count - bear_count
-    if total_score > 1.0:
-        verdict = "BUY"
-        color = "text-emerald-400"
-    elif total_score < -1.0:
-        verdict = "SELL"
-        color = "text-red-400"
-    else:
-        verdict = "HOLD"
-        color = "text-yellow-400"
-        
-    summary = f"PortAI final consolidated signal is {verdict}. "
-    if verdict == "BUY":
-        summary += f"Aggregated analysis shows strong long-term conviction led by bullish indicators from {[p['persona'] for p in active_persona_details if p['signal'] == 'Bullish']}."
-    elif verdict == "SELL":
-        summary += f"Severe structural or valuation risks detected. Downside warnings highlighted by {[p['persona'] for p in active_persona_details if p['signal'] == 'Bearish']}."
-    else:
-        summary += "Contrasting signals between growth prospects and high valuations warrant a neutral holding pattern."
-        
-    final_verdict = {
-        "verdict": verdict,
-        "score": round(float(total_score), 2),
-        "summary": summary,
-        "reasons": reasons[:3] # top 3 reasons
+    try:
+        verdict_result = await synthesize_verdict(state)
+        state["final_verdict"] = verdict_result.get("final_verdict", {})
+    except Exception as e:
+        logger.error(f"Verdict synthesis failed: {e}")
+        state["final_verdict"] = {
+            "verdict": "HOLD",
+            "conviction_score": 0,
+            "summary": f"Verdict synthesis incomplete: {str(e)[:80]}",
+            "bull_case": "See individual reports.",
+            "bear_case": "See individual reports.",
+            "key_risks": ["Synthesis incomplete"],
+            "key_catalysts": [],
+            "position_suggestion": "Conservative stance recommended.",
+            "time_horizon": "Medium-term",
+        }
+
+    elapsed = (datetime.now() - start_time).total_seconds()
+    state["final_verdict"]["analysis_time_seconds"] = round(elapsed, 1)
+    state["final_verdict"]["agents_run"] = list(state["analyst_reports"].keys()) + list(state["persona_reports"].keys())
+
+    yield {"type": "final_verdict", "result": state["final_verdict"]}
+
+
+async def run_analysis_sync(
+    ticker: str,
+    exchange: str = "NSE",
+    active_personas: Optional[List[str]] = None,
+) -> dict:
+    """Run the full analysis and return the complete result (non-streaming)."""
+    result = {
+        "analyst_reports": {},
+        "persona_reports": {},
+        "risk_assessment": {},
+        "final_verdict": {},
+        "market_data": {},
     }
-    
-    yield {"type": "final_verdict", "result": final_verdict}
+
+    async for event in run_analysis_stream(ticker, exchange, active_personas):
+        event_type = event.get("type")
+        if event_type == "market_data":
+            result["market_data"] = event.get("data", {})
+        elif event_type == "specialist":
+            result["analyst_reports"][event["agent"]] = event["result"]
+        elif event_type == "risk_assessment":
+            result["risk_assessment"] = event["result"]
+        elif event_type == "persona":
+            result["persona_reports"][event["persona"]] = event["result"]
+        elif event_type == "final_verdict":
+            result["final_verdict"] = event["result"]
+        elif event_type == "error":
+            result["error"] = event.get("message")
+
+    return result

@@ -51,6 +51,8 @@ app.add_middleware(
 # Register routers
 app.include_router(market.router, prefix="/api/market", tags=["Market Data"])
 app.include_router(charts.router, prefix="/api/charts", tags=["Candle Charts"])
+# Compatibility: TradingViewChart fetches /api/history/{symbol}
+app.include_router(charts.router, prefix="/api", tags=["Candle Charts"], include_in_schema=False)
 app.include_router(screener.router, prefix="/api/screener", tags=["Stock Screener"])
 app.include_router(portfolio.router, prefix="/api/portfolio", tags=["Paper Portfolio"])
 app.include_router(broker.router, prefix="/api/broker", tags=["Broker Integration"])

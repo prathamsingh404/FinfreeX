@@ -331,7 +331,14 @@ export default function AlertsPage() {
         <Reveal delay={80} variant="right" className="flex flex-col gap-3">
           <Panel
             label="Telegram delivery"
-            meta={connected ? 'Connected' : 'Not connected'}
+            meta={
+              <div className="flex items-center gap-2">
+                <span>{connected ? 'Connected' : 'Not connected'}</span>
+                <Link href="/telegram" className="text-primary hover:underline text-xs ml-1">
+                  Full Setup →
+                </Link>
+              </div>
+            }
             pad
           >
             <ol className="space-y-2 mb-4">

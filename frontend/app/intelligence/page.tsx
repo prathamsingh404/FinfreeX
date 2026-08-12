@@ -2,20 +2,8 @@
 
 import React, { useState } from 'react'
 import PageShell from '@/components/PageShell'
-import { Card, SectionTitle, Badge, Btn, Change, ProgressBar, fmt } from '@/components/ui/kit'
+import { Card, SectionTitle, Badge, Btn, Change, fmt } from '@/components/ui/kit'
 import { useScreener, useNews } from '@/lib/hooks/useMarketData'
-
-type Sentiment = 'Bullish' | 'Bearish' | 'Neutral'
-
-interface Analysis {
-  summary: string
-  sentiment: Sentiment
-  score: number
-  insights: string[]
-  risks: string[]
-  recommendations: string[]
-  sources: string[]
-}
 
 const SUGGESTED = [
   { label: 'Nifty Outlook', query: 'What is the short-term outlook for Nifty 50?' },
@@ -34,52 +22,6 @@ function hashSeed(s: string) {
   return h
 }
 
-function buildAnalysis(query: string): Analysis {
-  const h = hashSeed(query.toLowerCase())
-  const sentiments: Sentiment[] = ['Bullish', 'Neutral', 'Bearish']
-  const sentiment = sentiments[h % 3]
-  const score = 45 + (h % 45)
-  const topic = query.replace(/[?.]/g, '').split(' ').slice(0, 6).join(' ')
-
-  const bull = [
-    'Momentum indicators remain constructive with price holding above key moving averages.',
-    'Earnings revisions have trended positive over the last two quarters.',
-    'Institutional flows are supportive, with FIIs turning net buyers recently.',
-    'Valuations are reasonable relative to the sector median and historical averages.',
-  ]
-  const bear = [
-    'Elevated valuations leave limited margin of safety at current levels.',
-    'Global macro headwinds and rate uncertainty could compress multiples.',
-    'Near-term earnings visibility is clouded by margin pressure.',
-    'Technical structure shows waning momentum near resistance.',
-  ]
-  const neutral = [
-    'Risk-reward appears balanced; wait for a clearer breakout or pullback.',
-    'Fundamentals are stable but catalysts are limited in the near term.',
-    'Range-bound action likely until the next earnings print.',
-    'Position sizing and staggered entries are prudent here.',
-  ]
-  const pick = sentiment === 'Bullish' ? bull : sentiment === 'Bearish' ? bear : neutral
-
-  return {
-    sentiment,
-    score,
-    summary: `Based on aggregated market data and sentiment signals, the outlook for ${topic} is ${sentiment.toLowerCase()}. Our composite model weighs price trend, breadth, valuation and flows to arrive at a conviction score of ${score}/100. Treat this as a starting framework rather than direct advice.`,
-    insights: [pick[0], pick[1], pick[2]],
-    risks: [
-      'Unexpected policy shifts or global risk-off moves can override the base case.',
-      'Liquidity thins around events; slippage risk rises for larger orders.',
-      'Single-stock concentration amplifies idiosyncratic downside.',
-    ],
-    recommendations: [
-      sentiment === 'Bearish' ? 'Trim exposure into strength and keep dry powder.' : 'Accumulate in tranches rather than a single lump-sum entry.',
-      'Define a stop-loss and position size before entering.',
-      'Revisit the thesis after the next earnings or macro print.',
-    ],
-    sources: ['Market Data', 'Sentiment Model', 'Fundamentals', 'Flow Tracker'],
-  }
-}
-
 export default function IntelligencePage() {
   const { data: screenerData } = useScreener({ universe: 'ALL' })
   const { data: newsData } = useNews('markets')
@@ -89,28 +31,48 @@ export default function IntelligencePage() {
   const news = newsData || []
 
   const [query, setQuery] = useState('')
-  const [analysis, setAnalysis] = useState<Analysis | null>(null)
+  const [aiResponse, setAiResponse] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<'analyst' | 'news' | 'trending'>('analyst')
 
-  function run(q?: string) {
+  async function run(q?: string) {
     const finalQuery = (q ?? query).trim()
     if (!finalQuery) return
     if (q) setQuery(q)
     setLoading(true)
-    setAnalysis(null)
-    setTimeout(() => {
-      setAnalysis(buildAnalysis(finalQuery))
-      setLoading(false)
-    }, 650)
-  }
+    setAiResponse(null)
+    setError(null)
 
-  const sentimentTone = (s: Sentiment): 'primary' | 'coral' | 'amber' => (s === 'Bullish' ? 'primary' : s === 'Bearish' ? 'coral' : 'amber')
+    try {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://backend-jet-mu-37.vercel.app'
+      const res = await fetch(`${API_BASE}/api/ai/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{
+            role: 'user',
+            content: `You are a senior equity research analyst. Provide institutional-grade analysis for the following question. Include: sentiment (Bullish/Bearish/Neutral), key insights, risk factors, and recommended actions. Be specific with data points where possible.\n\nQuery: ${finalQuery}`
+          }]
+        })
+      })
+      const data = await res.json()
+      if (data.answer) {
+        setAiResponse(data.answer)
+      } else {
+        setError('No response received from the AI engine.')
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to reach the AI analysis engine. Check that the backend is running.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <PageShell
       title="AI Intelligence Hub"
-      subtitle="Composite market analysis on any stock or theme — powered by simulated signals"
+      subtitle="Composite market analysis on any stock or theme — powered by multi-agent AI"
       category="AI"
       icon="solar:magic-stick-3-bold-duotone"
     >
@@ -130,7 +92,7 @@ export default function IntelligencePage() {
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <Card className="border-border">
-              <SectionTitle title="Ask the AI Analyst" subtitle="Institutional-grade framing on any Indian stock or theme" icon="solar:chat-round-dots-bold-duotone" />
+              <SectionTitle title="Ask the AI Analyst" subtitle="Institutional-grade framing on any stock or theme" icon="solar:chat-round-dots-bold-duotone" />
               <textarea
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -145,15 +107,15 @@ export default function IntelligencePage() {
                 <Btn variant="primary" onClick={() => run()} disabled={loading || !query.trim()} className="flex-1 justify-center">
                   {loading ? 'Analyzing…' : 'Get AI Analysis'}
                 </Btn>
-                {analysis && (
-                  <Btn variant="ghost" onClick={() => { setAnalysis(null); setQuery('') }}>
+                {aiResponse && (
+                  <Btn variant="ghost" onClick={() => { setAiResponse(null); setError(null); setQuery('') }}>
                     Reset
                   </Btn>
                 )}
               </div>
             </Card>
 
-            {!analysis && !loading && (
+            {!aiResponse && !loading && !error && (
               <div>
                 <p className="text-xs text-soft font-semibold mb-3">Suggested analyses</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -173,71 +135,36 @@ export default function IntelligencePage() {
             {loading && (
               <Card className="border-border">
                 <div className="flex items-center gap-3 text-soft text-sm">
-                  <span className="w-2 h-2 rounded-full bg-primary" />
-                  Aggregating market data and sentiment signals…
+                  <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                  Connecting to AI analysis engine — processing your query…
                 </div>
               </Card>
             )}
 
-            {analysis && (
+            {error && (
+              <Card className="border-border border-coral/30">
+                <div className="flex items-start gap-3">
+                  <iconify-icon icon="solar:danger-triangle-bold" class="text-coral shrink-0 mt-0.5" width="16"></iconify-icon>
+                  <div>
+                    <h4 className="text-sm font-semibold text-coral mb-1">Analysis failed</h4>
+                    <p className="text-sm text-soft">{error}</p>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {aiResponse && (
               <div className="space-y-4 fade-up">
-                <div className="flex items-center flex-wrap gap-2">
-                  <span className="text-[11px] text-soft font-semibold">Aggregated via</span>
-                  {analysis.sources.map((s) => (
-                    <Badge key={s} tone="amber">{s}</Badge>
-                  ))}
-                </div>
-
                 <Card className="border-border">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-base font-bold text-foreground">Analysis Summary</h3>
-                    <Badge tone={sentimentTone(analysis.sentiment)}>{analysis.sentiment} Signal</Badge>
+                  <div className="flex items-center gap-2 text-primary font-semibold text-sm mb-4">
+                    <iconify-icon icon="solar:magic-stick-3-bold" class="text-primary shrink-0" width="18"></iconify-icon>
+                    AI Analysis Response
                   </div>
-                  <div className="flex items-center gap-3 mb-4">
-                    <span className="text-xs text-soft">Conviction</span>
-                    <div className="flex-1"><ProgressBar value={analysis.score} tone={sentimentTone(analysis.sentiment)} /></div>
-                    <span className="text-xs font-bold text-foreground tabular-nums">{analysis.score}/100</span>
-                  </div>
-                  <p className="text-sm text-soft leading-relaxed">{analysis.summary}</p>
-                </Card>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <Card className="border-border">
-                    <SectionTitle title="Key Insights" icon="solar:lightbulb-bold-duotone" />
-                    <ul className="space-y-2">
-                      {analysis.insights.map((ins, i) => (
-                        <li key={i} className="flex gap-2 text-sm text-soft leading-relaxed">
-                          <iconify-icon icon="solar:check-circle-bold" class="text-primary shrink-0 mt-0.5"></iconify-icon>
-                          {ins}
-                        </li>
-                      ))}
-                    </ul>
-                  </Card>
-                  <Card className="border-border">
-                    <SectionTitle title="Risk Factors" icon="solar:danger-triangle-bold-duotone" />
-                    <ul className="space-y-2">
-                      {analysis.risks.map((r, i) => (
-                        <li key={i} className="flex gap-2 text-sm text-soft leading-relaxed">
-                          <iconify-icon icon="solar:close-circle-bold" class="text-coral shrink-0 mt-0.5"></iconify-icon>
-                          {r}
-                        </li>
-                      ))}
-                    </ul>
-                  </Card>
-                </div>
-
-                <Card className="border-border">
-                  <SectionTitle title="Recommended Actions" icon="solar:target-bold-duotone" />
-                  <div className="space-y-2">
-                    {analysis.recommendations.map((rec, i) => (
-                      <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-surface border border-border">
-                        <div className="w-5 h-5 rounded bg-primary text-[var(--on-primary)] flex items-center justify-center text-[10px] font-bold shrink-0">{i + 1}</div>
-                        <div className="text-sm text-foreground">{rec}</div>
-                      </div>
-                    ))}
+                  <div className="prose prose-invert max-w-none text-soft text-sm leading-relaxed whitespace-pre-wrap">
+                    {aiResponse}
                   </div>
                 </Card>
-                <p className="text-[11px] text-muted">This is a simulated model for demonstration and is not investment advice.</p>
+                <p className="text-[11px] text-muted">AI-generated analysis. Not investment advice. Verify independently.</p>
               </div>
             )}
           </div>

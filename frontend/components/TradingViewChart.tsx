@@ -220,20 +220,12 @@ export default function TradingViewChart({ symbol: initialSymbol = 'BTCUSD', exc
       if (data && data.news && data.news.length > 0) {
         setNews(data.news.slice(0, 4));
       } else {
-        setNews([
-          { title: `${activeMetadata.name} analysis report highlights target growth`, source: 'Mint', link: '#' },
-          { title: `Analysts upgrade ${symbol} following quarterly financial statement`, source: 'Moneycontrol', link: '#' },
-          { title: `Sector overview: Why ${activeMetadata.sector} shares are rising today`, source: 'Bloomberg', link: '#' },
-        ]);
+        setNews([]);
       }
     } catch {
-      setNews([
-        { title: `${activeMetadata.name} analysis report highlights target growth`, source: 'Mint', link: '#' },
-        { title: `Analysts upgrade ${symbol} following quarterly financial statement`, source: 'Moneycontrol', link: '#' },
-        { title: `Sector overview: Why ${activeMetadata.sector} shares are rising today`, source: 'Bloomberg', link: '#' },
-      ]);
+      setNews([]);
     }
-  }, [symbol, activeMetadata.name, activeMetadata.sector]);
+  }, [symbol]);
 
   // Fetch stock/crypto historical candles.
   // A chart that silently invents prices when the feed is down is worse than
@@ -242,7 +234,7 @@ export default function TradingViewChart({ symbol: initialSymbol = 'BTCUSD', exc
     setLoading(true);
     setDataError(null);
     try {
-      const response = await fetch(`${API}/api/history/${symbol}?period=${period}`);
+      const response = await fetch(`${API}/api/history/${symbol}?period=${period}&exchange=${exchange}`);
       const res = await response.json();
       if (res.error || !res.history || res.history.length === 0) {
         setData([]);
@@ -252,14 +244,24 @@ export default function TradingViewChart({ symbol: initialSymbol = 'BTCUSD', exc
             : `No price history returned for ${symbol} over ${period}.`
         );
       } else {
-        const history = res.history.map((d: any) => ({
-          time: d.date,
-          open: d.open,
-          high: d.high,
-          low: d.low,
-          close: d.close,
-          volume: d.volume
-        }));
+        const rawHistory = res.history || [];
+        const seenTimes = new Set();
+        const history: OHLCData[] = [];
+        for (const d of rawHistory) {
+          const t = d.time ?? d.date;
+          if (t != null && !seenTimes.has(t)) {
+            seenTimes.add(t);
+            history.push({
+              time: t,
+              open: d.open,
+              high: d.high,
+              low: d.low,
+              close: d.close,
+              volume: d.volume,
+            });
+          }
+        }
+        history.sort((a: any, b: any) => (a.time > b.time ? 1 : a.time < b.time ? -1 : 0));
         setData(history);
       }
     } catch (err: any) {
@@ -268,7 +270,7 @@ export default function TradingViewChart({ symbol: initialSymbol = 'BTCUSD', exc
     } finally {
       setLoading(false);
     }
-  }, [symbol, period]);
+  }, [symbol, period, exchange]);
 
   // 1. Initialize lightweight-chart ONCE
   useEffect(() => {

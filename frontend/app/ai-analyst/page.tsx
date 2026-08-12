@@ -395,8 +395,8 @@ function AnalystWorkspace() {
             <div className="mx-auto max-w-3xl">
               {!hasSession ? (
                 <div className="pt-[12vh]">
-                  <h1 className="text-2xl font-semibold tracking-tight text-balance">Research assistant</h1>
-                  <p className="text-soft mt-2.5 max-w-lg text-pretty text-[15px] leading-relaxed">
+                  <h1 className="text-3xl font-semibold tracking-tight text-balance">Research assistant</h1>
+                  <p className="text-soft mt-3 max-w-lg text-pretty text-base leading-relaxed">
                     Name a company and six models review it independently — technical, fundamental,
                     macro, news, valuation and risk. You see each conclusion and the reasoning behind it.
                   </p>
@@ -423,25 +423,25 @@ function AnalystWorkspace() {
                   </div>
                 </div>
               ) : (
-                <div className="pt-4 space-y-5">
+                <div className="pt-6 space-y-8">
                   {/* Query + progress */}
                   <div>
                     <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted mb-2">
                       {running ? 'Running' : 'Complete'}
                     </div>
                     <div className="flex items-start justify-between gap-4">
-                      <h1 className="text-xl font-semibold tracking-tight text-balance">{query}</h1>
+                      <h1 className="text-2xl font-semibold tracking-tight text-balance">{query}</h1>
                       {verdict && <SignalBadge signal={verdict.signal} />}
                     </div>
 
                     {/* Stage rail */}
-                    <div className="mt-4 flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+                    <div className="mt-5 flex items-center gap-2 overflow-x-auto scrollbar-hide">
                       {PIPELINE.map((p, i) => {
                         const state = i < stage ? 'done' : i === stage && running ? 'active' : i === stage ? 'done' : 'pending'
                         return (
                           <React.Fragment key={p}>
                             <div
-                              className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10.5px] whitespace-nowrap border transition-colors ${
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] whitespace-nowrap border transition-colors ${
                                 state === 'done'
                                   ? 'bg-hover border-border text-soft'
                                   : state === 'active'
@@ -498,15 +498,15 @@ function AnalystWorkspace() {
                   {/* Model results */}
                   {agentList.length > 0 && (
                     <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <h2 className="text-sm font-semibold text-foreground">Models</h2>
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-base font-semibold text-foreground">Models</h2>
                         {doneAgents.length > 0 && (
                           <span className="text-[11px] text-muted">
                             {doneAgents.length}/{agentList.length} reported
                           </span>
                         )}
                       </div>
-                      <div className="grid sm:grid-cols-2 gap-3">
+                      <div className="grid sm:grid-cols-2 gap-4">
                         {SPECIALISTS.map((s) => agents[s.key] && <AgentCard key={s.key} agent={agents[s.key]} />)}
                       </div>
                       {doneAgents.length >= 2 && (
@@ -521,15 +521,15 @@ function AnalystWorkspace() {
                   {/* Investor personas */}
                   {personas.length > 0 && (
                     <div>
-                      <h2 className="text-sm font-semibold text-foreground mb-3">Investor styles</h2>
-                      <div className="grid sm:grid-cols-2 gap-3">
+                      <h2 className="text-base font-semibold text-foreground mb-4">Investor styles</h2>
+                      <div className="grid sm:grid-cols-2 gap-4">
                         {personas.map((p) => (
-                          <div key={p.name} className="rounded-md bg-surface border border-border p-4">
-                            <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-[13px] font-semibold text-foreground capitalize">{p.name}</span>
+                          <div key={p.name} className="rounded-xl bg-surface border border-border p-5">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-semibold text-foreground capitalize">{p.name}</span>
                               {p.signal && <SignalBadge signal={p.signal} />}
                             </div>
-                            {p.reason && <p className="text-xs text-soft leading-relaxed">{p.reason}</p>}
+                            {p.reason && <p className="text-[13px] text-soft leading-relaxed">{p.reason}</p>}
                           </div>
                         ))}
                       </div>
@@ -567,7 +567,7 @@ function AnalystWorkspace() {
           {/* Follow-up input pinned to bottom once a session exists */}
           {hasSession && (
             <div className="shrink-0 border-t border-border bg-background px-4 sm:px-6 py-3">
-              <div className="mx-auto max-w-3xl">
+              <div className="mx-auto max-w-4xl">
                 <AIPromptInput size="md" placeholder="Analyze another company" onSubmit={run} />
               </div>
             </div>

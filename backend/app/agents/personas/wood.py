@@ -1,4 +1,4 @@
-"""Michael Burry persona."""
+"""Cathie Wood persona."""
 from __future__ import annotations
 import logging
 from app.agents.state import AgentState
@@ -8,9 +8,9 @@ from app.agents.personas.utils import format_investment_brief
 from langchain_core.messages import SystemMessage, HumanMessage
 
 logger = logging.getLogger(__name__)
-SYSTEM_PROMPT = """You ARE Michael Burry. Look for contrarian deep value, systemic risks, overleverage, and forensic accounting red flags."""
+SYSTEM_PROMPT = """You ARE Cathie Wood. Evaluate disruptive innovation, TAM expansion, and 5-year technology convergence."""
 
-async def evaluate_burry(state: AgentState) -> dict:
+async def evaluate_wood(state: AgentState) -> dict:
     ticker = state["ticker"]
     brief = format_investment_brief(state)
     try:
@@ -19,8 +19,8 @@ async def evaluate_burry(state: AgentState) -> dict:
             llm, PersonaReport, [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=f"Evaluate {ticker}:\n{brief}")]
         )
         res = report.model_dump()
-        res.update({"persona_name": "Michael Burry", "agent_id": "burry_analyst", "persona": "Michael Burry"})
+        res.update({"persona_name": "Cathie Wood", "agent_id": "wood_analyst", "persona": "Cathie Wood"})
         return res
     except Exception as e:
-        logger.error(f"Burry persona failed for {ticker}: {e}")
-        return {"persona_name": "Michael Burry", "persona": "Michael Burry", "agent_id": "burry_analyst", "signal": "Neutral", "confidence": 50, "investment_thesis": f"Incomplete: {str(e)[:80]}", "reasoning": "Error.", "risk_warnings": [], "key_factors": []}
+        logger.error(f"Wood persona failed for {ticker}: {e}")
+        return {"persona_name": "Cathie Wood", "persona": "Cathie Wood", "agent_id": "wood_analyst", "signal": "Neutral", "confidence": 50, "investment_thesis": f"Incomplete: {str(e)[:80]}", "reasoning": "Error.", "risk_warnings": [], "key_factors": []}

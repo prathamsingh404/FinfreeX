@@ -1,49 +1,26 @@
+"""Benjamin Graham persona."""
+from __future__ import annotations
+import logging
 from app.agents.state import AgentState
-from app.agents.llm import get_llm
+from app.agents.llm import get_llm, invoke_structured_with_retry
+from app.agents.models import PersonaReport
+from app.agents.personas.utils import format_investment_brief
 from langchain_core.messages import SystemMessage, HumanMessage
-import json
+
+logger = logging.getLogger(__name__)
+SYSTEM_PROMPT = """You ARE Benjamin Graham. Evaluate this stock using net-net, margin of safety, and quantitative value principles."""
 
 async def evaluate_graham(state: AgentState) -> dict:
-    """Evaluate stock from a Benjamin Graham margin-of-safety value perspective."""
-    info = state["market_data"]
-    pe = info.get("pe_ratio")
-    pb = info.get("pb_ratio")
-    
-    # Fallback rules
-    signal = "Neutral"
-    confidence = 50
-    reasons = []
-    
-    if pe is not None and pb is not None:
-        graham_number = pe * pb
-        if graham_number < 22.5 and pe > 0 and pb > 0:
-            reasons.append(f"Graham multiplier (PE*PB = {graham_number:.2f}) is below 22.5 threshold, indicating strong margin of safety")
-            signal = "Bullish"
-            confidence += 25
-        elif graham_number > 50.0:
-            reasons.append(f"Graham multiplier ({graham_number:.2f}) is high, indicating an expensive equity purchase")
-            signal = "Bearish"
-            confidence += 15
-            
-    reasoning = "; ".join(reasons) if reasons else "Multiple valuations are too high or lack of book value coordinates."
-    fallback_res = {"persona": "Benjamin Graham", "signal": signal, "confidence": min(confidence, 100), "reasoning": reasoning}
-    
-    llm = get_llm()
-    if llm.__class__.__name__ != "MockChatModel":
-        try:
-            sys_msg = SystemMessage(content="""You are Benjamin Graham, the father of value investing. Evaluate this stock using your strict margin of safety investing philosophy (low P/E, low P/B, debt security, and solid assets backing). Return a JSON dictionary.
-Your output must be EXACTLY:
-{"signal": "Bullish" | "Bearish" | "Neutral", "confidence": 0-100, "reasoning": "detailed 2-sentence rationale written in your academic, conservative, and analytical tone"}""")
-            user_msg = HumanMessage(content=f"Company: {info.get('company_name')}\nP/E: {pe}, P/B: {pb}")
-            res = await llm.ainvoke([sys_msg, user_msg])
-            data = json.loads(res.content.strip())
-            return {
-                "persona": "Benjamin Graham",
-                "signal": data.get("signal", fallback_res["signal"]),
-                "confidence": int(data.get("confidence", fallback_res["confidence"])),
-                "reasoning": data.get("reasoning", fallback_res["reasoning"])
-            }
-        except:
-            pass
-            
-    return fallback_res
+    ticker = state["ticker"]
+    brief = format_investment_brief(state)
+    try:
+        llm = get_llm("reasoning")
+        report: PersonaReport = await invoke_structured_with_retry(
+            llm, PersonaReport, [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=f"Evaluate {ticker}:\n{brief}")]
+        )
+        res = report.model_dump()
+        res.update({"persona_name": "Benjamin Graham", "agent_id": "graham_analyst", "persona": "Benjamin Graham"})
+        return res
+    except Exception as e:
+        logger.error(f"Graham persona failed for {ticker}: {e}")
+        return {"persona_name": "Benjamin Graham", "persona": "Benjamin Graham", "agent_id": "graham_analyst", "signal": "Neutral", "confidence": 50, "investment_thesis": f"Incomplete: {str(e)[:80]}", "reasoning": "Error.", "risk_warnings": [], "key_factors": []}
