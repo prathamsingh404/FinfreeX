@@ -6,7 +6,7 @@
 
 > Hedge-fund quality analysis for every Indian retail investor
 
-PortAI is a full-stack AI-powered financial intelligence platform that brings the tools of professional portfolio managers, quant analysts, and institutional hedge funds to the fingertips of everyday investors. Built with a FastAPI backend and a Next.js frontend, it combines real-time market data, multi-agent AI analysis, and advanced charting into one unified platform.
+PortAI is a full-stack AI-powered financial intelligence platform that brings the tools of professional portfolio managers, quant analysts, and institutional hedge funds to the fingertips of everyday investors. Built with a FastAPI backend and a Next.js frontend, it combines real-time market data, multi-agent AI analysis, and advanced charting into one unified platform. 
 
 ---
 
